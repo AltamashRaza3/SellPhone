@@ -1,6 +1,6 @@
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch,useSelector } from "react-redux";
 import { onAuthStateChanged } from "firebase/auth";
 import { setUser, clearUser } from "./redux/slices/userSlice";
 import { auth } from "./utils/firebase";
@@ -8,7 +8,7 @@ import { auth } from "./utils/firebase";
 import ScrollToTop from "./components/ScrollToTop";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
-
+import { setPhones } from "./redux/slices/phonesSlice";
 import Home from "./pages/Home";
 import SalePhone from "./pages/SalePhone";
 import PhoneDetails from "./pages/PhoneDetails";
@@ -25,12 +25,15 @@ import AdminProtectedRoute from "./components/AdminProtectedRoute";
 import { Toaster } from "react-hot-toast";
 
 /* 🔐 Admin Pages */
-import AdminLogin from "./pages/admin/AdminLogin";
-import AdminLayout from "./pages/admin/AdminLayout";
-import AdminDashboard from "./pages/admin/AdminDashboard";
-import AdminOrders from "./pages/admin/AdminOrder";
-import AdminUsers from "./pages/admin/AdminUsers";
-import AdminSellPhones from "./pages/admin/AdminSellPhone";
+import AdminProducts from "./pages/Admin/AdminProducts";
+import AdminAddProduct from "./pages/Admin/AdminAddProduct";
+import AdminLogin from "./pages/Admin/AdminLogin";
+import AdminLayout from "./pages/Admin/AdminLayout";
+import AdminDashboard from "./pages/Admin/AdminDashboard";
+import AdminOrders from "./pages/Admin/AdminOrder";
+import AdminUsers from "./pages/Admin/AdminUsers";
+import AdminSellPhones from "./pages/Admin/AdminSellPhone";
+import AdminEditProduct from "./pages/Admin/AdminEditProduct";
 
 const App = () => {
   const dispatch = useDispatch();
@@ -53,6 +56,16 @@ const App = () => {
 
     return () => unsubscribe();
   }, [dispatch]);
+
+  const adminProducts = useSelector(
+    (state) => state.adminProducts?.products || []
+  );
+
+  useEffect(() => {
+    const activeProducts = adminProducts.filter((p) => p?.isActive !== false);
+
+    dispatch(setPhones(activeProducts));
+  }, [adminProducts, dispatch]);
 
   if (!authLoaded) {
     return (
@@ -87,6 +100,9 @@ const App = () => {
           <Route path="orders" element={<AdminOrders />} />
           <Route path="users" element={<AdminUsers />} />
           <Route path="sell-phones" element={<AdminSellPhones />} />
+          <Route path="products" element={<AdminProducts />} />
+          <Route path="products/add" element={<AdminAddProduct />} />
+          <Route path="products/edit/:id" element={<AdminEditProduct />} />
         </Route>
 
         {/* ================= USER ROUTES ================= */}

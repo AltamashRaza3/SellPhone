@@ -1,15 +1,11 @@
 import { useSelector } from "react-redux";
 import { Navigate } from "react-router-dom";
 
-const ADMIN_EMAIL = "admin@salephone.com";
-
 const AdminProtectedRoute = ({ children }) => {
-  const user = useSelector((state) => state.user.user);
+  const admin = useSelector((state) => state.admin.admin);
 
-  if (!user) return <Navigate to="/admin/login" replace />;
-
-  if (user.email !== ADMIN_EMAIL) {
-    return <Navigate to="/" replace />;
+  if (!admin) {
+    return <Navigate to="/admin/login" replace />;
   }
 
   return children;
