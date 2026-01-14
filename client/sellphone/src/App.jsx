@@ -1,14 +1,20 @@
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { useDispatch,useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 import { onAuthStateChanged } from "firebase/auth";
-import { setUser, clearUser } from "./redux/slices/userSlice";
 import { auth } from "./utils/firebase";
+
+import { setUser, clearUser } from "./redux/slices/userSlice";
+import {
+  setPhones,
+  setPhonesLoading,
+  setPhonesError,
+} from "./redux/slices/phonesSlice";
 
 import ScrollToTop from "./components/ScrollToTop";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
-import { setPhones } from "./redux/slices/phonesSlice";
+
 import Home from "./pages/Home";
 import SalePhone from "./pages/SalePhone";
 import PhoneDetails from "./pages/PhoneDetails";
@@ -24,7 +30,7 @@ import AdminProtectedRoute from "./components/AdminProtectedRoute";
 
 import { Toaster } from "react-hot-toast";
 
-/* 🔐 Admin Pages */
+/* Admin Pages */
 import AdminProducts from "./pages/Admin/AdminProducts";
 import AdminAddProduct from "./pages/Admin/AdminAddProduct";
 import AdminLogin from "./pages/Admin/AdminLogin";
@@ -40,10 +46,9 @@ const App = () => {
   const location = useLocation();
   const [authLoaded, setAuthLoaded] = useState(false);
 
-  /* Detect admin routes */
   const isAdminRoute = location.pathname.startsWith("/admin");
 
-  /* Firebase Auth Listener */
+  /* ---------------- FIREBASE AUTH ---------------- */
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
@@ -57,15 +62,27 @@ const App = () => {
     return () => unsubscribe();
   }, [dispatch]);
 
-  const adminProducts = useSelector(
-    (state) => state.adminProducts?.products || []
-  );
-
+  /* ---------------- FETCH PRODUCTS FROM BACKEND ---------------- */
   useEffect(() => {
-    const activeProducts = adminProducts.filter((p) => p?.isActive !== false);
+    const fetchProducts = async () => {
+      dispatch(setPhonesLoading());
 
-    dispatch(setPhones(activeProducts));
-  }, [adminProducts, dispatch]);
+      try {
+        const res = await fetch("http://localhost:5000/api/products");
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.message || "Failed to load products");
+        }
+
+        dispatch(setPhones(data));
+      } catch (error) {
+        dispatch(setPhonesError(error.message));
+      }
+    };
+
+    fetchProducts();
+  }, [dispatch]);
 
   if (!authLoaded) {
     return (
@@ -77,17 +94,16 @@ const App = () => {
 
   return (
     <>
-      {/* Hide Navbar on Admin */}
       {!isAdminRoute && <Navbar />}
 
       <ScrollToTop />
       <Toaster position="top-right" />
 
       <Routes>
-        {/* ================= ADMIN LOGIN ================= */}
+        {/* ADMIN LOGIN */}
         <Route path="/admin/login" element={<AdminLogin />} />
 
-        {/* ================= ADMIN ROUTES ================= */}
+        {/* ADMIN ROUTES */}
         <Route
           path="/admin"
           element={
@@ -105,7 +121,7 @@ const App = () => {
           <Route path="products/edit/:id" element={<AdminEditProduct />} />
         </Route>
 
-        {/* ================= USER ROUTES ================= */}
+        {/* USER ROUTES */}
         <Route path="/" element={<Home />} />
         <Route path="/auth" element={<Auth />} />
         <Route path="/phone/:id" element={<PhoneDetails />} />
@@ -164,11 +180,9 @@ const App = () => {
           }
         />
 
-        {/* ================= FALLBACK ================= */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
 
-      {/* Hide Footer on Admin */}
       {!isAdminRoute && <Footer />}
     </>
   );

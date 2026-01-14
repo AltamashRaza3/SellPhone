@@ -1,20 +1,12 @@
 import { useState } from "react";
-import { signInWithEmailAndPassword, signOut } from "firebase/auth";
-import { auth } from "../../utils/firebase";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
-import { useDispatch } from "react-redux";
-import { setAdmin } from "../../redux/slices/adminSlice";
-
-/* 🔐 Allowed Admin Email */
-const ADMIN_EMAIL = "admin@salephone.com";
 
 const AdminLogin = () => {
-  const dispatch = useDispatch();
   const navigate = useNavigate();
 
   const [form, setForm] = useState({
-    email: ADMIN_EMAIL,
+    email: "admin@sellphone.com",
     password: "",
   });
 
@@ -31,12 +23,10 @@ const AdminLogin = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     if (loading) return;
 
     const { email, password } = form;
 
-    /* Basic validation */
     if (!email || !password) {
       toast.error("All fields are required");
       return;
@@ -45,47 +35,36 @@ const AdminLogin = () => {
     setLoading(true);
 
     try {
-      const res = await signInWithEmailAndPassword(auth, email, password);
+      const res = await fetch("http://localhost:5000/api/admin/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include", // 🔥 REQUIRED FOR COOKIE
+        body: JSON.stringify({ email, password }),
+      });
 
-      /* 🔒 Hard admin check */
-      if (res.user.email !== ADMIN_EMAIL) {
-        toast.error("Admin access only");
-        await signOut(auth);
-        setLoading(false);
-        return;
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || "Login failed");
       }
-
-      /* ✅ Persist admin session */
-      const adminData = {
-        uid: res.user.uid,
-        email: res.user.email,
-        role: "admin",
-        loggedInAt: Date.now(),
-      };
-
-      dispatch(setAdmin(adminData));
-      localStorage.setItem("admin", JSON.stringify(adminData));
 
       toast.success("Admin dashboard unlocked");
       navigate("/admin", { replace: true });
-    } catch (error) {
-      console.error(error);
-      toast.error("Invalid admin credentials");
+    } catch (err) {
+      toast.error(err.message);
     } finally {
       setLoading(false);
     }
   };
 
-  /* -------------------- UI -------------------- */
+  /* -------------------- UI (UNCHANGED) -------------------- */
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-black via-gray-900 to-black relative overflow-hidden">
-      {/* Background */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_80%,rgba(120,119,198,0.3),transparent),radial-gradient(circle_at_80%_20%,rgba(255,119,198,0.3),transparent),radial-gradient(circle_at_40%_40%,rgba(120,219,255,0.3),transparent)]" />
 
       <div className="relative z-10 flex items-center justify-center min-h-screen px-4 py-20">
         <div className="w-full max-w-lg">
-          {/* Header */}
           <div className="text-center mb-20">
             <div className="inline-flex items-center gap-4 bg-white/10 backdrop-blur-lg rounded-3xl px-8 py-6 border border-white/20 mb-8 mx-auto shadow-xl">
               <div className="w-14 h-14 bg-gradient-to-br from-red-600 to-amber-600 rounded-xl flex items-center justify-center shadow-2xl">
@@ -108,10 +87,8 @@ const AdminLogin = () => {
             </div>
           </div>
 
-          {/* Card */}
           <div className="bg-black/30 backdrop-blur-3xl border border-white/15 rounded-3xl p-12 shadow-2xl">
             <form onSubmit={handleSubmit} className="space-y-10">
-              {/* Email */}
               <div>
                 <label className="block text-sm font-semibold text-white/80 uppercase mb-3">
                   Admin Email
@@ -126,7 +103,6 @@ const AdminLogin = () => {
                 />
               </div>
 
-              {/* Password */}
               <div>
                 <label className="block text-sm font-semibold text-white/80 uppercase mb-3">
                   Password
@@ -142,7 +118,6 @@ const AdminLogin = () => {
                 />
               </div>
 
-              {/* Button */}
               <button
                 type="submit"
                 disabled={loading}

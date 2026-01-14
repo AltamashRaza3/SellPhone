@@ -12,11 +12,15 @@ const PhoneDetails = () => {
   const { id } = useParams();
   const dispatch = useDispatch();
 
-  const phoneList = useSelector((state) => state.phones.list);
+  // ✅ FIXED: correct Redux state key
+  const phoneList = useSelector((state) =>
+    Array.isArray(state.phones?.items) ? state.phones.items : []
+  );
+
   const phone = useSelector((state) => state.selectedPhone.phone);
 
   useEffect(() => {
-    if (!phoneList || phoneList.length === 0) return;
+    if (phoneList.length === 0) return;
 
     const foundPhone = phoneList.find(
       (item) => String(item._id) === String(id)
@@ -26,7 +30,9 @@ const PhoneDetails = () => {
       dispatch(setSelectedPhone(foundPhone));
     }
 
-    return () => dispatch(clearSelectedPhone());
+    return () => {
+      dispatch(clearSelectedPhone());
+    };
   }, [id, phoneList, dispatch]);
 
   if (!phone) {
@@ -45,7 +51,7 @@ const PhoneDetails = () => {
         <div className="bg-gray-50 rounded-2xl p-8 flex items-center justify-center">
           <img
             src={phone.image}
-            alt={phone.model}
+            alt={`${phone.brand} ${phone.model}`}
             className="h-96 object-contain"
           />
         </div>
@@ -71,6 +77,16 @@ const PhoneDetails = () => {
                 {phone.condition}
               </span>
             </p>
+            {phone.ram && (
+              <p>
+                RAM: <strong>{phone.ram}</strong>
+              </p>
+            )}
+            {phone.color && (
+              <p>
+                Color: <strong>{phone.color}</strong>
+              </p>
+            )}
           </div>
 
           {/* PRICE */}

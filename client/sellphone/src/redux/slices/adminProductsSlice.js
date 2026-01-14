@@ -1,20 +1,35 @@
 import { createSlice } from "@reduxjs/toolkit";
 import { setPhones } from "./phonesSlice";
 
-const initialState = {
-  products: [],
+/* ================== LOCAL STORAGE ================== */
+const STORAGE_KEY = "adminProducts";
+
+const loadFromStorage = () => {
+  try {
+    const data = localStorage.getItem(STORAGE_KEY);
+    return data ? JSON.parse(data) : [];
+  } catch {
+    return [];
+  }
 };
 
+const saveToStorage = (products) => {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(products));
+};
+
+/* ================== INITIAL STATE ================== */
+const initialState = {
+  products: loadFromStorage(),
+};
+
+/* ================== SLICE ================== */
 const adminProductsSlice = createSlice({
   name: "adminProducts",
   initialState,
   reducers: {
-    setAdminProducts: (state, action) => {
-      state.products = action.payload || [];
-    },
-
     addProduct: (state, action) => {
       state.products.unshift(action.payload);
+      saveToStorage(state.products);
     },
 
     updateProduct: (state, action) => {
@@ -23,6 +38,7 @@ const adminProductsSlice = createSlice({
       );
       if (index !== -1) {
         state.products[index] = action.payload;
+        saveToStorage(state.products);
       }
     },
 
@@ -30,6 +46,7 @@ const adminProductsSlice = createSlice({
       state.products = state.products.filter(
         (p) => p._id !== action.payload
       );
+      saveToStorage(state.products);
     },
 
     toggleProduct: (state, action) => {
@@ -38,13 +55,13 @@ const adminProductsSlice = createSlice({
       );
       if (product) {
         product.isActive = !product.isActive;
+        saveToStorage(state.products);
       }
     },
   },
 });
 
 export const {
-  setAdminProducts,
   addProduct,
   updateProduct,
   deleteProduct,
@@ -54,17 +71,17 @@ export const {
 export default adminProductsSlice.reducer;
 
 /* ======================================================
-   ✅ ADMIN → PUBLIC BRIDGE (THUNKS)
+   🔁 ADMIN → PUBLIC BRIDGE (SOURCE OF TRUTH)
    ====================================================== */
 
 const publishToPublic = (getState, dispatch) => {
   const { adminProducts } = getState();
 
-  const publicProducts = adminProducts.products.filter(
+  const activeProducts = adminProducts.products.filter(
     (p) => p.isActive !== false
   );
 
-  dispatch(setPhones(publicProducts));
+  dispatch(setPhones(activeProducts));
 };
 
 /* CREATE */
@@ -80,13 +97,13 @@ export const updateProductAndPublish = (product) => (dispatch, getState) => {
 };
 
 /* DELETE */
-export const deleteProductAndPublish = (productId) => (dispatch, getState) => {
-  dispatch(deleteProduct(productId));
+export const deleteProductAndPublish = (id) => (dispatch, getState) => {
+  dispatch(deleteProduct(id));
   publishToPublic(getState, dispatch);
 };
 
-/* TOGGLE VISIBILITY */
-export const toggleProductAndPublish = (productId) => (dispatch, getState) => {
-  dispatch(toggleProduct(productId));
+/* TOGGLE */
+export const toggleProductAndPublish = (id) => (dispatch, getState) => {
+  dispatch(toggleProduct(id));
   publishToPublic(getState, dispatch);
 };

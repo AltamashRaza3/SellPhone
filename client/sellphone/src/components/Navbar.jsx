@@ -4,35 +4,49 @@ import { useSelector, useDispatch } from "react-redux";
 import { auth } from "../utils/firebase";
 import { clearUser } from "../redux/slices/userSlice";
 import { removeFromCart, clearCart } from "../redux/slices/cartSlice";
-import { FiSearch, FiMenu, FiX } from "react-icons/fi";
+import {
+  FiSearch,
+  FiMenu,
+  FiX,
+  FiPhone,
+  FiShoppingCart,
+  FiUser,
+  FiPackage,
+} from "react-icons/fi";
 import { toast } from "react-hot-toast";
 
 const Navbar = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
-  const user = useSelector((state) => state.user.user);
-  const cartItems = useSelector((state) => state.cart.items);
-  const phones = useSelector((state) => state.phones.list);
+  /* ================= SAFE SELECTORS ================= */
+  const user = useSelector((state) => state.user?.user);
+  const cartItems = useSelector((state) =>
+    Array.isArray(state.cart?.items) ? state.cart.items : []
+  );
+  const phones = useSelector((state) =>
+    Array.isArray(state.phones?.list) ? state.phones.list : []
+  );
 
+  /* ================= STATE ================= */
   const [search, setSearch] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [showDesktopCart, setShowDesktopCart] = useState(false);
-  const [showMobileCart, setShowMobileCart] = useState(false);
   const [mobileMenu, setMobileMenu] = useState(false);
 
-  const cartCount = cartItems.reduce((total, item) => total + item.quantity, 0);
+  const cartCount = cartItems.reduce((t, i) => t + i.quantity, 0);
 
   const cartRef = useRef(null);
   const suggestionRef = useRef(null);
 
-  // Logout
+  /* ================= LOGOUT ================= */
   const handleLogout = async () => {
     try {
       await auth.signOut();
       dispatch(clearUser());
       dispatch(clearCart());
-      toast.success("Logged out successfully");
+      toast.success("Logged out");
+      setMobileMenu(false);
       navigate("/auth");
     } catch (err) {
       toast.error(err.message);
@@ -44,7 +58,7 @@ const Navbar = () => {
     toast.success("Item removed");
   };
 
-  // Search Suggestions
+  /* ================= SEARCH ================= */
   const suggestions =
     search.trim().length === 0
       ? []
@@ -55,296 +69,265 @@ const Navbar = () => {
           .slice(0, 5);
 
   useEffect(() => {
-    navigate(`/?search=${encodeURIComponent(search)}`);
-  }, [search]);
+    if (!search.trim()) return;
+    const t = setTimeout(() => {
+      navigate(`/?search=${encodeURIComponent(search)}`);
+    }, 400);
+    return () => clearTimeout(t);
+  }, [search, navigate]);
 
-  // Click outside to close
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (cartRef.current && !cartRef.current.contains(event.target)) {
-        setShowDesktopCart(false);
-      }
-      if (
-        suggestionRef.current &&
-        !suggestionRef.current.contains(event.target)
-      ) {
-        setShowSuggestions(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  const handleSelectSuggestion = (text) => {
+  const selectSuggestion = (text, closeMobile = false) => {
     setSearch(text);
     setShowSuggestions(false);
+    if (closeMobile) setMobileMenu(false);
+    navigate(`/?search=${encodeURIComponent(text)}`);
   };
 
-  return (
-    <nav className="sticky top-0 z-50 bg-white border-b shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
-        {/* Logo */}
-        <h1
-          onClick={() => navigate("/", { replace: true })}
-          className="text-2xl font-bold text-orange-500 cursor-pointer"
-        >
-          SalePhone
-        </h1>
+  /* ================= CLICK OUTSIDE ================= */
+  useEffect(() => {
+    const close = (e) => {
+      if (cartRef.current && !cartRef.current.contains(e.target))
+        setShowDesktopCart(false);
+      if (suggestionRef.current && !suggestionRef.current.contains(e.target))
+        setShowSuggestions(false);
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, []);
 
-        {/* Desktop Search */}
-        <div className="hidden md:flex flex-1 relative" ref={suggestionRef}>
-          <div className="flex items-center border rounded-full px-3 py-2 w-full">
-            <FiSearch className="text-gray-500 mr-2" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setShowSuggestions(true);
-              }}
-              placeholder="Search phones, brands..."
-              className="w-full outline-none"
-            />
+  return (
+    <nav className="sticky top-0 z-50 bg-gradient-to-r from-white to-orange-50/50 backdrop-blur-xl border-b border-orange-100/50 shadow-lg">
+      <div className="max-w-7xl mx-auto px-4">
+        {/* TOP BAR */}
+        <div className="py-4 flex items-center justify-between gap-4">
+          {/* LOGO */}
+          <div
+            onClick={() => {
+              setMobileMenu(false);
+              navigate("/");
+            }}
+            className="flex items-center gap-3 cursor-pointer"
+          >
+            <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-pink-500 rounded-2xl flex items-center justify-center">
+              <FiPhone className="text-white w-7 h-7" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-black bg-gradient-to-r from-gray-900 to-orange-600 bg-clip-text text-transparent">
+                SalePhone
+              </h1>
+              <p className="text-xs text-gray-500">Second Hand Phones</p>
+            </div>
           </div>
 
-          {showSuggestions && suggestions.length > 0 && (
-            <ul className="absolute top-12 w-full bg-white border rounded-md shadow-lg z-50">
-              {suggestions.map((p) => (
-                <li
-                  key={p._id}
-                  onMouseDown={() =>
-                    handleSelectSuggestion(`${p.brand} ${p.model}`)
-                  }
-                  className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-                >
-                  {p.brand} {p.model}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        {/* Desktop Right */}
-        <div
-          className="hidden md:flex items-center gap-4 relative"
-          ref={cartRef}
-        >
-          {/* Sell Phone */}
-          <Link
-            to="/sale"
-            className="px-4 py-2 rounded-full border border-orange-500 text-orange-500 font-medium hover:bg-orange-50 transition"
+          {/* DESKTOP SEARCH */}
+          <div
+            ref={suggestionRef}
+            className="hidden lg:flex flex-1 max-w-2xl mx-8 relative"
           >
-            Sell Phone
-          </Link>
-
-          {/* My Orders */}
-          {user && (
-            <Link
-              to="/orders"
-              className="px-4 py-2 rounded-full border border-orange-500 text-orange-500 font-medium hover:bg-orange-50 transition"
-            >
-              My Orders
-            </Link>
-          )}
-
-          {/* Desktop Cart */}
-          <button
-            onClick={() => setShowDesktopCart((prev) => !prev)}
-            className="relative text-2xl"
-          >
-            🛒
-            {cartCount > 0 && (
-              <span className="absolute -top-2 -right-3 bg-red-500 text-white text-xs px-2 rounded-full">
-                {cartCount}
-              </span>
-            )}
-          </button>
-
-          {user && showDesktopCart && (
-            <div className="absolute right-0 top-12 w-80 bg-white border rounded-xl shadow-lg p-4 z-50">
-              {cartItems.length > 0 ? (
-                <>
-                  {cartItems.map((item) => (
-                    <div
-                      key={item.phone._id}
-                      className="flex items-center gap-3"
-                    >
-                      <img
-                        src={item.phone.image}
-                        alt={item.phone.model}
-                        className="w-12 h-12 object-contain"
-                      />
-                      <div className="flex-1">
-                        <p>
-                          {item.phone.brand} {item.phone.model}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          Qty {item.quantity} × ₹{item.phone.price}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => handleRemove(item.phone._id)}
-                        className="text-xs text-red-500"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  ))}
-                  <Link
-                    to="/cart"
-                    onClick={() => setShowDesktopCart(false)}
-                    className="block mt-4 text-center bg-orange-500 text-white py-2 rounded-full"
-                  >
-                    Go to Cart
-                  </Link>
-                </>
-              ) : (
-                <p className="text-center text-gray-500">Cart is empty 🛒</p>
-              )}
-            </div>
-          )}
-
-          {/* Auth */}
-          {user ? (
-            <button
-              onClick={handleLogout}
-              className="px-5 py-2 rounded-full bg-orange-500 text-white font-medium hover:bg-orange-600"
-            >
-              Logout
-            </button>
-          ) : (
-            <Link
-              to="/auth"
-              className="px-5 py-2 rounded-full border border-orange-500 text-orange-500 font-medium hover:bg-orange-50"
-            >
-              Login
-            </Link>
-          )}
-        </div>
-
-        {/* Mobile Hamburger + Cart */}
-        <div className="md:hidden flex items-center gap-4">
-          <button onClick={() => setMobileMenu((prev) => !prev)}>
-            {mobileMenu ? <FiX size={24} /> : <FiMenu size={24} />}
-          </button>
-
-          {/* Mobile Cart Button */}
-          <button
-            onClick={() => setShowMobileCart(true)}
-            className="relative text-2xl"
-          >
-            🛒
-            {cartCount > 0 && (
-              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs px-2 rounded-full">
-                {cartCount}
-              </span>
-            )}
-          </button>
-        </div>
-      </div>
-
-      {/* Mobile Menu */}
-      {mobileMenu && (
-        <div className="md:hidden px-4 pb-4 space-y-4 border-t">
-          <div className="flex items-center border rounded-full px-3 py-2 w-full">
-            <FiSearch className="text-gray-500 mr-2" />
             <input
-              type="text"
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
                 setShowSuggestions(true);
               }}
               placeholder="Search phones..."
-              className="w-full outline-none"
+              className="w-full pl-14 pr-6 py-4 rounded-2xl border-2 border-gray-200 bg-white"
             />
-          </div>
 
-          <Link
-            to="/sale"
-            onClick={() => setMobileMenu(false)}
-            className="w-full block text-center px-5 py-2 rounded-full border border-orange-500 text-orange-500 font-medium hover:bg-orange-50 transition"
-          >
-            Sell Phone
-          </Link>
-
-          {user && (
-            <Link
-              to="/orders"
-              onClick={() => setMobileMenu(false)}
-              className="w-full block text-center px-5 py-2 rounded-full border border-orange-500 text-orange-500 font-medium hover:bg-orange-50 transition"
-            >
-              My Orders
-            </Link>
-          )}
-
-          {user ? (
-            <button
-              onClick={handleLogout}
-              className="w-full px-5 py-2 rounded-full bg-orange-500 text-white font-medium hover:bg-orange-600"
-            >
-              Logout
-            </button>
-          ) : (
-            <Link
-              to="/auth"
-              className="w-full px-5 py-2 rounded-full border border-orange-500 text-orange-500 font-medium hover:bg-orange-50"
-            >
-              Login
-            </Link>
-          )}
-        </div>
-      )}
-
-      {/* Mobile Cart Sidebar */}
-      {showMobileCart && (
-        <div className="fixed right-0 top-0 h-full w-80 bg-white shadow-lg z-50">
-          <div className="flex justify-between items-center p-4 border-b">
-            <h3 className="font-bold text-lg">Your Cart</h3>
-            <button onClick={() => setShowMobileCart(false)}>
-              <FiX size={24} />
-            </button>
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
-            {cartItems.length > 0 ? (
-              cartItems.map((item) => (
-                <div key={item.phone._id} className="flex items-center gap-3">
-                  <img
-                    src={item.phone.image}
-                    alt={item.phone.model}
-                    className="w-12 h-12 object-contain"
-                  />
-                  <div className="flex-1">
-                    <p>
-                      {item.phone.brand} {item.phone.model}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      Qty {item.quantity} × ₹{item.phone.price}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => handleRemove(item.phone._id)}
-                    className="text-xs text-red-500"
+            {showSuggestions && suggestions.length > 0 && (
+              <ul className="absolute top-full left-0 w-full bg-white rounded-2xl shadow-xl mt-2">
+                {suggestions.map((p) => (
+                  <li
+                    key={p._id}
+                    onMouseDown={() =>
+                      selectSuggestion(`${p.brand} ${p.model}`)
+                    }
+                    className="px-6 py-4 hover:bg-orange-50 cursor-pointer"
                   >
-                    Remove
-                  </button>
-                </div>
-              ))
-            ) : (
-              <p className="text-center text-gray-500 mt-4">Cart is empty 🛒</p>
+                    <p className="font-semibold">{p.brand}</p>
+                    <p className="text-sm text-gray-600">{p.model}</p>
+                  </li>
+                ))}
+              </ul>
             )}
           </div>
 
-          <Link
-            to="/cart"
-            onClick={() => setShowMobileCart(false)}
-            className="m-4 bg-orange-500 text-white py-2 rounded-full text-center font-medium"
-          >
-            Go to Cart
-          </Link>
+          {/* DESKTOP ACTIONS */}
+          <div className="hidden lg:flex items-center gap-4" ref={cartRef}>
+            <Link
+              to="/sale"
+              className="px-6 py-3 rounded-2xl bg-orange-100 text-orange-700 font-semibold"
+            >
+              Sell Phone
+            </Link>
+
+            {user && (
+              <Link
+                to="/orders"
+                className="px-6 py-3 rounded-2xl bg-blue-100 text-blue-700 font-semibold"
+              >
+                <FiPackage className="inline mr-1" /> Orders
+              </Link>
+            )}
+
+            {/* CART */}
+            <div className="relative">
+              <button
+                onClick={() => setShowDesktopCart((p) => !p)}
+                className="p-3 bg-gray-100 rounded-2xl relative"
+              >
+                <FiShoppingCart />
+                {cartCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                    {cartCount}
+                  </span>
+                )}
+              </button>
+
+              {user && showDesktopCart && (
+                <div className="absolute right-0 mt-3 w-80 bg-white rounded-2xl shadow-xl p-4">
+                  {cartItems.length === 0 ? (
+                    <p className="text-center text-gray-500">Cart is empty</p>
+                  ) : (
+                    cartItems.map((i) => (
+                      <div
+                        key={i.phone._id}
+                        className="flex justify-between mb-3"
+                      >
+                        <div>
+                          <p className="font-semibold">{i.phone.brand}</p>
+                          <p className="text-sm text-gray-600">
+                            {i.phone.model}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => handleRemove(i.phone._id)}
+                          className="text-red-500 text-sm"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))
+                  )}
+
+                  <Link
+                    to="/cart"
+                    onClick={() => setShowDesktopCart(false)}
+                    className="block mt-4 bg-orange-500 text-white py-3 rounded-xl text-center font-bold"
+                  >
+                    Checkout →
+                  </Link>
+                </div>
+              )}
+            </div>
+
+            {user ? (
+              <button
+                onClick={handleLogout}
+                className="px-6 py-3 rounded-2xl bg-gray-900 text-white font-bold"
+              >
+                Logout
+              </button>
+            ) : (
+              <Link
+                to="/auth"
+                className="px-6 py-3 rounded-2xl bg-orange-100 text-orange-700 font-bold"
+              >
+                Login
+              </Link>
+            )}
+          </div>
+
+          {/* MOBILE CONTROLS */}
+          <div className="lg:hidden flex gap-2">
+            <button
+              onClick={() => setMobileMenu((p) => !p)}
+              className="p-2 bg-gray-100 rounded-xl"
+            >
+              {mobileMenu ? <FiX /> : <FiMenu />}
+            </button>
+
+            <button className="p-2 bg-gray-100 rounded-xl relative">
+              <FiShoppingCart />
+              {cartCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                  {cartCount}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
-      )}
+
+        {/* MOBILE MENU */}
+        {mobileMenu && (
+          <div className="lg:hidden px-2 pb-6 space-y-4 border-t border-gray-200/50">
+            {/* MOBILE SEARCH */}
+            <div className="relative">
+              <input
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setShowSuggestions(true);
+                }}
+                placeholder="Search phones..."
+                className="w-full pl-14 pr-4 py-4 border rounded-2xl bg-white"
+              />
+
+              {showSuggestions && suggestions.length > 0 && (
+                <ul className="absolute left-0 right-0 mt-2 bg-white rounded-2xl shadow-xl z-50">
+                  {suggestions.map((p) => (
+                    <li
+                      key={p._id}
+                      onMouseDown={() =>
+                        selectSuggestion(`${p.brand} ${p.model}`, true)
+                      }
+                      className="px-4 py-3 hover:bg-orange-50 cursor-pointer"
+                    >
+                      <p className="font-semibold">{p.brand}</p>
+                      <p className="text-sm text-gray-600">{p.model}</p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            <Link
+              to="/sale"
+              onClick={() => setMobileMenu(false)}
+              className="block w-full text-center py-4 rounded-2xl bg-orange-100 text-orange-700 font-bold"
+            >
+              Sell Phone
+            </Link>
+
+            {user && (
+              <Link
+                to="/orders"
+                onClick={() => setMobileMenu(false)}
+                className="block w-full text-center py-4 rounded-2xl bg-blue-100 text-blue-700 font-bold"
+              >
+                My Orders
+              </Link>
+            )}
+
+            {user ? (
+              <button
+                onClick={handleLogout}
+                className="w-full py-4 rounded-2xl bg-gray-900 text-white font-bold"
+              >
+                Logout
+              </button>
+            ) : (
+              <Link
+                to="/auth"
+                onClick={() => setMobileMenu(false)}
+                className="block w-full text-center py-4 rounded-2xl bg-orange-200 text-orange-800 font-bold"
+              >
+                Login
+              </Link>
+            )}
+          </div>
+        )}
+      </div>
     </nav>
   );
 };
