@@ -1,123 +1,203 @@
+import { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { useState, useEffect } from "react";
+import { auth } from "../utils/firebase";
 import { useNavigate } from "react-router-dom";
-import { clearCart } from "../redux/slices/cartSlice";
 import { toast } from "react-hot-toast";
+import { clearCart } from "../redux/slices/cartSlice";
+import axios from "../utils/axios";
 
 const Checkout = () => {
-  const cartItems = useSelector((state) => state.cart.items);
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const [placingOrder, setPlacingOrder] = useState(false);
+  /* ================= REDUX ================= */
+  const cartItems = useSelector((state) => state.cart.items);
 
-  const [form, setForm] = useState({
-    name: "",
+  /* ================= LOCAL STATE ================= */
+  const [loading, setLoading] = useState(false);
+  const [address, setAddress] = useState({
+    fullName: "",
     phone: "",
-    address: "",
+    line1: "",
+    line2: "",
     city: "",
+    state: "",
     pincode: "",
   });
 
-  // ✅ Redirect safely if cart empty
-  useEffect(() => {
-    if (cartItems.length === 0) {
-      toast.error("Your cart is empty");
-      navigate("/cart", { replace: true });
-    }
-  }, [cartItems, navigate]);
-
-  const total = cartItems.reduce(
+  /* ================= TOTAL ================= */
+  const totalAmount = cartItems.reduce(
     (sum, item) => sum + item.phone.price * item.quantity,
     0
   );
 
-  const handleChange = (e) =>
-    setForm({ ...form, [e.target.name]: e.target.value });
+  /* ================= HANDLERS ================= */
+  const handleChange = (e) => {
+    setAddress((prev) => ({
+      ...prev,
+      [e.target.name]: e.target.value,
+    }));
+  };
 
-  const handleOrder = () => {
-    if (placingOrder) return;
+  const validateAddress = () => {
+    const { fullName, phone, line1, city, state, pincode } = address;
 
-    if (Object.values(form).some((v) => !v)) {
-      toast.error("Please fill all details");
+    if (!fullName || !phone || !line1 || !city || !state || !pincode) {
+      toast.error("Please fill all required address fields");
+      return false;
+    }
+
+    if (!/^\d{10}$/.test(phone)) {
+      toast.error("Enter a valid 10-digit phone number");
+      return false;
+    }
+
+    if (!/^\d{6}$/.test(pincode)) {
+      toast.error("Enter a valid 6-digit pincode");
+      return false;
+    }
+
+    return true;
+  };
+
+  /* ================= PLACE ORDER ================= */
+  const handlePlaceOrder = async () => {
+    if (!cartItems.length) {
+      toast.error("Your cart is empty");
       return;
     }
 
-    setPlacingOrder(true);
+    if (!validateAddress()) return;
 
-    const order = {
-      orderId: `ORD-${Date.now()}`,
-      items: cartItems,
-      total,
-      address: form,
-      createdAt: new Date().toISOString(),
-    };
+    setLoading(true);
 
-    // ✅ Save latest order
-    localStorage.setItem("latestOrder", JSON.stringify(order));
+    try {
+      const shippingAddress = `
+${address.fullName}, ${address.phone}
+${address.line1}${address.line2 ? ", " + address.line2 : ""}
+${address.city}, ${address.state} - ${address.pincode}
+      `.trim();
 
-    // ✅ Save order history
-    const prevOrders = JSON.parse(localStorage.getItem("orders")) || [];
-    localStorage.setItem("orders", JSON.stringify([order, ...prevOrders]));
+      const payload = {
+        items: cartItems.map((item) => ({
+          phone: item.phone, // REQUIRED by schema
+          quantity: item.quantity,
+        })),
+        totalAmount,
+        shippingAddress,
+        paymentMethod: "COD",
+      };
 
-    dispatch(clearCart());
+      /* ================= CREATE ORDER ================= */
+      await axios.post("/orders", payload);
 
-    setTimeout(() => {
-      navigate("/order-success", { replace: true });
-    }, 800);
+      /* ================= CLEAR BACKEND CART ================= */
+      await axios.delete(`/cart/${auth.currentUser.uid}`);
+
+      /* ================= CLEAR REDUX CART ================= */
+      dispatch(clearCart());
+
+      toast.success("Order placed successfully");
+      navigate("/orders");
+    } catch (error) {
+      console.error("❌ Order placement error:", error);
+      toast.error(error?.response?.data?.message || "Failed to place order");
+    } finally {
+      setLoading(false);
+    }
   };
 
+  /* ================= UI ================= */
   return (
-    <div className="max-w-6xl mx-auto px-4 pt-28 pb-16 grid md:grid-cols-2 gap-10">
-      {/* Address */}
-      <div className="bg-white p-6 rounded-xl shadow">
-        <h2 className="text-xl font-semibold mb-4">Delivery Address</h2>
+    <div className="max-w-4xl mx-auto px-6 py-10 space-y-8">
+      <h1 className="text-3xl font-bold text-gray-800">Checkout</h1>
 
-        {["name", "phone", "address", "city", "pincode"].map((field) => (
+      {/* ADDRESS */}
+      <div className="bg-white border rounded-xl p-6 space-y-4">
+        <h2 className="text-lg font-semibold">Delivery Address</h2>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <input
-            key={field}
-            name={field}
-            placeholder={field.toUpperCase()}
-            value={form[field]}
+            name="fullName"
+            placeholder="Full Name *"
+            value={address.fullName}
             onChange={handleChange}
-            className="w-full border p-3 rounded mb-3"
+            className="input"
           />
-        ))}
-      </div>
-
-      {/* Summary */}
-      <div className="bg-gray-50 p-6 rounded-xl shadow">
-        <h2 className="text-xl font-semibold mb-4">Order Summary</h2>
-
-        {cartItems.map((item) => (
-          <div key={item.phone._id} className="flex justify-between mb-2">
-            <p>
-              {item.phone.brand} {item.phone.model} × {item.quantity}
-            </p>
-            <p>₹{item.phone.price * item.quantity}</p>
-          </div>
-        ))}
-
-        <hr className="my-4" />
-
-        <div className="flex justify-between font-bold text-lg">
-          <span>Total</span>
-          <span>₹{total}</span>
+          <input
+            name="phone"
+            placeholder="Phone Number *"
+            value={address.phone}
+            onChange={handleChange}
+            className="input"
+          />
         </div>
 
-        <button
-          onClick={handleOrder}
-          disabled={placingOrder}
-          className={`w-full mt-6 py-3 rounded-full font-medium transition
-            ${
-              placingOrder
-                ? "bg-gray-300 cursor-not-allowed"
-                : "bg-orange-500 text-white hover:bg-orange-600"
-            }`}
-        >
-          {placingOrder ? "Placing Order..." : "Place Order"}
-        </button>
+        <input
+          name="line1"
+          placeholder="House No, Street, Area *"
+          value={address.line1}
+          onChange={handleChange}
+          className="input"
+        />
+        <input
+          name="line2"
+          placeholder="Landmark (Optional)"
+          value={address.line2}
+          onChange={handleChange}
+          className="input"
+        />
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <input
+            name="city"
+            placeholder="City *"
+            value={address.city}
+            onChange={handleChange}
+            className="input"
+          />
+          <input
+            name="state"
+            placeholder="State *"
+            value={address.state}
+            onChange={handleChange}
+            className="input"
+          />
+          <input
+            name="pincode"
+            placeholder="Pincode *"
+            value={address.pincode}
+            onChange={handleChange}
+            className="input"
+          />
+        </div>
       </div>
+
+      {/* SUMMARY */}
+      <div className="bg-white border rounded-xl p-6 space-y-4">
+        <h2 className="text-lg font-semibold">Order Summary</h2>
+        {cartItems.map((item) => (
+          <div key={item.phone._id} className="flex justify-between text-sm">
+            <span>
+              {item.phone.brand} {item.phone.model} × {item.quantity}
+            </span>
+            <span>₹{item.phone.price * item.quantity}</span>
+          </div>
+        ))}
+        <hr />
+        <div className="flex justify-between font-bold text-lg">
+          <span>Total</span>
+          <span>₹{totalAmount}</span>
+        </div>
+      </div>
+
+      <button
+        onClick={handlePlaceOrder}
+        disabled={loading}
+        className="w-full bg-orange-500 hover:bg-orange-600 text-white py-4 rounded-xl font-semibold disabled:opacity-50"
+      >
+        {loading ? "Placing Order..." : "Place Order (Cash on Delivery)"}
+      </button>
     </div>
   );
 };

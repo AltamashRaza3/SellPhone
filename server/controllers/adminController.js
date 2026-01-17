@@ -50,27 +50,10 @@ export const adminLogout = (req, res) => {
   res.json({ message: "Admin logged out successfully" });
 };
 
-/* ================= ADMIN ME (SESSION VERIFY) ================= */
+/* ================= ADMIN SESSION ================= */
 export const adminMe = async (req, res) => {
-  try {
-    const token = req.cookies.admin_token;
-
-    if (!token) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const admin = await Admin.findById(decoded.id).select("-password");
-
-    if (!admin) {
-      return res.status(401).json({ message: "Admin not found" });
-    }
-
-    res.json({
-      id: admin._id,
-      email: admin.email,
-    });
-  } catch {
-    res.status(401).json({ message: "Invalid token" });
-  }
+  res.json({
+    id: req.admin._id,
+    email: req.admin.email,
+  });
 };

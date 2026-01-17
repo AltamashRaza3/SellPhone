@@ -1,45 +1,43 @@
 import { useState, useRef, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import { auth } from "../utils/firebase";
 import { clearUser } from "../redux/slices/userSlice";
 import { removeFromCart, clearCart } from "../redux/slices/cartSlice";
 import {
-  FiSearch,
   FiMenu,
   FiX,
   FiPhone,
   FiShoppingCart,
-  FiUser,
   FiPackage,
 } from "react-icons/fi";
 import { toast } from "react-hot-toast";
 
+/* MEMOIZED SELECTORS */
+import {
+  selectCartItems,
+  selectCartCount,
+} from "../redux/slices/selectors/cartSelectors";
+
+const selectPhonesList = (state) => state.phones.list ?? [];
+
 const Navbar = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const location = useLocation();
 
-  /* ================= SAFE SELECTORS ================= */
-  const user = useSelector((state) => state.user?.user);
-  const cartItems = useSelector((state) =>
-    Array.isArray(state.cart?.items) ? state.cart.items : []
-  );
-  const phones = useSelector((state) =>
-    Array.isArray(state.phones?.list) ? state.phones.list : []
-  );
+  if (location.pathname.startsWith("/auth")) return null;
 
-  /* ================= STATE ================= */
-  const [search, setSearch] = useState("");
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [showDesktopCart, setShowDesktopCart] = useState(false);
+  const user = useSelector((state) => state.user.user);
+  const cartItems = useSelector(selectCartItems);
+  const cartCount = useSelector(selectCartCount);
+  const phones = useSelector(selectPhonesList);
+
   const [mobileMenu, setMobileMenu] = useState(false);
-
-  const cartCount = cartItems.reduce((t, i) => t + i.quantity, 0);
+  const [showDesktopCart, setShowDesktopCart] = useState(false);
 
   const cartRef = useRef(null);
-  const suggestionRef = useRef(null);
 
-  /* ================= LOGOUT ================= */
   const handleLogout = async () => {
     try {
       await auth.signOut();
@@ -58,38 +56,11 @@ const Navbar = () => {
     toast.success("Item removed");
   };
 
-  /* ================= SEARCH ================= */
-  const suggestions =
-    search.trim().length === 0
-      ? []
-      : phones
-          .filter((p) =>
-            `${p.brand} ${p.model}`.toLowerCase().includes(search.toLowerCase())
-          )
-          .slice(0, 5);
-
-  useEffect(() => {
-    if (!search.trim()) return;
-    const t = setTimeout(() => {
-      navigate(`/?search=${encodeURIComponent(search)}`);
-    }, 400);
-    return () => clearTimeout(t);
-  }, [search, navigate]);
-
-  const selectSuggestion = (text, closeMobile = false) => {
-    setSearch(text);
-    setShowSuggestions(false);
-    if (closeMobile) setMobileMenu(false);
-    navigate(`/?search=${encodeURIComponent(text)}`);
-  };
-
-  /* ================= CLICK OUTSIDE ================= */
   useEffect(() => {
     const close = (e) => {
-      if (cartRef.current && !cartRef.current.contains(e.target))
+      if (cartRef.current && !cartRef.current.contains(e.target)) {
         setShowDesktopCart(false);
-      if (suggestionRef.current && !suggestionRef.current.contains(e.target))
-        setShowSuggestions(false);
+      }
     };
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
@@ -98,14 +69,10 @@ const Navbar = () => {
   return (
     <nav className="sticky top-0 z-50 bg-gradient-to-r from-white to-orange-50/50 backdrop-blur-xl border-b border-orange-100/50 shadow-lg">
       <div className="max-w-7xl mx-auto px-4">
-        {/* TOP BAR */}
-        <div className="py-4 flex items-center justify-between gap-4">
+        <div className="py-4 flex items-center justify-between">
           {/* LOGO */}
           <div
-            onClick={() => {
-              setMobileMenu(false);
-              navigate("/");
-            }}
+            onClick={() => navigate("/")}
             className="flex items-center gap-3 cursor-pointer"
           >
             <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-pink-500 rounded-2xl flex items-center justify-center">
@@ -117,39 +84,6 @@ const Navbar = () => {
               </h1>
               <p className="text-xs text-gray-500">Second Hand Phones</p>
             </div>
-          </div>
-
-          {/* DESKTOP SEARCH */}
-          <div
-            ref={suggestionRef}
-            className="hidden lg:flex flex-1 max-w-2xl mx-8 relative"
-          >
-            <input
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setShowSuggestions(true);
-              }}
-              placeholder="Search phones..."
-              className="w-full pl-14 pr-6 py-4 rounded-2xl border-2 border-gray-200 bg-white"
-            />
-
-            {showSuggestions && suggestions.length > 0 && (
-              <ul className="absolute top-full left-0 w-full bg-white rounded-2xl shadow-xl mt-2">
-                {suggestions.map((p) => (
-                  <li
-                    key={p._id}
-                    onMouseDown={() =>
-                      selectSuggestion(`${p.brand} ${p.model}`)
-                    }
-                    className="px-6 py-4 hover:bg-orange-50 cursor-pointer"
-                  >
-                    <p className="font-semibold">{p.brand}</p>
-                    <p className="text-sm text-gray-600">{p.model}</p>
-                  </li>
-                ))}
-              </ul>
-            )}
           </div>
 
           {/* DESKTOP ACTIONS */}
@@ -238,8 +172,8 @@ const Navbar = () => {
             )}
           </div>
 
-          {/* MOBILE CONTROLS */}
-          <div className="lg:hidden flex gap-2">
+          {/* MOBILE ACTIONS */}
+          <div className="lg:hidden flex items-center gap-2">
             <button
               onClick={() => setMobileMenu((p) => !p)}
               className="p-2 bg-gray-100 rounded-xl"
@@ -247,7 +181,10 @@ const Navbar = () => {
               {mobileMenu ? <FiX /> : <FiMenu />}
             </button>
 
-            <button className="p-2 bg-gray-100 rounded-xl relative">
+            <button
+              onClick={() => navigate("/cart")}
+              className="p-2 bg-gray-100 rounded-xl relative"
+            >
               <FiShoppingCart />
               {cartCount > 0 && (
                 <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
@@ -260,41 +197,11 @@ const Navbar = () => {
 
         {/* MOBILE MENU */}
         {mobileMenu && (
-          <div className="lg:hidden px-2 pb-6 space-y-4 border-t border-gray-200/50">
-            {/* MOBILE SEARCH */}
-            <div className="relative">
-              <input
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setShowSuggestions(true);
-                }}
-                placeholder="Search phones..."
-                className="w-full pl-14 pr-4 py-4 border rounded-2xl bg-white"
-              />
-
-              {showSuggestions && suggestions.length > 0 && (
-                <ul className="absolute left-0 right-0 mt-2 bg-white rounded-2xl shadow-xl z-50">
-                  {suggestions.map((p) => (
-                    <li
-                      key={p._id}
-                      onMouseDown={() =>
-                        selectSuggestion(`${p.brand} ${p.model}`, true)
-                      }
-                      className="px-4 py-3 hover:bg-orange-50 cursor-pointer"
-                    >
-                      <p className="font-semibold">{p.brand}</p>
-                      <p className="text-sm text-gray-600">{p.model}</p>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-
+          <div className="lg:hidden pb-4 space-y-3 border-t border-gray-200">
             <Link
               to="/sale"
               onClick={() => setMobileMenu(false)}
-              className="block w-full text-center py-4 rounded-2xl bg-orange-100 text-orange-700 font-bold"
+              className="block w-full text-center py-3 rounded-xl bg-orange-100 text-orange-700 font-bold"
             >
               Sell Phone
             </Link>
@@ -303,7 +210,7 @@ const Navbar = () => {
               <Link
                 to="/orders"
                 onClick={() => setMobileMenu(false)}
-                className="block w-full text-center py-4 rounded-2xl bg-blue-100 text-blue-700 font-bold"
+                className="block w-full text-center py-3 rounded-xl bg-blue-100 text-blue-700 font-bold"
               >
                 My Orders
               </Link>
@@ -312,7 +219,7 @@ const Navbar = () => {
             {user ? (
               <button
                 onClick={handleLogout}
-                className="w-full py-4 rounded-2xl bg-gray-900 text-white font-bold"
+                className="w-full py-3 rounded-xl bg-gray-900 text-white font-bold"
               >
                 Logout
               </button>
@@ -320,7 +227,7 @@ const Navbar = () => {
               <Link
                 to="/auth"
                 onClick={() => setMobileMenu(false)}
-                className="block w-full text-center py-4 rounded-2xl bg-orange-200 text-orange-800 font-bold"
+                className="block w-full text-center py-3 rounded-xl bg-orange-200 text-orange-800 font-bold"
               >
                 Login
               </Link>
