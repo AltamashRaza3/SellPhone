@@ -4,7 +4,8 @@ import { toast } from "react-hot-toast";
 import { jsPDF } from "jspdf";
 
 import AdminOrderTimeline from "../../components/AdminOrderTimeline";
-import AdminOrderStatusHistory from "../components/AdminOrderStatusHistory";
+import AdminOrderStatusHistory from "../../components/AdminOrderStatusHistory.jsx";
+
 
 /* ======================================================
    Backend-safe status transitions
