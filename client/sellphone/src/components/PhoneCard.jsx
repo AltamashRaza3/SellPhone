@@ -7,10 +7,11 @@ const PhoneCard = ({ phone }) => {
   const user = useSelector((state) => state.user.user);
   const dispatch = useDispatch();
 
+  if (!phone || !phone._id) return null;
+
   const handleAddToCart = (e) => {
-    // Prevent navigating to details when clicking Add to Cart
-    e.stopPropagation();
     e.preventDefault();
+    e.stopPropagation();
 
     if (!user) {
       toast.error("Please login to add items to cart");
@@ -18,35 +19,46 @@ const PhoneCard = ({ phone }) => {
     }
 
     dispatch(addToCart(phone));
-    toast.success("Added to cart 🛒");
+    toast.success("Added to cart");
   };
 
   return (
-    <Link to={`/phone/${phone._id}`} className="block">
-      <div className="border rounded-xl p-4 shadow hover:shadow-lg transition cursor-pointer">
-        <img
-          src={phone.image}
-          alt={phone.model}
-          className="w-full h-40 object-contain"
-        />
+    <Link to={`/phone/${phone._id}`} className="block h-full">
+      <div className="glass-card h-full flex flex-col transition hover:shadow-xl">
+        {/* IMAGE */}
+        <div className="h-40 flex items-center justify-center mb-4">
+          <img
+            src={phone.image}
+            alt={phone.model}
+            className="max-h-full object-contain"
+          />
+        </div>
 
-        <h3 className="font-semibold mt-2">
-          {phone.brand} {phone.model}
-        </h3>
+        {/* INFO */}
+        <div className="flex-1 text-center">
+          <h3 className="font-semibold leading-snug">
+            {phone.brand} {phone.model}
+          </h3>
 
-        <p className="text-gray-600">₹{phone.price}</p>
+          <p className="text-sm text-gray-400 mt-1">
+            {phone.storage} • {phone.condition}
+          </p>
 
-        {/* ADD TO CART */}
+          <p className="text-xl font-bold text-orange-500 mt-3">
+            ₹{phone.price}
+          </p>
+        </div>
+
+        {/* CTA */}
         <button
           onClick={handleAddToCart}
           disabled={!user}
-          className={`mt-3 w-full py-2 rounded-lg font-medium transition
+          className={`mt-4 w-full py-2 rounded-lg font-medium transition
             ${
               user
                 ? "bg-orange-500 hover:bg-orange-600 text-white"
-                : "bg-gray-300 text-gray-500 cursor-not-allowed"
-            }
-          `}
+                : "bg-gray-600 text-gray-400 cursor-not-allowed"
+            }`}
         >
           {user ? "Add to Cart" : "Login to Add"}
         </button>

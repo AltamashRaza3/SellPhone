@@ -3,6 +3,8 @@ import { useParams, Link } from "react-router-dom";
 import axios from "../utils/axios";
 import { jsPDF } from "jspdf";
 import { toast } from "react-hot-toast";
+import OrderTimeline from "../components/OrderTimeline";
+import OrderStatusBadge from "../components/OrderStatusBadge";
 
 const OrderDetails = () => {
   const { id } = useParams();
@@ -26,19 +28,17 @@ const OrderDetails = () => {
     fetchOrder();
   }, [id]);
 
-  /* ================= LOADING ================= */
   if (loading) {
     return (
-      <div className="p-6 text-center text-gray-400">
+      <div className="min-h-[60vh] flex items-center justify-center text-gray-400">
         Loading order details…
       </div>
     );
   }
 
-  /* ================= NOT FOUND ================= */
   if (!order) {
     return (
-      <div className="p-6 text-center text-gray-400">
+      <div className="min-h-[60vh] flex items-center justify-center text-gray-400">
         Order not found or access denied.
       </div>
     );
@@ -81,98 +81,88 @@ const OrderDetails = () => {
       setOrder(data.order);
       toast.success("Order cancelled successfully");
     } catch (error) {
-      console.error("Cancel order error:", error);
       toast.error(error?.response?.data?.message || "Failed to cancel order");
     }
   };
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
-      <Link to="/orders" className="text-sm text-orange-400 hover:underline">
-        ← Back to My Orders
-      </Link>
+    <div className="flex justify-center px-4 py-10 bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 min-h-screen">
+      {/* MAIN CONTAINER – 70% WIDTH ON LARGE SCREENS */}
+      <div className="w-full lg:w-[70%] max-w-6xl space-y-8">
+        <Link to="/orders" className="text-sm text-orange-400 hover:underline">
+          ← Back to My Orders
+        </Link>
 
-      <h1 className="text-2xl font-semibold mt-4 mb-6">Order Details</h1>
+        <h1 className="text-3xl font-semibold text-white">Order Details</h1>
 
-      {/* ================= ORDER INFO ================= */}
-      <div className="border border-gray-700 rounded-xl p-4 mb-6">
-        <p className="text-sm">
-          <span className="text-gray-400">Order ID:</span> {order._id}
-        </p>
-        <p className="text-sm">
-          <span className="text-gray-400">Status:</span> {order.status}
-        </p>
-        <p className="text-sm">
-          <span className="text-gray-400">Placed on:</span>{" "}
-          {new Date(order.createdAt).toLocaleString()}
-        </p>
+        {/* ================= ORDER INFO ================= */}
+        <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur p-6 space-y-3">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+            <div className="space-y-1 text-sm text-gray-300">
+              <p>
+                <span className="text-gray-400">Order ID:</span> {order._id}
+              </p>
+              <p>
+                <span className="text-gray-400">Placed on:</span>{" "}
+                {new Date(order.createdAt).toLocaleString()}
+              </p>
+            </div>
 
-        {order.status === "Pending" && (
-          <button
-            onClick={handleCancelOrder}
-            className="mt-4 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm"
-          >
-            Cancel Order
-          </button>
-        )}
-      </div>
+            <div className="text-sm">
+              <span className="text-gray-400">Status:</span>{" "}
+              <div className="flex items-center gap-3">
+                <span className="text-gray-400 text-sm">Status:</span>
+                <OrderStatusBadge status={order.status} />
+              </div>
+            </div>
+          </div>
 
-      {/* ================= ITEMS ================= */}
-      <div className="mb-6">
-        <h2 className="text-lg font-medium mb-4">Ordered Items</h2>
+          <OrderTimeline status={order.status} />
 
+          {order.status === "Pending" && (
+            <button
+              onClick={handleCancelOrder}
+              className="mt-4 inline-flex px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm"
+            >
+              Cancel Order
+            </button>
+          )}
+        </div>
+
+        {/* ================= ITEMS ================= */}
         <div className="space-y-4">
+          <h2 className="text-xl font-medium text-white">Ordered Items</h2>
+
           {order.items.map((item, idx) => {
             const phone = item.phone;
 
             return (
               <div
                 key={idx}
-                className="border border-gray-700 rounded-xl p-4 flex flex-col sm:flex-row gap-4"
+                className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur p-5 flex flex-col sm:flex-row gap-6"
               >
-                {/* IMAGE */}
                 <img
                   src={phone.image}
                   alt={phone.model}
-                  className="w-20 h-20 object-contain border rounded-md"
+                  className="w-24 h-24 object-contain rounded-xl border border-white/10 bg-black/20"
                 />
 
-                {/* DETAILS */}
                 <div className="flex-1">
-                  <p className="font-semibold text-base">
+                  <p className="text-lg font-semibold text-white">
                     {phone.brand} {phone.model}
                   </p>
 
                   <div className="mt-2 space-y-1 text-sm text-gray-400">
-                    {phone.color && (
-                      <p>
-                        <span className="text-gray-500">Color:</span>{" "}
-                        {phone.color}
-                      </p>
-                    )}
-                    {phone.storage && (
-                      <p>
-                        <span className="text-gray-500">Storage:</span>{" "}
-                        {phone.storage}
-                      </p>
-                    )}
-                    {phone.ram && (
-                      <p>
-                        <span className="text-gray-500">RAM:</span> {phone.ram}
-                      </p>
-                    )}
+                    {phone.color && <p>Color: {phone.color}</p>}
+                    {phone.storage && <p>Storage: {phone.storage}</p>}
+                    {phone.ram && <p>RAM: {phone.ram}</p>}
                   </div>
                 </div>
 
-                {/* PRICE */}
-                <div className="text-sm text-right space-y-1">
-                  <p>
-                    <span className="text-gray-500">Qty:</span> {item.quantity}
-                  </p>
-                  <p>
-                    <span className="text-gray-500">Price:</span> ₹{phone.price}
-                  </p>
-                  <p className="font-semibold text-base">
+                <div className="text-right text-sm text-gray-300 space-y-1">
+                  <p>Qty: {item.quantity}</p>
+                  <p>₹{phone.price}</p>
+                  <p className="text-lg font-semibold text-white">
                     ₹{phone.price * item.quantity}
                   </p>
                 </div>
@@ -180,24 +170,25 @@ const OrderDetails = () => {
             );
           })}
         </div>
-      </div>
 
-      {/* ================= SUMMARY ================= */}
-      <div className="border border-gray-700 rounded-xl p-4">
-        <h2 className="text-lg font-medium mb-2">Price Summary</h2>
-        <p className="text-sm">
-          <span className="text-gray-400">Total Amount:</span> ₹
-          {order.totalAmount}
-        </p>
-      </div>
+        {/* ================= SUMMARY ================= */}
+        <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur p-6 flex justify-between items-center">
+          <span className="text-lg text-gray-300">Total Amount</span>
+          <span className="text-2xl font-semibold text-white">
+            ₹{order.totalAmount}
+          </span>
+        </div>
 
-      {/* ================= INVOICE ================= */}
-      <button
-        onClick={downloadInvoice}
-        className="mt-4 px-4 py-2 bg-gray-800 hover:bg-black text-white rounded-lg text-sm"
-      >
-        Download Invoice (PDF)
-      </button>
+        {/* ================= INVOICE ================= */}
+        <div className="flex justify-end">
+          <button
+            onClick={downloadInvoice}
+            className="px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-sm font-medium"
+          >
+            Download Invoice (PDF)
+          </button>
+        </div>
+      </div>
     </div>
   );
 };

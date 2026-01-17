@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "./utils/firebase";
 
-/* Redux */
+/* ================= REDUX ================= */
 import { setUser, clearUser } from "./redux/slices/userSlice";
 import {
   setPhones,
@@ -13,12 +13,13 @@ import {
 } from "./redux/slices/phonesSlice";
 import { setCartFromBackend } from "./redux/slices/cartSlice";
 
-/* Layout */
+/* ================= LAYOUT ================= */
 import ScrollToTop from "./components/ScrollToTop";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
+import AppContainer from "./components/AppContainer";
 
-/* Pages */
+/* ================= USER PAGES ================= */
 import Home from "./pages/Home";
 import SalePhone from "./pages/SalePhone";
 import PhoneDetails from "./pages/PhoneDetails";
@@ -29,22 +30,23 @@ import OrderSuccess from "./pages/OrderSuccess";
 import MyOrders from "./pages/MyOrders";
 import OrderDetails from "./pages/OrderDetails";
 
-/* Guards */
+/* ================= GUARDS ================= */
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminProtectedRoute from "./components/AdminProtectedRoute";
 
-/* Admin Pages */
-import AdminProducts from "./pages/Admin/AdminProducts";
-import AdminAddProduct from "./pages/Admin/AdminAddProduct";
+/* ================= ADMIN PAGES ================= */
 import AdminLogin from "./pages/Admin/AdminLogin";
 import AdminLayout from "./pages/Admin/AdminLayout";
 import AdminDashboard from "./pages/Admin/AdminDashboard";
 import AdminOrders from "./pages/Admin/AdminOrder";
+import AdminOrderDetails from "./pages/Admin/AdminOrderDetails";
 import AdminUsers from "./pages/Admin/AdminUsers";
-import AdminSellPhones from "./pages/Admin/AdminSellPhone";
+import AdminProducts from "./pages/Admin/AdminProducts";
+import AdminAddProduct from "./pages/Admin/AdminAddProduct";
 import AdminEditProduct from "./pages/Admin/AdminEditProduct";
+import AdminSellPhones from "./pages/Admin/AdminSellPhone";
 
-/* UI */
+/* ================= UI ================= */
 import { Toaster } from "react-hot-toast";
 
 const App = () => {
@@ -59,7 +61,7 @@ const App = () => {
 
   const isAdminRoute = location.pathname.startsWith("/admin");
 
-  /* ================= FIREBASE AUTH ================= */
+  /* ================= AUTH ================= */
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       if (firebaseUser) {
@@ -99,7 +101,7 @@ const App = () => {
     fetchProducts();
   }, [dispatch]);
 
-  /* ================= STEP 4: LOAD CART FROM BACKEND ================= */
+  /* ================= LOAD CART ================= */
   useEffect(() => {
     if (!authLoaded || !user?.uid) return;
 
@@ -115,7 +117,7 @@ const App = () => {
       });
   }, [authLoaded, user?.uid, dispatch]);
 
-  /* ================= STEP 6: SAVE CART TO BACKEND ================= */
+  /* ================= SYNC CART ================= */
   useEffect(() => {
     if (!authLoaded || !cartLoaded || !user?.uid) return;
 
@@ -129,16 +131,14 @@ const App = () => {
           quantity: item.quantity,
         })),
       }),
-    }).catch((err) => {
-      console.error("Cart sync failed", err);
-    });
+    }).catch(() => {});
   }, [cartItems, authLoaded, cartLoaded, user?.uid]);
 
   /* ================= LOADING ================= */
   if (!authLoaded) {
     return (
-      <div className="flex justify-center items-center h-screen text-xl font-semibold">
-        Loading...
+      <div className="flex items-center justify-center h-screen text-xl font-semibold">
+        Loading…
       </div>
     );
   }
@@ -150,89 +150,95 @@ const App = () => {
       <ScrollToTop />
       <Toaster position="top-right" />
 
-      <Routes>
-        {/* ADMIN LOGIN */}
-        <Route path="/admin/login" element={<AdminLogin />} />
+      {/* ================= USER ROUTES ================= */}
+      {!isAdminRoute ? (
+        <AppContainer>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/phone/:id" element={<PhoneDetails />} />
 
-        {/* ADMIN ROUTES */}
-        <Route
-          path="/admin"
-          element={
-            <AdminProtectedRoute>
-              <AdminLayout />
-            </AdminProtectedRoute>
-          }
-        >
-          <Route index element={<AdminDashboard />} />
-          <Route path="orders" element={<AdminOrders />} />
-          <Route path="users" element={<AdminUsers />} />
-          <Route path="sell-phones" element={<AdminSellPhones />} />
-          <Route path="products" element={<AdminProducts />} />
-          <Route path="products/add" element={<AdminAddProduct />} />
-          <Route path="products/edit/:id" element={<AdminEditProduct />} />
-        </Route>
+            <Route
+              path="/cart"
+              element={
+                <ProtectedRoute>
+                  <Cart />
+                </ProtectedRoute>
+              }
+            />
 
-        {/* USER ROUTES */}
-        <Route path="/" element={<Home />} />
-        <Route path="/auth" element={<Auth />} />
-        <Route path="/phone/:id" element={<PhoneDetails />} />
+            <Route
+              path="/checkout"
+              element={
+                <ProtectedRoute>
+                  <Checkout />
+                </ProtectedRoute>
+              }
+            />
 
-        <Route
-          path="/cart"
-          element={
-            <ProtectedRoute>
-              <Cart />
-            </ProtectedRoute>
-          }
-        />
+            <Route
+              path="/orders"
+              element={
+                <ProtectedRoute>
+                  <MyOrders />
+                </ProtectedRoute>
+              }
+            />
 
-        <Route
-          path="/checkout"
-          element={
-            <ProtectedRoute>
-              <Checkout />
-            </ProtectedRoute>
-          }
-        />
+            <Route
+              path="/order/:id"
+              element={
+                <ProtectedRoute>
+                  <OrderDetails />
+                </ProtectedRoute>
+              }
+            />
 
-        <Route
-          path="/orders"
-          element={
-            <ProtectedRoute>
-              <MyOrders />
-            </ProtectedRoute>
-          }
-        />
+            <Route
+              path="/order-success"
+              element={
+                <ProtectedRoute>
+                  <OrderSuccess />
+                </ProtectedRoute>
+              }
+            />
 
-        <Route
-          path="/order/:id"
-          element={
-            <ProtectedRoute>
-              <OrderDetails />
-            </ProtectedRoute>
-          }
-        />
+            <Route
+              path="/sale"
+              element={
+                <ProtectedRoute>
+                  <SalePhone />
+                </ProtectedRoute>
+              }
+            />
 
-        <Route
-          path="/order-success"
-          element={
-            <ProtectedRoute>
-              <OrderSuccess />
-            </ProtectedRoute>
-          }
-        />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </AppContainer>
+      ) : (
+        /* ================= ADMIN ROUTES ================= */
+        <Routes>
+          <Route path="/admin/login" element={<AdminLogin />} />
 
-        <Route
-          path="/sale"
-          element={
-            <ProtectedRoute>
-              <SalePhone />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+          <Route
+            path="/admin"
+            element={
+              <AdminProtectedRoute>
+                <AdminLayout />
+              </AdminProtectedRoute>
+            }
+          >
+            <Route index element={<AdminDashboard />} />
+            <Route path="orders" element={<AdminOrders />} />
+            <Route path="orders/:id" element={<AdminOrderDetails />} />
+            <Route path="users" element={<AdminUsers />} />
+            <Route path="sell-phones" element={<AdminSellPhones />} />
+            <Route path="products" element={<AdminProducts />} />
+            <Route path="products/add" element={<AdminAddProduct />} />
+            <Route path="products/edit/:id" element={<AdminEditProduct />} />
+          </Route>
+        </Routes>
+      )}
 
       {!isAdminRoute && <Footer />}
     </>

@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 
 const orderSchema = new mongoose.Schema(
   {
+    /* ================= USER ================= */
     user: {
       uid: {
         type: String,
@@ -14,10 +15,11 @@ const orderSchema = new mongoose.Schema(
       },
     },
 
+    /* ================= ITEMS ================= */
     items: [
       {
         phone: {
-          type: Object,
+          type: Object, // snapshot of phone at purchase time
           required: true,
         },
         quantity: {
@@ -27,27 +29,60 @@ const orderSchema = new mongoose.Schema(
       },
     ],
 
+    /* ================= AMOUNT ================= */
     totalAmount: {
       type: Number,
       required: true,
     },
 
+    /* ================= SHIPPING ================= */
     shippingAddress: {
-      type: String, // ✅ STRING, not Object
+      type: String, // stored as formatted string
       required: true,
     },
 
+    /* ================= PAYMENT ================= */
     paymentMethod: {
       type: String,
       default: "COD",
     },
 
-    status: {
+    paymentStatus: {
       type: String,
+      enum: ["Pending", "Paid", "Failed"],
       default: "Pending",
     },
 
+    paymentId: String,
+
+    /* ================= ORDER STATUS ================= */
+    status: {
+      type: String,
+      enum: ["Pending", "Processing", "Shipped", "Delivered", "Cancelled"],
+      default: "Pending",
+    },
+
+    processedAt: Date,
+    shippedAt: Date,
     deliveredAt: Date,
+
+    /* ================= STATUS HISTORY (PHASE 15.3) ================= */
+    statusHistory: [
+      {
+        status: {
+          type: String,
+          required: true,
+        },
+        changedBy: {
+          type: String, // "admin" | "user"
+          required: true,
+        },
+        changedAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
   },
   { timestamps: true }
 );

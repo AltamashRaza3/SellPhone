@@ -7,15 +7,9 @@ import Order from "../models/Order.js";
 export const createOrder = async (req, res) => {
   try {
     const user = req.user;
+    const { items, totalAmount, shippingAddress, paymentMethod } = req.body;
 
-    const {
-      items,
-      totalAmount,
-      shippingAddress,
-      paymentMethod,
-    } = req.body;
-
-    if (!items?.length || !totalAmount) {
+    if (!items?.length || !totalAmount || !shippingAddress) {
       return res.status(400).json({ message: "Invalid order data" });
     }
 
@@ -27,8 +21,14 @@ export const createOrder = async (req, res) => {
       items,
       totalAmount,
       shippingAddress,
-      paymentMethod,
+      paymentMethod: paymentMethod || "COD",
       status: "Pending",
+      statusHistory: [
+        {
+          status: "Pending",
+          changedBy: "user",
+        },
+      ],
     });
 
     return res.status(201).json(order);
@@ -39,7 +39,7 @@ export const createOrder = async (req, res) => {
 };
 
 /* ======================================================
-   GET LOGGED-IN USER ORDERS (PHASE 13)
+   GET LOGGED-IN USER ORDERS
    GET /api/orders/my
    ====================================================== */
 export const getUserOrders = async (req, res) => {
@@ -58,7 +58,7 @@ export const getUserOrders = async (req, res) => {
 };
 
 /* ======================================================
-   GET SINGLE ORDER (USER SAFE + ADMIN AWARE) (PHASE 13)
+   GET SINGLE ORDER (USER)
    GET /api/orders/:id
    ====================================================== */
 export const getOrderById = async (req, res) => {
@@ -72,12 +72,7 @@ export const getOrderById = async (req, res) => {
       return res.status(404).json({ message: "Order not found" });
     }
 
-    // Admin can access any order
-    if (user.role === "admin") {
-      return res.status(200).json(order);
-    }
-
-    // User can access only their own order
+    // User can access ONLY their own order
     if (order.user?.uid !== user.uid) {
       return res.status(403).json({ message: "Access denied" });
     }
@@ -88,6 +83,7 @@ export const getOrderById = async (req, res) => {
     return res.status(500).json({ message: "Failed to fetch order" });
   }
 };
+
 /* ======================================================
    USER – CANCEL ORDER (ONLY IF PENDING)
    PUT /api/orders/:id/cancel
@@ -116,6 +112,12 @@ export const cancelOrder = async (req, res) => {
     }
 
     order.status = "Cancelled";
+
+    order.statusHistory.push({
+      status: "Cancelled",
+      changedBy: "user",
+    });
+
     await order.save();
 
     return res.json({
@@ -154,36 +156,54 @@ export const getAllOrders = async (req, res) => {
 export const updateOrderStatus = async (req, res) => {
   try {
     const { status } = req.body;
-
-    const allowedStatuses = [
-      "Pending",
-      "Processing",
-      "Shipped",
-      "Delivered",
-      "Cancelled",
-    ];
-
-    if (!allowedStatuses.includes(status)) {
-      return res.status(400).json({ message: "Invalid status" });
-    }
-
     const order = await Order.findById(req.params.id);
 
     if (!order) {
       return res.status(404).json({ message: "Order not found" });
     }
 
+    // 🔒 Cancelled orders are immutable
+    if (order.status === "Cancelled") {
+      return res.status(400).json({
+        message: "Cancelled orders cannot be updated",
+      });
+    }
+
+    const currentStatus = order.status;
+
+    const allowedTransitions = {
+      Pending: ["Processing"],
+      Processing: ["Shipped"],
+      Shipped: ["Delivered"],
+    };
+
+    if (!allowedTransitions[currentStatus]?.includes(status)) {
+      return res.status(400).json({
+        message: `Invalid status transition: ${currentStatus} → ${status}`,
+      });
+    }
+
     order.status = status;
 
-    if (status === "Delivered") {
-      order.deliveredAt = new Date();
-    }
+    if (status === "Processing") order.processedAt = new Date();
+    if (status === "Shipped") order.shippedAt = new Date();
+    if (status === "Delivered") order.deliveredAt = new Date();
+
+    order.statusHistory.push({
+      status,
+      changedBy: "admin",
+    });
 
     await order.save();
 
-    return res.json({ message: "Order updated", order });
+    return res.status(200).json({
+      message: "Order status updated",
+      order,
+    });
   } catch (error) {
-    console.error("❌ UPDATE ORDER ERROR:", error);
-    return res.status(500).json({ message: "Failed to update order" });
+    console.error("❌ UPDATE ORDER STATUS ERROR:", error);
+    return res.status(500).json({
+      message: "Failed to update order status",
+    });
   }
 };
