@@ -1,4 +1,10 @@
-import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import {
+  Routes,
+  Route,
+  Navigate,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { onAuthStateChanged } from "firebase/auth";
@@ -29,6 +35,7 @@ import Checkout from "./pages/Checkout";
 import OrderSuccess from "./pages/OrderSuccess";
 import MyOrders from "./pages/MyOrders";
 import OrderDetails from "./pages/OrderDetails";
+import MySellRequests from "./pages/MySellRequests";
 
 /* ================= GUARDS ================= */
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -52,33 +59,59 @@ import { Toaster } from "react-hot-toast";
 const App = () => {
   const dispatch = useDispatch();
   const location = useLocation();
+  const navigate = useNavigate();
 
-  const user = useSelector((state) => state.user.user);
+  const { user, authLoaded } = useSelector((state) => state.user);
   const cartItems = useSelector((state) => state.cart.items);
 
-  const [authLoaded, setAuthLoaded] = useState(false);
   const [cartLoaded, setCartLoaded] = useState(false);
 
   const isAdminRoute = location.pathname.startsWith("/admin");
 
-  /* ================= AUTH ================= */
+  /* ================= FIREBASE AUTH (SINGLE SOURCE) ================= */
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       if (firebaseUser) {
         dispatch(
           setUser({
-            email: firebaseUser.email,
             uid: firebaseUser.uid,
-          })
+            email: firebaseUser.email,
+          }),
         );
       } else {
         dispatch(clearUser());
+        dispatch(setCartFromBackend([]));
+        setCartLoaded(false);
       }
-      setAuthLoaded(true);
     });
 
     return () => unsubscribe();
   }, [dispatch]);
+
+  /* ================= GLOBAL AUTH REDIRECT (ONLY ONE) ================= */
+  useEffect(() => {
+    if (!authLoaded) return;
+
+    // If logged in, never stay on /auth
+    if (user && location.pathname === "/auth") {
+      navigate("/", { replace: true });
+      return;
+    }
+
+    // Public user routes (no login required)
+    const isPublicUserRoute =
+      location.pathname === "/" ||
+      location.pathname.startsWith("/phone/") ||
+      location.pathname === "/auth";
+
+    // Admin routes are handled separately
+    if (location.pathname.startsWith("/admin")) return;
+
+    // If not logged in → block private user routes
+    if (!user && !isPublicUserRoute) {
+      navigate("/auth", { replace: true });
+    }
+  }, [user, authLoaded, location.pathname, navigate]);
 
   /* ================= FETCH PRODUCTS ================= */
   useEffect(() => {
@@ -88,9 +121,7 @@ const App = () => {
         const res = await fetch("http://localhost:5000/api/products");
         const data = await res.json();
 
-        if (!res.ok) {
-          throw new Error(data.message || "Failed to load products");
-        }
+        if (!res.ok) throw new Error("Failed to load products");
 
         dispatch(setPhones(data));
       } catch (err) {
@@ -103,7 +134,7 @@ const App = () => {
 
   /* ================= LOAD CART ================= */
   useEffect(() => {
-    if (!authLoaded || !user?.uid) return;
+    if (!authLoaded || !user) return;
 
     fetch(`http://localhost:5000/api/cart/${user.uid}`)
       .then((res) => (res.ok ? res.json() : { items: [] }))
@@ -115,11 +146,11 @@ const App = () => {
         dispatch(setCartFromBackend([]));
         setCartLoaded(true);
       });
-  }, [authLoaded, user?.uid, dispatch]);
+  }, [authLoaded, user, dispatch]);
 
   /* ================= SYNC CART ================= */
   useEffect(() => {
-    if (!authLoaded || !cartLoaded || !user?.uid) return;
+    if (!authLoaded || !user || !cartLoaded) return;
 
     fetch("http://localhost:5000/api/cart", {
       method: "POST",
@@ -132,9 +163,9 @@ const App = () => {
         })),
       }),
     }).catch(() => {});
-  }, [cartItems, authLoaded, cartLoaded, user?.uid]);
+  }, [cartItems, authLoaded, cartLoaded, user]);
 
-  /* ================= LOADING ================= */
+  /* ================= GLOBAL LOADER ================= */
   if (!authLoaded) {
     return (
       <div className="flex items-center justify-center h-screen text-xl font-semibold">
@@ -146,11 +177,9 @@ const App = () => {
   return (
     <>
       {!isAdminRoute && <Navbar />}
-
       <ScrollToTop />
       <Toaster position="top-right" />
 
-      {/* ================= USER ROUTES ================= */}
       {!isAdminRoute ? (
         <AppContainer>
           <Routes>
@@ -166,7 +195,6 @@ const App = () => {
                 </ProtectedRoute>
               }
             />
-
             <Route
               path="/checkout"
               element={
@@ -175,7 +203,6 @@ const App = () => {
                 </ProtectedRoute>
               }
             />
-
             <Route
               path="/orders"
               element={
@@ -184,7 +211,6 @@ const App = () => {
                 </ProtectedRoute>
               }
             />
-
             <Route
               path="/order/:id"
               element={
@@ -193,7 +219,6 @@ const App = () => {
                 </ProtectedRoute>
               }
             />
-
             <Route
               path="/order-success"
               element={
@@ -202,7 +227,14 @@ const App = () => {
                 </ProtectedRoute>
               }
             />
-
+            <Route
+              path="/my-sell-requests"
+              element={
+                <ProtectedRoute>
+                  <MySellRequests />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/sale"
               element={
@@ -216,10 +248,8 @@ const App = () => {
           </Routes>
         </AppContainer>
       ) : (
-        /* ================= ADMIN ROUTES ================= */
         <Routes>
           <Route path="/admin/login" element={<AdminLogin />} />
-
           <Route
             path="/admin"
             element={

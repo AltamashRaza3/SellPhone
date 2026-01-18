@@ -1,12 +1,16 @@
 import { useSelector } from "react-redux";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 
 const ProtectedRoute = ({ children }) => {
-  const user = useSelector((state) => state.user.user);
+  const { user, authLoaded } = useSelector((state) => state.user);
+  const location = useLocation();
 
-  // If user is not logged in, redirect to auth page
+  if (!authLoaded) {
+    return null; // wait until Firebase resolves
+  }
+
   if (!user) {
-    return <Navigate to="/auth" replace />;
+    return <Navigate to="/auth" replace state={{ from: location }} />;
   }
 
   return children;

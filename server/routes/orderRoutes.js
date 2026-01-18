@@ -9,25 +9,34 @@ import {
 } from "../controllers/orderController.js";
 import adminAuth from "../middleware/adminAuth.js";
 import userAuth from "../middleware/userAuth.js";
+import { strictLimiter } from "../middleware/rateLimiter.js";
 
 const router = express.Router();
 
 /* ======================================================
    USER ROUTES
    ====================================================== */
-router.post("/", userAuth, createOrder);
+
+/* Create order (rate-limited) */
+router.post("/", strictLimiter, userAuth, createOrder);
+
+/* Get my orders */
 router.get("/my", userAuth, getUserOrders);
 
-/* Cancel order (USER – only if Pending) */
-router.put("/:id/cancel", userAuth, cancelOrder);
+/* Cancel order (rate-limited, only Pending) */
+router.put("/:id/cancel", strictLimiter, userAuth, cancelOrder);
 
-/* 🔴 IMPORTANT: must come AFTER /my and /:id/cancel */
+/*  must come AFTER /my and /:id/cancel */
 router.get("/:id", userAuth, getOrderById);
 
 /* ======================================================
    ADMIN ROUTES
    ====================================================== */
+
+/* Get all orders */
 router.get("/", adminAuth, getAllOrders);
-router.put("/:id", adminAuth, updateOrderStatus);
+
+/* Update order status (rate-limited) */
+router.put("/:id", strictLimiter, adminAuth, updateOrderStatus);
 
 export default router;

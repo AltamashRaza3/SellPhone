@@ -1,6 +1,17 @@
 import Order from "../models/Order.js";
 
 /* ======================================================
+   STATUS TRANSITIONS (BACKEND AUTHORITY)
+   ====================================================== */
+const STATUS_TRANSITIONS = {
+  Pending: ["Processing"],
+  Processing: ["Shipped"],
+  Shipped: ["Delivered"],
+  Delivered: [],
+  Cancelled: [],
+};
+
+/* ======================================================
    CREATE ORDER (USER)
    POST /api/orders
    ====================================================== */
@@ -31,7 +42,7 @@ export const createOrder = async (req, res) => {
       ],
     });
 
-    return res.status(201).json(order);
+    return res.status(201).json({ order });
   } catch (error) {
     console.error("❌ CREATE ORDER ERROR:", error);
     return res.status(500).json({ message: "Order creation failed" });
@@ -39,18 +50,16 @@ export const createOrder = async (req, res) => {
 };
 
 /* ======================================================
-   GET LOGGED-IN USER ORDERS
+   GET USER ORDERS
    GET /api/orders/my
    ====================================================== */
 export const getUserOrders = async (req, res) => {
   try {
-    const user = req.user;
-
-    const orders = await Order.find({ "user.uid": user.uid })
+    const orders = await Order.find({ "user.uid": req.user.uid })
       .sort({ createdAt: -1 })
       .lean();
 
-    return res.status(200).json(Array.isArray(orders) ? orders : []);
+    return res.status(200).json(orders);
   } catch (error) {
     console.error("❌ GET USER ORDERS ERROR:", error);
     return res.status(500).json([]);
@@ -58,61 +67,54 @@ export const getUserOrders = async (req, res) => {
 };
 
 /* ======================================================
-   GET SINGLE ORDER (USER)
+   GET SINGLE ORDER (USER SAFE + ADMIN)
    GET /api/orders/:id
    ====================================================== */
 export const getOrderById = async (req, res) => {
   try {
-    const user = req.user;
-    const { id } = req.params;
-
-    const order = await Order.findById(id).lean();
+    const order = await Order.findById(req.params.id).lean();
 
     if (!order) {
       return res.status(404).json({ message: "Order not found" });
     }
 
-    // User can access ONLY their own order
-    if (order.user?.uid !== user.uid) {
+    if (
+      req.user.role !== "admin" &&
+      order.user.uid !== req.user.uid
+    ) {
       return res.status(403).json({ message: "Access denied" });
     }
 
     return res.status(200).json(order);
   } catch (error) {
-    console.error("❌ GET ORDER BY ID ERROR:", error);
+    console.error("❌ GET ORDER ERROR:", error);
     return res.status(500).json({ message: "Failed to fetch order" });
   }
 };
 
 /* ======================================================
-   USER – CANCEL ORDER (ONLY IF PENDING)
+   USER – CANCEL ORDER
    PUT /api/orders/:id/cancel
    ====================================================== */
 export const cancelOrder = async (req, res) => {
   try {
-    const { id } = req.params;
-    const user = req.user;
-
-    const order = await Order.findById(id);
+    const order = await Order.findById(req.params.id);
 
     if (!order) {
       return res.status(404).json({ message: "Order not found" });
     }
 
-    // Ownership check
-    if (order.user?.uid !== user.uid) {
+    if (order.user.uid !== req.user.uid) {
       return res.status(403).json({ message: "Access denied" });
     }
 
-    // Business rule
     if (order.status !== "Pending") {
-      return res.status(400).json({
-        message: "Only pending orders can be cancelled",
-      });
+      return res
+        .status(400)
+        .json({ message: "Only pending orders can be cancelled" });
     }
 
     order.status = "Cancelled";
-
     order.statusHistory.push({
       status: "Cancelled",
       changedBy: "user",
@@ -120,15 +122,10 @@ export const cancelOrder = async (req, res) => {
 
     await order.save();
 
-    return res.json({
-      message: "Order cancelled successfully",
-      order,
-    });
+    return res.json({ message: "Order cancelled", order });
   } catch (error) {
     console.error("❌ CANCEL ORDER ERROR:", error);
-    return res.status(500).json({
-      message: "Failed to cancel order",
-    });
+    return res.status(500).json({ message: "Failed to cancel order" });
   }
 };
 
@@ -142,7 +139,7 @@ export const getAllOrders = async (req, res) => {
       .sort({ createdAt: -1 })
       .lean();
 
-    return res.status(200).json(Array.isArray(orders) ? orders : []);
+    return res.status(200).json(orders);
   } catch (error) {
     console.error("❌ ADMIN GET ORDERS ERROR:", error);
     return res.status(500).json([]);
@@ -162,24 +159,17 @@ export const updateOrderStatus = async (req, res) => {
       return res.status(404).json({ message: "Order not found" });
     }
 
-    // 🔒 Cancelled orders are immutable
-    if (order.status === "Cancelled") {
-      return res.status(400).json({
-        message: "Cancelled orders cannot be updated",
-      });
+    if (["Cancelled", "Delivered"].includes(order.status)) {
+      return res
+        .status(400)
+        .json({ message: "This order can no longer be updated" });
     }
 
-    const currentStatus = order.status;
+    const allowed = STATUS_TRANSITIONS[order.status] || [];
 
-    const allowedTransitions = {
-      Pending: ["Processing"],
-      Processing: ["Shipped"],
-      Shipped: ["Delivered"],
-    };
-
-    if (!allowedTransitions[currentStatus]?.includes(status)) {
+    if (!allowed.includes(status)) {
       return res.status(400).json({
-        message: `Invalid status transition: ${currentStatus} → ${status}`,
+        message: `Invalid transition: ${order.status} → ${status}`,
       });
     }
 
@@ -196,14 +186,9 @@ export const updateOrderStatus = async (req, res) => {
 
     await order.save();
 
-    return res.status(200).json({
-      message: "Order status updated",
-      order,
-    });
+    return res.json({ message: "Order updated", order });
   } catch (error) {
-    console.error("❌ UPDATE ORDER STATUS ERROR:", error);
-    return res.status(500).json({
-      message: "Failed to update order status",
-    });
+    console.error("❌ UPDATE ORDER ERROR:", error);
+    return res.status(500).json({ message: "Failed to update order" });
   }
 };

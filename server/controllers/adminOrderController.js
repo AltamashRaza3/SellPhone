@@ -1,22 +1,50 @@
 import Order from "../models/Order.js";
 
 /* ======================================================
-   GET ALL ORDERS (ADMIN)
-   GET /api/admin/orders
+   ADMIN – GET ALL ORDERS (PAGINATED)
+   GET /api/admin/orders?page=&limit=
    ====================================================== */
 export const getAllOrders = async (req, res) => {
   try {
-    const orders = await Order.find({})
-      .sort({ createdAt: -1 })
-      .lean(); // 🔑 prevents mongoose crash
+    const page = Math.max(parseInt(req.query.page) || 1, 1);
+    const limit = Math.min(parseInt(req.query.limit) || 10, 50);
 
-    // Always return array (frontend safety)
-    return res.status(200).json(Array.isArray(orders) ? orders : []);
+    const skip = (page - 1) * limit;
+
+    const [orders, totalOrders] = await Promise.all([
+      Order.find({})
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      Order.countDocuments(),
+    ]);
+
+    const totalPages = Math.ceil(totalOrders / limit);
+
+    return res.status(200).json({
+      orders,
+      pagination: {
+        page,
+        limit,
+        totalPages,
+        totalOrders,
+      },
+    });
   } catch (error) {
-    console.error("❌ ADMIN GET ORDERS ERROR:", error);
-    return res.status(500).json([]); // NEVER break frontend
+    console.error("ADMIN PAGINATED ORDERS ERROR:", error);
+    return res.status(500).json({
+      orders: [],
+      pagination: {
+        page: 1,
+        limit: 10,
+        totalPages: 0,
+        totalOrders: 0,
+      },
+    });
   }
 };
+
 
 /* ======================================================
    GET SINGLE ORDER (ADMIN)

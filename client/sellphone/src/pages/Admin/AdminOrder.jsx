@@ -1,70 +1,56 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import OrderStatusBadge from "../../components/OrderStatusBadge";
+
+const LIMIT = 10;
 
 const AdminOrders = () => {
   const [orders, setOrders] = useState([]);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
 
   useEffect(() => {
     const fetchOrders = async () => {
       try {
-        const res = await fetch("http://localhost:5000/api/admin/orders", {
-          credentials: "include",
-        });
+        setLoading(true);
+
+        const res = await fetch(
+          `http://localhost:5000/api/admin/orders?page=${page}&limit=${LIMIT}`,
+          { credentials: "include" },
+        );
 
         const data = await res.json();
 
-        if (!Array.isArray(data)) {
-          throw new Error("Invalid orders response");
-        }
+        if (!res.ok) throw new Error("Failed to load orders");
 
-        setOrders(data);
+        setOrders(data.orders || []);
+        setPagination(data.pagination);
       } catch (err) {
-        console.error("Admin orders fetch error:", err);
-        setError("Server error while loading orders");
+        console.error(err);
+        setOrders([]);
       } finally {
         setLoading(false);
       }
     };
 
     fetchOrders();
-  }, []);
+  }, [page]);
 
-  /* ================= LOADING ================= */
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-[40vh] text-gray-400">
+      <div className="min-h-[40vh] flex items-center justify-center text-gray-400">
         Loading orders…
       </div>
     );
   }
 
-  /* ================= ERROR ================= */
-  if (error) {
-    return (
-      <div className="max-w-4xl mx-auto bg-red-500/10 text-red-400 p-4 rounded-xl">
-        {error}
-      </div>
-    );
-  }
-
-  /* ================= EMPTY ================= */
-  if (orders.length === 0) {
-    return (
-      <div className="text-center py-20 text-gray-400">No orders found</div>
-    );
-  }
-
-  /* ================= TABLE ================= */
   return (
     <div className="max-w-6xl mx-auto space-y-6">
-      <h1 className="text-3xl font-semibold text-white">Orders Management</h1>
+      <h1 className="text-3xl font-semibold text-white">Orders</h1>
 
-      <div className="overflow-x-auto rounded-2xl border border-white/10 bg-white/5 backdrop-blur">
-        <table className="w-full text-sm text-left">
-          <thead className="text-gray-400 border-b border-white/10">
+      <div className="rounded-2xl border border-white/10 bg-white/5 overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="border-b border-white/10 text-gray-400">
             <tr>
               <th className="px-5 py-4">Order</th>
               <th className="px-5 py-4">Customer</th>
@@ -79,32 +65,19 @@ const AdminOrders = () => {
             {orders.map((order) => (
               <tr
                 key={order._id}
-                className="border-t border-white/5 hover:bg-white/5 transition"
+                className="border-t border-white/5 hover:bg-white/5"
               >
-                <td className="px-5 py-4 font-mono text-gray-200">
-                  #{order._id.slice(-6)}
-                </td>
-
-                <td className="px-5 py-4 text-gray-300">
-                  {order.user?.email || "Guest"}
-                </td>
-
-                <td className="px-5 py-4 font-medium text-white">
-                  ₹{order.totalAmount}
-                </td>
-
+                <td className="px-5 py-4 font-mono">#{order._id.slice(-6)}</td>
+                <td className="px-5 py-4">{order.user?.email || "Guest"}</td>
+                <td className="px-5 py-4 font-medium">₹{order.totalAmount}</td>
+                <td className="px-5 py-4">{order.status}</td>
                 <td className="px-5 py-4">
-                  <OrderStatusBadge status={order.status} />
-                </td>
-
-                <td className="px-5 py-4 text-gray-400">
                   {new Date(order.createdAt).toLocaleDateString()}
                 </td>
-
                 <td className="px-5 py-4 text-right">
                   <Link
                     to={`/admin/orders/${order._id}`}
-                    className="text-orange-400 hover:text-orange-300 font-medium"
+                    className="text-orange-400 hover:underline"
                   >
                     View →
                   </Link>
@@ -114,6 +87,31 @@ const AdminOrders = () => {
           </tbody>
         </table>
       </div>
+
+      {/* PAGINATION */}
+      {pagination && (
+        <div className="flex justify-center gap-4 mt-6">
+          <button
+            disabled={page === 1}
+            onClick={() => setPage((p) => p - 1)}
+            className="px-4 py-2 rounded bg-white/10 disabled:opacity-40"
+          >
+            Prev
+          </button>
+
+          <span className="text-gray-400 text-sm flex items-center">
+            Page {pagination.page} of {pagination.totalPages}
+          </span>
+
+          <button
+            disabled={page >= pagination.totalPages}
+            onClick={() => setPage((p) => p + 1)}
+            className="px-4 py-2 rounded bg-white/10 disabled:opacity-40"
+          >
+            Next
+          </button>
+        </div>
+      )}
     </div>
   );
 };

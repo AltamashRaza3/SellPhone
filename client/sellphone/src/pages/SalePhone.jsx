@@ -1,118 +1,237 @@
 import { useState } from "react";
 import { toast } from "react-hot-toast";
+import { auth } from "../utils/firebase";
 
-const SalePhone = () => {
+const normalizeRam = (value) => {
+  const num = value.replace(/\D/g, "");
+  return num ? `${num}GB` : "";
+};
+
+const SellPhone = () => {
+  const [loading, setLoading] = useState(false);
+
   const [form, setForm] = useState({
     brand: "",
     model: "",
     storage: "",
-    condition: "",
-    price: "",
-    contact: "",
+    ram: "",
+    color: "",
+    condition: "Good",
+    expectedPrice: "",
+    phone: "",
+    images: "",
+
+    fullAddress: "",
+    city: "",
+    state: "",
+    pincode: "",
+    landmark: "",
   });
 
-  const handleChange = (e) =>
-    setForm({ ...form, [e.target.name]: e.target.value });
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    if (name === "ram") {
+      setForm({ ...form, ram: normalizeRam(value) });
+    } else {
+      setForm({ ...form, [name]: value });
+    }
+  };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Simple validation
-    if (Object.values(form).some((v) => !v)) {
-      toast.error("Please fill all fields");
+    if (!auth.currentUser) {
+      toast.error("Please login first");
       return;
     }
 
-    // For now, just show success
-    toast.success("Your phone submission is successful!");
-    setForm({
-      brand: "",
-      model: "",
-      storage: "",
-      condition: "",
-      price: "",
-      contact: "",
-    });
+    try {
+      setLoading(true);
+      const token = await auth.currentUser.getIdToken();
+
+      const imageUrls = form.images
+        ? form.images.split(",").map((u) => u.trim())
+        : [];
+
+      const res = await fetch("http://localhost:5000/api/sell-requests", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          phone: {
+            brand: form.brand,
+            model: form.model,
+            storage: form.storage,
+            ram: form.ram,
+            color: form.color,
+            condition: form.condition,
+            images: imageUrls,
+          },
+          expectedPrice: Number(form.expectedPrice),
+          contact: { phone: form.phone },
+          pickupAddress: {
+            fullAddress: form.fullAddress,
+            city: form.city,
+            state: form.state,
+            pincode: form.pincode,
+            landmark: form.landmark,
+          },
+        }),
+      });
+
+      if (!res.ok) throw new Error();
+
+      toast.success("Sell request submitted successfully");
+
+      setForm({
+        brand: "",
+        model: "",
+        storage: "",
+        ram: "",
+        color: "",
+        condition: "Good",
+        expectedPrice: "",
+        phone: "",
+        images: "",
+        fullAddress: "",
+        city: "",
+        state: "",
+        pincode: "",
+        landmark: "",
+      });
+    } catch {
+      toast.error("Submission failed");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 pt-28 pb-16">
-      <h1 className="text-3xl font-bold text-orange-500 mb-6 text-center">
-        Sell Your Phone
-      </h1>
+    <div className="appContainer py-12">
+      <div className="max-w-3xl mx-auto glass-card space-y-6">
+        <h1 className="text-2xl font-bold text-white">Sell Your Phone</h1>
 
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white p-6 rounded-xl shadow-md space-y-4"
-      >
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <form onSubmit={handleSubmit} className="grid md:grid-cols-2 gap-4">
           <input
-            type="text"
+            className="input"
             name="brand"
-            placeholder="Brand (e.g., Samsung)"
+            placeholder="Brand *"
             value={form.brand}
             onChange={handleChange}
-            className="border p-3 rounded w-full"
           />
           <input
-            type="text"
+            className="input"
             name="model"
-            placeholder="Model (e.g., Galaxy S21)"
+            placeholder="Model *"
             value={form.model}
             onChange={handleChange}
-            className="border p-3 rounded w-full"
           />
           <input
-            type="text"
+            className="input"
             name="storage"
-            placeholder="Storage (e.g., 128GB)"
+            placeholder="Storage"
             value={form.storage}
             onChange={handleChange}
-            className="border p-3 rounded w-full"
           />
+          <input
+            className="input"
+            name="ram"
+            placeholder="RAM (e.g. 8GB)"
+            value={form.ram}
+            onChange={handleChange}
+          />
+          <input
+            className="input"
+            name="color"
+            placeholder="Color"
+            value={form.color}
+            onChange={handleChange}
+          />
+
           <select
+            className="input"
             name="condition"
             value={form.condition}
             onChange={handleChange}
-            className="border p-3 rounded w-full"
           >
-            <option value="">Select Condition</option>
-            <option value="New">New</option>
-            <option value="Like New">Like New</option>
-            <option value="Used">Used</option>
-            <option value="Refurbished">Refurbished</option>
+            <option>Excellent</option>
+            <option>Good</option>
+            <option>Fair</option>
           </select>
+
           <input
+            className="input md:col-span-2"
             type="number"
-            name="price"
-            placeholder="Expected Price (₹)"
-            value={form.price}
+            name="expectedPrice"
+            placeholder="Expected Price (₹) *"
+            value={form.expectedPrice}
             onChange={handleChange}
-            className="border p-3 rounded w-full"
           />
           <input
-            type="text"
-            name="contact"
-            placeholder="Your Contact Number"
-            value={form.contact}
+            className="input md:col-span-2"
+            name="phone"
+            placeholder="WhatsApp Mobile Number *"
+            value={form.phone}
             onChange={handleChange}
-            className="border p-3 rounded w-full"
           />
-        </div>
+          <textarea
+            className="input md:col-span-2"
+            name="images"
+            placeholder="Paste image URLs (comma separated)"
+            rows={3}
+            value={form.images}
+            onChange={handleChange}
+          />
 
-        <button
-          type="submit"
-          className="w-full bg-orange-500 text-white py-3 rounded-full font-medium hover:bg-orange-600 transition"
-        >
-          Submit Phone
-        </button>
-      </form>
+          <div className="md:col-span-2 text-gray-400 font-semibold">
+            Pickup Address
+          </div>
 
-      <p className="mt-6 text-center text-gray-500 text-sm">
-        After submitting, our team will contact you to confirm your listing.
-      </p>
+          <textarea
+            className="input md:col-span-2"
+            name="fullAddress"
+            placeholder="Full Address *"
+            value={form.fullAddress}
+            onChange={handleChange}
+          />
+          <input
+            className="input"
+            name="city"
+            placeholder="City *"
+            value={form.city}
+            onChange={handleChange}
+          />
+          <input
+            className="input"
+            name="state"
+            placeholder="State *"
+            value={form.state}
+            onChange={handleChange}
+          />
+          <input
+            className="input"
+            name="pincode"
+            placeholder="Pincode *"
+            value={form.pincode}
+            onChange={handleChange}
+          />
+          <input
+            className="input"
+            name="landmark"
+            placeholder="Landmark (optional)"
+            value={form.landmark}
+            onChange={handleChange}
+          />
+
+          <button disabled={loading} className="btn-primary md:col-span-2 py-3">
+            {loading ? "Submitting..." : "Submit Sell Request"}
+          </button>
+        </form>
+      </div>
     </div>
   );
 };
 
-export default SalePhone;
+export default SellPhone;

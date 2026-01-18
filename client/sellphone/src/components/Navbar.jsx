@@ -19,8 +19,6 @@ import {
   selectCartCount,
 } from "../redux/slices/selectors/cartSelectors";
 
-const selectPhonesList = (state) => state.phones.list ?? [];
-
 const Navbar = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -31,13 +29,23 @@ const Navbar = () => {
   const user = useSelector((state) => state.user.user);
   const cartItems = useSelector(selectCartItems);
   const cartCount = useSelector(selectCartCount);
-  const phones = useSelector(selectPhonesList);
 
   const [mobileMenu, setMobileMenu] = useState(false);
   const [showDesktopCart, setShowDesktopCart] = useState(false);
 
   const cartRef = useRef(null);
 
+  /* ================= SELL PHONE HANDLER ================= */
+  const handleSellPhone = () => {
+    if (!user) {
+      toast("Please login to sell your phone", { icon: "🔐" });
+      navigate("/auth", { state: { redirectTo: "/sale" } });
+      return;
+    }
+    navigate("/sale");
+  };
+
+  /* ================= LOGOUT ================= */
   const handleLogout = async () => {
     try {
       await auth.signOut();
@@ -56,6 +64,7 @@ const Navbar = () => {
     toast.success("Item removed");
   };
 
+  /* ================= CLOSE CART ON OUTSIDE CLICK ================= */
   useEffect(() => {
     const close = (e) => {
       if (cartRef.current && !cartRef.current.contains(e.target)) {
@@ -86,22 +95,33 @@ const Navbar = () => {
             </div>
           </div>
 
-          {/* DESKTOP ACTIONS */}
+          {/* ================= DESKTOP ACTIONS ================= */}
           <div className="hidden lg:flex items-center gap-4" ref={cartRef}>
-            <Link
-              to="/sale"
-              className="px-6 py-3 rounded-2xl bg-orange-100 text-orange-700 font-semibold"
+            {/* SELL PHONE (VISIBLE FOR ALL) */}
+            <button
+              onClick={handleSellPhone}
+              className="px-6 py-3 rounded-2xl bg-orange-100 text-orange-700 font-semibold hover:bg-orange-200 transition"
             >
               Sell Phone
-            </Link>
+            </button>
 
+            {/* USER LINKS */}
             {user && (
-              <Link
-                to="/orders"
-                className="px-6 py-3 rounded-2xl bg-blue-100 text-blue-700 font-semibold"
-              >
-                <FiPackage className="inline mr-1" /> Orders
-              </Link>
+              <>
+                <Link
+                  to="/orders"
+                  className="px-6 py-3 rounded-2xl bg-blue-100 text-blue-700 font-semibold"
+                >
+                  <FiPackage className="inline mr-1" /> Orders
+                </Link>
+
+                <Link
+                  to="/my-sell-requests"
+                  className="px-6 py-3 rounded-2xl bg-purple-100 text-purple-700 font-semibold"
+                >
+                  🧾 My Sell Requests
+                </Link>
+              </>
             )}
 
             {/* CART */}
@@ -155,6 +175,7 @@ const Navbar = () => {
               )}
             </div>
 
+            {/* AUTH */}
             {user ? (
               <button
                 onClick={handleLogout}
@@ -172,7 +193,7 @@ const Navbar = () => {
             )}
           </div>
 
-          {/* MOBILE ACTIONS */}
+          {/* ================= MOBILE ACTIONS ================= */}
           <div className="lg:hidden flex items-center gap-2">
             <button
               onClick={() => setMobileMenu((p) => !p)}
@@ -195,25 +216,37 @@ const Navbar = () => {
           </div>
         </div>
 
-        {/* MOBILE MENU */}
+        {/* ================= MOBILE MENU ================= */}
         {mobileMenu && (
           <div className="lg:hidden pb-4 space-y-3 border-t border-gray-200">
-            <Link
-              to="/sale"
-              onClick={() => setMobileMenu(false)}
+            <button
+              onClick={() => {
+                setMobileMenu(false);
+                handleSellPhone();
+              }}
               className="block w-full text-center py-3 rounded-xl bg-orange-100 text-orange-700 font-bold"
             >
               Sell Phone
-            </Link>
+            </button>
 
             {user && (
-              <Link
-                to="/orders"
-                onClick={() => setMobileMenu(false)}
-                className="block w-full text-center py-3 rounded-xl bg-blue-100 text-blue-700 font-bold"
-              >
-                My Orders
-              </Link>
+              <>
+                <Link
+                  to="/orders"
+                  onClick={() => setMobileMenu(false)}
+                  className="block w-full text-center py-3 rounded-xl bg-blue-100 text-blue-700 font-bold"
+                >
+                  My Orders
+                </Link>
+
+                <Link
+                  to="/my-sell-requests"
+                  onClick={() => setMobileMenu(false)}
+                  className="block w-full text-center py-3 rounded-xl bg-purple-100 text-purple-700 font-bold"
+                >
+                  My Sell Requests
+                </Link>
+              </>
             )}
 
             {user ? (

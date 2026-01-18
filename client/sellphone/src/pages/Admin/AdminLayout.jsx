@@ -1,10 +1,9 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { signOut } from "firebase/auth";
 import { auth } from "../../utils/firebase";
-import { useDispatch,useSelector } from "react-redux";
-import { setPhones } from "../../redux/slices/phonesSlice";
+import { useDispatch} from "react-redux";
 import { clearAdmin } from "../../redux/slices/adminSlice";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { FiMenu, FiX } from "react-icons/fi";
 
 /* ================== STYLES ================== */
