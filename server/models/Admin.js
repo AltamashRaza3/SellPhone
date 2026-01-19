@@ -23,9 +23,11 @@ const adminSchema = new mongoose.Schema(
 /* ===============================
    HASH PASSWORD BEFORE SAVE
    =============================== */
-adminSchema.pre("save", async function () {
-  if (!this.isModified("password")) return;
+adminSchema.pre("save", async function (next) {
+  if (!this.isModified("password")) return next();
+
   this.password = await bcrypt.hash(this.password, 10);
+  next();
 });
 
 /* ===============================
@@ -35,6 +37,8 @@ adminSchema.methods.matchPassword = async function (enteredPassword) {
   return bcrypt.compare(enteredPassword, this.password);
 };
 
-const Admin = mongoose.model("Admin", adminSchema);
-
-export default Admin;
+/* ===============================
+   SAFE EXPORT (NO OVERWRITE ERROR)
+   =============================== */
+export default mongoose.models.Admin ||
+  mongoose.model("Admin", adminSchema);

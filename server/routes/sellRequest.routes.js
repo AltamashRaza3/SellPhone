@@ -5,22 +5,23 @@ import userAuth from "../middleware/userAuth.js";
 const router = express.Router();
 
 /* ======================================================
-   CREATE SELL REQUEST (USER)
+   CREATE SELL REQUEST (USER) — PRODUCTION READY
 ====================================================== */
 router.post("/", userAuth, async (req, res) => {
   try {
-    const { phone, expectedPrice, contact, pickupAddress } = req.body;
-    const { uid, email } = req.user;
+    const {
+      phone,
+      expectedPrice,
+      contact,
+      pickupAddress,
+    } = req.body;
 
-    /* -------- Validation -------- */
+    /* ================= VALIDATION ================= */
     if (
       !phone ||
-      !phone.brand ||
-      !phone.model ||
-      !phone.condition ||
       !expectedPrice ||
       !contact?.phone ||
-      !pickupAddress?.line1 ||
+      !pickupAddress?.fullAddress ||
       !pickupAddress?.city ||
       !pickupAddress?.state ||
       !pickupAddress?.pincode
@@ -30,75 +31,56 @@ router.post("/", userAuth, async (req, res) => {
       });
     }
 
-    /* -------- Normalize data -------- */
-    const normalizedContactPhone = String(contact.phone).replace(/\D/g, "");
+    if (!req.user?.email) {
+      return res.status(400).json({
+        message: "Authenticated user email not found",
+      });
+    }
 
-    const sellRequest = await SellRequest.create({
+    /* ================= CREATE REQUEST ================= */
+    const sellRequest = new SellRequest({
       user: {
-        uid,
-        email,
+        uid: req.user.uid || req.user._id,
+        email: req.user.email,
       },
 
       contact: {
-        email,
-        phone: normalizedContactPhone,
+        phone: contact.phone,
+        email: req.user.email, // ✅ source of truth
       },
 
-      pickupAddress: {
-        line1: pickupAddress.line1,
-        line2: pickupAddress.line2 || "",
-        city: pickupAddress.city,
-        state: pickupAddress.state,
-        pincode: pickupAddress.pincode,
+      phone,
+      expectedPrice,
+
+      pickup: {
+        address: {
+          line1: pickupAddress.fullAddress,
+          line2: pickupAddress.landmark || "",
+          city: pickupAddress.city,
+          state: pickupAddress.state,
+          pincode: pickupAddress.pincode,
+        },
       },
 
-      phone: {
-        brand: phone.brand,
-        model: phone.model,
-        storage: phone.storage || "",
-        ram: phone.ram || "",
-        color: phone.color || "",
-        condition: phone.condition,
-        images: Array.isArray(phone.images) ? phone.images : [],
-      },
-
-      expectedPrice: Number(expectedPrice),
-
-      status: "Pending",
-      adminNotes: "",
-
-      statusHistory: [
+      history: [
         {
-          status: "Pending",
-          changedBy: uid,
+          action: "Created",
+          by: req.user.uid || req.user._id,
           note: "Sell request submitted by user",
         },
       ],
     });
 
-    res.status(201).json(sellRequest);
-  } catch (error) {
-    console.error("SELL REQUEST ERROR:", error);
+    await sellRequest.save();
+
+    res.status(201).json({
+      message: "Sell request submitted successfully",
+      sellRequest,
+    });
+  } catch (err) {
+    console.error("SELL REQUEST ERROR:", err);
     res.status(500).json({
       message: "Failed to submit sell request",
-    });
-  }
-});
-
-/* ======================================================
-   USER SELL REQUEST HISTORY
-====================================================== */
-router.get("/my", userAuth, async (req, res) => {
-  try {
-    const requests = await SellRequest.find({
-      "user.uid": req.user.uid,
-    }).sort({ createdAt: -1 });
-
-    res.json(requests);
-  } catch (error) {
-    console.error("FETCH MY SELL REQUESTS ERROR:", error);
-    res.status(500).json({
-      message: "Failed to fetch sell requests",
     });
   }
 });

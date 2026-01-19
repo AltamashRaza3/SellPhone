@@ -4,27 +4,14 @@ const sellRequestSchema = new mongoose.Schema(
   {
     /* ================= USER ================= */
     user: {
-      uid: {
-        type: String,
-        required: true,
-        index: true,
-      },
-      email: {
-        type: String,
-        required: true,
-      },
+      uid: { type: String, required: true, index: true },
+      email: { type: String, required: true },
     },
 
     /* ================= CONTACT ================= */
     contact: {
-      email: {
-        type: String,
-        required: true,
-      },
-      phone: {
-        type: String,
-        required: true,
-      },
+      phone: { type: String, required: true },
+      email: { type: String, required: true },
     },
 
     /* ================= PHONE DETAILS ================= */
@@ -39,19 +26,14 @@ const sellRequestSchema = new mongoose.Schema(
         enum: ["Excellent", "Good", "Fair"],
         required: true,
       },
-      images: {
-        type: [String],
-        default: [],
-      },
+      images: { type: [String], default: [] },
     },
 
-    /* ================= PRICE ================= */
-    expectedPrice: {
-      type: Number,
-      required: true,
-    },
+    /* ================= PRICING ================= */
+    expectedPrice: { type: Number, required: true },
+    finalPrice: Number,
 
-    /* ================= SELL STATUS ================= */
+    /* ================= STATUS ================= */
     status: {
       type: String,
       enum: ["Pending", "In Review", "Approved", "Rejected"],
@@ -59,60 +41,44 @@ const sellRequestSchema = new mongoose.Schema(
       index: true,
     },
 
-    /* ================= VERIFICATION (PHASE 20.3) ================= */
-    verification: {
-      verifiedBy: {
-        type: String, // admin _id
-      },
-      verifiedAt: {
-        type: Date,
-      },
-      remarks: {
-        type: String,
-      },
-    },
+    adminNotes: String,
 
-    /* ================= PICKUP & LOGISTICS ================= */
+    /* ================= PICKUP ================= */
     pickup: {
       status: {
         type: String,
         enum: ["Not Scheduled", "Scheduled", "Picked", "Completed"],
         default: "Not Scheduled",
-        index: true,
       },
-
       scheduledAt: Date,
 
       rider: {
+        riderId: String,
         name: String,
         phone: String,
       },
 
       address: {
-        line1: String,
-        line2: String,
-        city: String,
-        state: String,
-        pincode: String,
+        line1: { type: String, default: "" },
+        line2: { type: String, default: "" },
+        city: { type: String, default: "" },
+        state: { type: String, default: "" },
+        pincode: { type: String, default: "" },
       },
     },
 
     /* ================= HISTORY ================= */
-    statusHistory: [
+    history: [
       {
-        status: String,
-        changedBy: String, // user uid OR admin id
+        action: String,
+        by: String,
         note: String,
-        changedAt: {
-          type: Date,
-          default: Date.now,
-        },
+        at: { type: Date, default: Date.now },
       },
     ],
   },
   { timestamps: true }
 );
 
-/* ================= SAFE EXPORT ================= */
 export default mongoose.models.SellRequest ||
   mongoose.model("SellRequest", sellRequestSchema);

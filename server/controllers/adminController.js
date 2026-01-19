@@ -40,18 +40,24 @@ export const adminLogin = async (req, res) => {
       },
     });
   } catch (error) {
+    console.error("ADMIN LOGIN ERROR:", error);
     res.status(500).json({ message: "Login failed" });
   }
 };
 
 /* ================= ADMIN LOGOUT ================= */
 export const adminLogout = (req, res) => {
-  res.clearCookie("admin_token");
+  res.clearCookie("admin_token", {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+  });
+
   res.json({ message: "Admin logged out successfully" });
 };
 
 /* ================= ADMIN SESSION ================= */
-export const adminMe = async (req, res) => {
+export const adminMe = (req, res) => {
   res.json({
     id: req.admin._id,
     email: req.admin.email,

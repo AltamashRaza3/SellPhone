@@ -6,37 +6,48 @@ const AdminProtectedRoute = ({ children }) => {
   const [authorized, setAuthorized] = useState(false);
 
   useEffect(() => {
+    const controller = new AbortController();
+
     const checkAdminAuth = async () => {
       try {
         const res = await fetch("http://localhost:5000/api/admin/me", {
-          credentials: "include", // 🔥 send cookie
+          method: "GET",
+          credentials: "include", // ✅ JWT cookie
+          signal: controller.signal,
         });
 
         if (!res.ok) throw new Error("Unauthorized");
 
         setAuthorized(true);
-      } catch {
-        setAuthorized(false);
+      } catch (err) {
+        if (err.name !== "AbortError") {
+          setAuthorized(false);
+        }
       } finally {
         setLoading(false);
       }
     };
 
     checkAdminAuth();
+
+    return () => controller.abort();
   }, []);
 
+  /* ================= LOADING ================= */
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen text-white">
-        Checking admin access...
+      <div className="flex items-center justify-center h-screen text-white text-lg font-semibold">
+        Verifying admin access…
       </div>
     );
   }
 
+  /* ================= UNAUTHORIZED ================= */
   if (!authorized) {
     return <Navigate to="/admin/login" replace />;
   }
 
+  /* ================= AUTHORIZED ================= */
   return children;
 };
 

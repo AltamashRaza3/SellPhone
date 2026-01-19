@@ -1,7 +1,5 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { signOut } from "firebase/auth";
-import { auth } from "../../utils/firebase";
-import { useDispatch} from "react-redux";
+import { useDispatch } from "react-redux";
 import { clearAdmin } from "../../redux/slices/adminSlice";
 import { useState } from "react";
 import { FiMenu, FiX } from "react-icons/fi";
@@ -19,12 +17,15 @@ const active =
 const AdminLayout = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
-
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  /* 🔐 Logout */
+
+  /* 🔐 ADMIN LOGOUT (JWT BASED) */
   const handleLogout = async () => {
     try {
-      await signOut(auth);
+      await fetch("http://localhost:5000/api/admin/logout", {
+        method: "POST",
+        credentials: "include",
+      });
     } finally {
       dispatch(clearAdmin());
       navigate("/admin/login", { replace: true });
@@ -90,16 +91,6 @@ const AdminLayout = () => {
             }
           >
             📦 Orders
-          </NavLink>
-
-          <NavLink
-            to="/admin/users"
-            onClick={() => setSidebarOpen(false)}
-            className={({ isActive }) =>
-              `${baseLink} ${isActive ? active : inactive}`
-            }
-          >
-            👤 Users
           </NavLink>
 
           <NavLink
