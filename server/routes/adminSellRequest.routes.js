@@ -4,30 +4,48 @@ import adminAuth from "../middleware/adminAuth.js";
 
 const router = express.Router();
 
-/* ADMIN VIEW ALL */
+/* ================= FETCH ALL SELL REQUESTS ================= */
 router.get("/", adminAuth, async (req, res) => {
-  const requests = await SellRequest.find().sort({ createdAt: -1 });
-  res.json(requests);
+  try {
+    const requests = await SellRequest.find().sort({ createdAt: -1 });
+    res.json(requests);
+  } catch {
+    res.status(500).json({ message: "Failed to fetch sell requests" });
+  }
 });
 
-/* ADMIN UPDATE STATUS */
-router.put("/:id", adminAuth, async (req, res) => {
-  const { status, adminNotes } = req.body;
+/* ================= SCHEDULE PICKUP (PHASE 20.4) ================= */
+router.put("/:id/schedule-pickup", adminAuth, async (req, res) => {
+  try {
+    const { scheduledAt, rider } = req.body;
 
-  const request = await SellRequest.findById(req.params.id);
-  if (!request) return res.status(404).json({ message: "Not found" });
+    if (!scheduledAt) {
+      return res.status(400).json({ message: "Pickup date required" });
+    }
 
-  request.status = status;
-  request.adminNotes = adminNotes;
+    const request = await SellRequest.findById(req.params.id);
+    if (!request) {
+      return res.status(404).json({ message: "Sell request not found" });
+    }
 
-  request.statusHistory.push({
-    status,
-    changedBy: req.admin._id,
-    note: adminNotes || "",
-  });
+    request.pickup.status = "Scheduled";
+    request.pickup.scheduledAt = scheduledAt;
+    request.pickup.rider = rider || {};
 
-  await request.save();
-  res.json(request);
+    request.status = "Pickup Scheduled";
+
+    request.statusHistory.push({
+      status: "Pickup Scheduled",
+      changedBy: req.admin._id,
+      note: "Pickup scheduled by admin",
+    });
+
+    await request.save();
+    res.json(request);
+  } catch (err) {
+    console.error("SCHEDULE PICKUP ERROR:", err);
+    res.status(500).json({ message: "Failed to schedule pickup" });
+  }
 });
 
 export default router;

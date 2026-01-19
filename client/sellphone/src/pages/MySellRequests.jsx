@@ -4,18 +4,21 @@ import { toast } from "react-hot-toast";
 import { auth } from "../utils/firebase";
 import { Link } from "react-router-dom";
 
+/* ================= STATUS UI MAP ================= */
 const statusStyles = {
   Pending: "bg-yellow-500/20 text-yellow-400",
-  "In Review": "bg-blue-500/20 text-blue-400",
-  Approved: "bg-green-500/20 text-green-400",
+  "Pickup Scheduled": "bg-blue-500/20 text-blue-400",
+  Picked: "bg-purple-500/20 text-purple-400",
+  Completed: "bg-green-500/20 text-green-400",
   Rejected: "bg-red-500/20 text-red-400",
 };
 
 const statusText = {
-  Pending: "Waiting for admin review",
-  "In Review": "Your phone is being verified",
-  Approved: "Approved! We’ll contact you shortly",
-  Rejected: "Request rejected",
+  Pending: "Waiting for pickup scheduling",
+  "Pickup Scheduled": "Our rider will visit you soon",
+  Picked: "Phone picked up and under inspection",
+  Completed: "Process completed successfully",
+  Rejected: "Request rejected after inspection",
 };
 
 const MySellRequests = () => {
@@ -75,7 +78,7 @@ const MySellRequests = () => {
 
       {requests.map((req) => (
         <div key={req._id} className="glass-card space-y-4">
-          {/* Header */}
+          {/* HEADER */}
           <div className="flex justify-between items-start">
             <div>
               <h3 className="text-lg font-semibold text-white">
@@ -87,21 +90,23 @@ const MySellRequests = () => {
             </div>
 
             <span
-              className={`px-3 py-1 rounded-full text-xs font-semibold ${statusStyles[req.status]}`}
+              className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                statusStyles[req.status]
+              }`}
             >
               {req.status}
             </span>
           </div>
 
-          {/* Price */}
+          {/* PRICE */}
           <p className="text-orange-400 font-semibold">
             Expected Price: ₹{req.expectedPrice}
           </p>
 
-          {/* Status Info */}
+          {/* STATUS INFO */}
           <p className="text-sm text-gray-300">{statusText[req.status]}</p>
 
-          {/* Admin Note */}
+          {/* ADMIN NOTE */}
           {req.adminNotes && (
             <div className="bg-white/5 p-3 rounded-lg border border-white/10 text-sm">
               <span className="text-gray-400">Admin note:</span>{" "}
@@ -109,28 +114,20 @@ const MySellRequests = () => {
             </div>
           )}
 
-          {/* Actions */}
-          <div className="pt-2 flex flex-wrap gap-3">
-            {req.status === "Approved" && req.contact?.phone && (
-              <a
-                href={`https://wa.me/91${req.contact.phone}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-4 py-2 rounded-lg bg-green-600/20 text-green-400 hover:bg-green-600/40"
-              >
-                Contact on WhatsApp
-              </a>
-            )}
-
-            {req.status === "Rejected" && (
-              <Link
-                to="/sale"
-                className="px-4 py-2 rounded-lg bg-orange-500/20 text-orange-400 hover:bg-orange-500/40"
-              >
-                Sell Again
-              </Link>
-            )}
-          </div>
+          {/* PICKUP INFO */}
+          {req.pickup?.status === "Scheduled" && (
+            <div className="mt-3 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+              <p className="text-sm text-blue-300 font-semibold">
+                📦 Pickup Scheduled
+              </p>
+              <p className="text-sm text-gray-300">
+                Date: {new Date(req.pickup.scheduledAt).toLocaleDateString()}
+              </p>
+              <p className="text-sm text-gray-300">
+                Address: {req.pickup.address?.line1}, {req.pickup.address?.city}
+              </p>
+            </div>
+          )}
         </div>
       ))}
     </div>

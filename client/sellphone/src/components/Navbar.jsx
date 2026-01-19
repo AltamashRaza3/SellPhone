@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import { auth } from "../utils/firebase";
 import { clearUser } from "../redux/slices/userSlice";
-import { removeFromCart, clearCart } from "../redux/slices/cartSlice";
+import { clearCart, removeFromCart } from "../redux/slices/cartSlice";
 import {
   FiMenu,
   FiX,
@@ -13,113 +13,120 @@ import {
 } from "react-icons/fi";
 import { toast } from "react-hot-toast";
 
-/* MEMOIZED SELECTORS */
 import {
   selectCartItems,
   selectCartCount,
 } from "../redux/slices/selectors/cartSelectors";
 
 const Navbar = () => {
+  /* ================= HOOKS (NEVER CONDITIONAL) ================= */
   const navigate = useNavigate();
-  const dispatch = useDispatch();
   const location = useLocation();
-
-  if (location.pathname.startsWith("/auth")) return null;
+  const dispatch = useDispatch();
 
   const user = useSelector((state) => state.user.user);
   const cartItems = useSelector(selectCartItems);
   const cartCount = useSelector(selectCartCount);
 
-  const [mobileMenu, setMobileMenu] = useState(false);
-  const [showDesktopCart, setShowDesktopCart] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [desktopCartOpen, setDesktopCartOpen] = useState(false);
 
   const cartRef = useRef(null);
 
-  /* ================= SELL PHONE HANDLER ================= */
+  /* ================= ROUTE AWARENESS ================= */
+  const isAuthPage = location.pathname.startsWith("/auth");
+
+  /* ================= CLEANUP ON ROUTE CHANGE ================= */
+  useEffect(() => {
+    setMobileMenuOpen(false);
+    setDesktopCartOpen(false);
+  }, [location.pathname]);
+
+  /* ================= CLICK OUTSIDE CART ================= */
+  useEffect(() => {
+    const handler = (e) => {
+      if (cartRef.current && !cartRef.current.contains(e.target)) {
+        setDesktopCartOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  /* ================= ACTIONS ================= */
   const handleSellPhone = () => {
     if (!user) {
-      toast("Please login to sell your phone", { icon: "🔐" });
+      toast("Please login to sell your phone");
       navigate("/auth", { state: { redirectTo: "/sale" } });
       return;
     }
     navigate("/sale");
   };
 
-  /* ================= LOGOUT ================= */
   const handleLogout = async () => {
     try {
       await auth.signOut();
       dispatch(clearUser());
       dispatch(clearCart());
+      navigate("/auth", { replace: true });
       toast.success("Logged out");
-      setMobileMenu(false);
-      navigate("/auth");
     } catch (err) {
-      toast.error(err.message);
+      toast.error("Logout failed");
     }
   };
 
-  const handleRemove = (id) => {
+  const handleRemoveFromCart = (id) => {
     dispatch(removeFromCart(id));
-    toast.success("Item removed");
   };
 
-  /* ================= CLOSE CART ON OUTSIDE CLICK ================= */
-  useEffect(() => {
-    const close = (e) => {
-      if (cartRef.current && !cartRef.current.contains(e.target)) {
-        setShowDesktopCart(false);
-      }
-    };
-    document.addEventListener("mousedown", close);
-    return () => document.removeEventListener("mousedown", close);
-  }, []);
+  /* ================= HIDE NAVBAR VISUALLY (NOT LOGICALLY) ================= */
+  if (isAuthPage) {
+    return <div />; // keeps hooks consistent
+  }
 
+  /* ================= RENDER ================= */
   return (
-    <nav className="sticky top-0 z-50 bg-gradient-to-r from-white to-orange-50/50 backdrop-blur-xl border-b border-orange-100/50 shadow-lg">
+    <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur border-b">
       <div className="max-w-7xl mx-auto px-4">
-        <div className="py-4 flex items-center justify-between">
+        <div className="flex items-center justify-between py-4">
           {/* LOGO */}
           <div
             onClick={() => navigate("/")}
             className="flex items-center gap-3 cursor-pointer"
           >
-            <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-pink-500 rounded-2xl flex items-center justify-center">
-              <FiPhone className="text-white w-7 h-7" />
+            <div className="w-11 h-11 rounded-xl bg-orange-500 flex items-center justify-center">
+              <FiPhone className="text-white" size={22} />
             </div>
             <div>
-              <h1 className="text-2xl font-black bg-gradient-to-r from-gray-900 to-orange-600 bg-clip-text text-transparent">
-                SalePhone
-              </h1>
+              <p className="font-black text-xl">SalePhone</p>
               <p className="text-xs text-gray-500">Second Hand Phones</p>
             </div>
           </div>
 
-          {/* ================= DESKTOP ACTIONS ================= */}
+          {/* DESKTOP */}
           <div className="hidden lg:flex items-center gap-4" ref={cartRef}>
-            {/* SELL PHONE (VISIBLE FOR ALL) */}
             <button
               onClick={handleSellPhone}
-              className="px-6 py-3 rounded-2xl bg-orange-100 text-orange-700 font-semibold hover:bg-orange-200 transition"
+              className="px-5 py-2 rounded-xl bg-orange-100 text-orange-700 font-semibold"
             >
               Sell Phone
             </button>
 
-            {/* USER LINKS */}
             {user && (
               <>
                 <Link
                   to="/orders"
-                  className="px-6 py-3 rounded-2xl bg-blue-100 text-blue-700 font-semibold"
+                  className="px-5 py-2 rounded-xl bg-blue-100 text-blue-700 font-semibold"
                 >
-                  <FiPackage className="inline mr-1" /> Orders
+                  <FiPackage className="inline mr-1" />
+                  Orders
                 </Link>
 
                 <Link
                   to="/my-sell-requests"
-                  className="px-6 py-3 rounded-2xl bg-purple-100 text-purple-700 font-semibold"
+                  className="px-5 py-2 rounded-xl bg-purple-100 text-purple-700 font-semibold"
                 >
-                  🧾 My Sell Requests
+                  My Sell Requests
                 </Link>
               </>
             )}
@@ -127,8 +134,8 @@ const Navbar = () => {
             {/* CART */}
             <div className="relative">
               <button
-                onClick={() => setShowDesktopCart((p) => !p)}
-                className="p-3 bg-gray-100 rounded-2xl relative"
+                onClick={() => setDesktopCartOpen((v) => !v)}
+                className="p-3 bg-gray-100 rounded-xl relative"
               >
                 <FiShoppingCart />
                 {cartCount > 0 && (
@@ -138,24 +145,24 @@ const Navbar = () => {
                 )}
               </button>
 
-              {user && showDesktopCart && (
-                <div className="absolute right-0 mt-3 w-80 bg-white rounded-2xl shadow-xl p-4">
+              {desktopCartOpen && (
+                <div className="absolute right-0 mt-3 w-80 bg-white rounded-xl shadow-lg p-4">
                   {cartItems.length === 0 ? (
-                    <p className="text-center text-gray-500">Cart is empty</p>
+                    <p className="text-gray-500 text-center">Cart is empty</p>
                   ) : (
-                    cartItems.map((i) => (
+                    cartItems.map((item) => (
                       <div
-                        key={i.phone._id}
+                        key={item.phone._id}
                         className="flex justify-between mb-3"
                       >
                         <div>
-                          <p className="font-semibold">{i.phone.brand}</p>
-                          <p className="text-sm text-gray-600">
-                            {i.phone.model}
+                          <p className="font-medium">{item.phone.brand}</p>
+                          <p className="text-sm text-gray-500">
+                            {item.phone.model}
                           </p>
                         </div>
                         <button
-                          onClick={() => handleRemove(i.phone._id)}
+                          onClick={() => handleRemoveFromCart(item.phone._id)}
                           className="text-red-500 text-sm"
                         >
                           Remove
@@ -166,8 +173,7 @@ const Navbar = () => {
 
                   <Link
                     to="/cart"
-                    onClick={() => setShowDesktopCart(false)}
-                    className="block mt-4 bg-orange-500 text-white py-3 rounded-xl text-center font-bold"
+                    className="block mt-4 text-center bg-orange-500 text-white py-2 rounded-lg font-semibold"
                   >
                     Checkout →
                   </Link>
@@ -175,56 +181,38 @@ const Navbar = () => {
               )}
             </div>
 
-            {/* AUTH */}
             {user ? (
               <button
                 onClick={handleLogout}
-                className="px-6 py-3 rounded-2xl bg-gray-900 text-white font-bold"
+                className="px-5 py-2 rounded-xl bg-gray-900 text-white font-semibold"
               >
                 Logout
               </button>
             ) : (
               <Link
                 to="/auth"
-                className="px-6 py-3 rounded-2xl bg-orange-100 text-orange-700 font-bold"
+                className="px-5 py-2 rounded-xl bg-orange-100 text-orange-700 font-semibold"
               >
                 Login
               </Link>
             )}
           </div>
 
-          {/* ================= MOBILE ACTIONS ================= */}
-          <div className="lg:hidden flex items-center gap-2">
-            <button
-              onClick={() => setMobileMenu((p) => !p)}
-              className="p-2 bg-gray-100 rounded-xl"
-            >
-              {mobileMenu ? <FiX /> : <FiMenu />}
-            </button>
-
-            <button
-              onClick={() => navigate("/cart")}
-              className="p-2 bg-gray-100 rounded-xl relative"
-            >
-              <FiShoppingCart />
-              {cartCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-                  {cartCount}
-                </span>
-              )}
-            </button>
-          </div>
+          {/* MOBILE */}
+          <button
+            className="lg:hidden p-2 rounded-lg bg-gray-100"
+            onClick={() => setMobileMenuOpen((v) => !v)}
+          >
+            {mobileMenuOpen ? <FiX /> : <FiMenu />}
+          </button>
         </div>
 
-        {/* ================= MOBILE MENU ================= */}
-        {mobileMenu && (
-          <div className="lg:hidden pb-4 space-y-3 border-t border-gray-200">
+        {/* MOBILE MENU */}
+        {mobileMenuOpen && (
+          <div className="lg:hidden pb-4 space-y-3 border-t">
             <button
-              onClick={() => {
-                setMobileMenu(false);
-                handleSellPhone();
-              }}
-              className="block w-full text-center py-3 rounded-xl bg-orange-100 text-orange-700 font-bold"
+              onClick={handleSellPhone}
+              className="w-full py-3 rounded-xl bg-orange-100 text-orange-700 font-bold"
             >
               Sell Phone
             </button>
@@ -233,16 +221,14 @@ const Navbar = () => {
               <>
                 <Link
                   to="/orders"
-                  onClick={() => setMobileMenu(false)}
-                  className="block w-full text-center py-3 rounded-xl bg-blue-100 text-blue-700 font-bold"
+                  className="block text-center py-3 rounded-xl bg-blue-100 text-blue-700 font-bold"
                 >
                   My Orders
                 </Link>
 
                 <Link
                   to="/my-sell-requests"
-                  onClick={() => setMobileMenu(false)}
-                  className="block w-full text-center py-3 rounded-xl bg-purple-100 text-purple-700 font-bold"
+                  className="block text-center py-3 rounded-xl bg-purple-100 text-purple-700 font-bold"
                 >
                   My Sell Requests
                 </Link>
@@ -259,8 +245,7 @@ const Navbar = () => {
             ) : (
               <Link
                 to="/auth"
-                onClick={() => setMobileMenu(false)}
-                className="block w-full text-center py-3 rounded-xl bg-orange-200 text-orange-800 font-bold"
+                className="block text-center py-3 rounded-xl bg-orange-200 text-orange-800 font-bold"
               >
                 Login
               </Link>
