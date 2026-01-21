@@ -51,6 +51,7 @@ import AdminProducts from "./pages/Admin/AdminProducts";
 import AdminAddProduct from "./pages/Admin/AdminAddProduct";
 import AdminEditProduct from "./pages/Admin/AdminEditProduct";
 import AdminSellPhones from "./pages/Admin/AdminSellPhone";
+import AdminTimeline from "./pages/Admin/AdminTimeline";
 
 /* ================= UI ================= */
 import { Toaster } from "react-hot-toast";
@@ -67,7 +68,7 @@ const App = () => {
 
   const isAdminRoute = location.pathname.startsWith("/admin");
 
-  /* ================= FIREBASE AUTH (SINGLE SOURCE) ================= */
+  /* ================= FIREBASE AUTH ================= */
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       if (firebaseUser) {
@@ -87,26 +88,22 @@ const App = () => {
     return () => unsubscribe();
   }, [dispatch]);
 
-  /* ================= GLOBAL AUTH REDIRECT (ONLY ONE) ================= */
+  /* ================= GLOBAL AUTH REDIRECT ================= */
   useEffect(() => {
     if (!authLoaded) return;
 
-    // If logged in, never stay on /auth
     if (user && location.pathname === "/auth") {
       navigate("/", { replace: true });
       return;
     }
 
-    // Public user routes (no login required)
     const isPublicUserRoute =
       location.pathname === "/" ||
       location.pathname.startsWith("/phone/") ||
       location.pathname === "/auth";
 
-    // Admin routes are handled separately
     if (location.pathname.startsWith("/admin")) return;
 
-    // If not logged in → block private user routes
     if (!user && !isPublicUserRoute) {
       navigate("/auth", { replace: true });
     }
@@ -119,9 +116,7 @@ const App = () => {
       try {
         const res = await fetch("http://localhost:5000/api/products");
         const data = await res.json();
-
         if (!res.ok) throw new Error("Failed to load products");
-
         dispatch(setPhones(data));
       } catch (err) {
         dispatch(setPhonesError(err.message));
@@ -249,6 +244,7 @@ const App = () => {
       ) : (
         <Routes>
           <Route path="/admin/login" element={<AdminLogin />} />
+
           <Route
             path="/admin"
             element={
@@ -260,7 +256,13 @@ const App = () => {
             <Route index element={<AdminDashboard />} />
             <Route path="orders" element={<AdminOrders />} />
             <Route path="orders/:id" element={<AdminOrderDetails />} />
+
             <Route path="sell-phones" element={<AdminSellPhones />} />
+            <Route
+              path="sell-phones/:id/timeline"
+              element={<AdminTimeline />}
+            />
+
             <Route path="products" element={<AdminProducts />} />
             <Route path="products/add" element={<AdminAddProduct />} />
             <Route path="products/edit/:id" element={<AdminEditProduct />} />

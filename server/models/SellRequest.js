@@ -35,29 +35,29 @@ const sellRequestSchema = new mongoose.Schema(
 
     /* ================= STATUS ================= */
     status: {
-      type: String,
-      enum: ["Pending", "In Review", "Approved", "Rejected"],
-      default: "Pending",
-      index: true,
-    },
+  type: String,
+  enum: [
+    "Pending",
+    "In Review",
+    "Pickup Scheduled",
+    "Picked",
+    "Completed",
+    "Cancelled",
+  ],
+  default: "Pending",
+},
 
     adminNotes: String,
 
-    /* ================= PICKUP ================= */
+    /* ================= PICKUP (LOGISTICS ONLY) ================= */
     pickup: {
       status: {
         type: String,
         enum: ["Not Scheduled", "Scheduled", "Picked", "Completed"],
         default: "Not Scheduled",
+        index: true,
       },
       scheduledAt: Date,
-
-      rider: {
-        riderId: String,
-        name: String,
-        phone: String,
-      },
-
       address: {
         line1: { type: String, default: "" },
         line2: { type: String, default: "" },
@@ -67,15 +67,37 @@ const sellRequestSchema = new mongoose.Schema(
       },
     },
 
-    /* ================= HISTORY ================= */
-    history: [
-      {
-        action: String,
-        by: String,
-        note: String,
-        at: { type: Date, default: Date.now },
+    /* ================= RIDER ASSIGNMENT ================= */
+    assignedRider: {
+      riderId: { type: mongoose.Schema.Types.ObjectId, ref: "Rider" },
+      name: String,
+      phone: String,
+    },
+
+    /* ================= VERIFICATION ================= */
+    verification: {
+      actualCondition: String,
+      finalPrice: Number,
+      riderNotes: String,
+      images: {
+        type: [String],
+        default: [],
       },
-    ],
+      verifiedAt: Date,
+    },
+
+    /* ================= HISTORY ================= */
+    history: {
+      type: [
+        {
+          action: String,
+          by: String,
+          note: String,
+          at: { type: Date, default: Date.now },
+        },
+      ],
+      default: [], 
+    },
   },
   { timestamps: true }
 );

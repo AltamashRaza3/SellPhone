@@ -7,46 +7,74 @@ import { Link } from "react-router-dom";
 /* ================= STATUS UI MAP ================= */
 const statusStyles = {
   Pending: "bg-yellow-500/20 text-yellow-400",
-  "Pickup Scheduled": "bg-blue-500/20 text-blue-400",
+  Scheduled: "bg-blue-500/20 text-blue-400",
   Picked: "bg-purple-500/20 text-purple-400",
   Completed: "bg-green-500/20 text-green-400",
-  Rejected: "bg-red-500/20 text-red-400",
+  Cancelled: "bg-red-500/20 text-red-400",
 };
 
 const statusText = {
-  Pending: "Waiting for pickup scheduling",
-  "Pickup Scheduled": "Our rider will visit you soon",
-  Picked: "Phone picked up and under inspection",
-  Completed: "Process completed successfully",
-  Rejected: "Request rejected after inspection",
+  Pending: "Waiting for admin review",
+  Scheduled: "Pickup has been scheduled",
+  Picked: "Device inspected. Awaiting your confirmation",
+  Completed: "Sell request completed successfully",
+  Cancelled: "Sell request cancelled",
 };
 
 const MySellRequests = () => {
   const { user, authLoaded } = useSelector((state) => state.user);
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(null);
+
+  const fetchRequests = async () => {
+    try {
+      const token = await auth.currentUser.getIdToken();
+      const res = await fetch("http://localhost:5000/api/sell-requests/my", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.ok) throw new Error();
+      setRequests(await res.json());
+    } catch {
+      toast.error("Failed to load your sell requests");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!authLoaded || !user) return;
-
-    const fetchRequests = async () => {
-      try {
-        const token = await auth.currentUser.getIdToken();
-        const res = await fetch("http://localhost:5000/api/sell-requests/my", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        if (!res.ok) throw new Error();
-        setRequests(await res.json());
-      } catch {
-        toast.error("Failed to load your sell requests");
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchRequests();
   }, [authLoaded, user]);
+
+  const handleDecision = async (id, decision) => {
+    try {
+      setActionLoading(id);
+      const res = await fetch(
+        `http://localhost:5000/api/sell-requests/${id}/user-decision`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ decision }),
+        },
+      );
+
+      if (!res.ok) throw new Error();
+
+      toast.success(
+        decision === "accept"
+          ? "Price accepted. Order completed."
+          : "Request cancelled.",
+      );
+
+      fetchRequests();
+    } catch {
+      toast.error("Failed to update request");
+    } finally {
+      setActionLoading(null);
+    }
+  };
 
   if (loading) {
     return (
@@ -82,10 +110,10 @@ const MySellRequests = () => {
           <div className="flex justify-between items-start">
             <div>
               <h3 className="text-lg font-semibold text-white">
-                {req.phone.brand} {req.phone.model}
+                {req.phone?.brand} {req.phone?.model}
               </h3>
               <p className="text-sm text-gray-400">
-                {req.phone.storage || "—"} • {req.phone.condition}
+                {req.phone?.storage || "—"} • {req.phone?.condition || "—"}
               </p>
             </div>
 
@@ -121,11 +149,42 @@ const MySellRequests = () => {
                 📦 Pickup Scheduled
               </p>
               <p className="text-sm text-gray-300">
-                Date: {new Date(req.pickup.scheduledAt).toLocaleDateString()}
+                Date: {new Date(req.pickup.scheduledAt).toLocaleString()}
               </p>
               <p className="text-sm text-gray-300">
                 Address: {req.pickup.address?.line1}, {req.pickup.address?.city}
               </p>
+            </div>
+          )}
+
+          {/* USER APPROVAL (PHASE 21C) */}
+          {req.status === "Picked" && req.verification?.finalPrice && (
+            <div className="mt-4 p-4 rounded-xl bg-yellow-500/10 border border-yellow-500/20">
+              <p className="text-sm text-gray-300">
+                Revised price after inspection
+              </p>
+
+              <p className="text-2xl font-bold text-white">
+                ₹{req.verification.finalPrice}
+              </p>
+
+              <div className="flex gap-3 mt-4">
+                <button
+                  disabled={actionLoading === req._id}
+                  onClick={() => handleDecision(req._id, "accept")}
+                  className="flex-1 bg-green-600 text-white py-2 rounded-lg font-semibold disabled:opacity-60"
+                >
+                  Accept
+                </button>
+
+                <button
+                  disabled={actionLoading === req._id}
+                  onClick={() => handleDecision(req._id, "reject")}
+                  className="flex-1 bg-red-600 text-white py-2 rounded-lg font-semibold disabled:opacity-60"
+                >
+                  Reject
+                </button>
+              </div>
             </div>
           )}
         </div>

@@ -1,53 +1,47 @@
 import SellRequest from "../models/SellRequest.js";
+import Rider from "../models/Rider.js";
 
-/**
- * CREATE SELL REQUEST (USER)
- */
-export const createSellRequest = async (req, res) => {
+export const assignRider = async (req, res) => {
   try {
-    const { phone, expectedPrice, contact } = req.body;
+    const { riderId } = req.body;
+    const sellRequestId = req.params.id;
 
-    if (!phone?.brand || !phone?.model || !expectedPrice) {
-      return res.status(400).json({ message: "Missing required fields" });
+    if (!riderId) {
+      return res.status(400).json({ message: "Rider ID required" });
     }
 
-    const sellRequest = await SellRequest.create({
-      user: {
-        uid: req.user.uid,
-        email: req.user.email,
-      },
-      phone,
-      expectedPrice,
-      contact: {
-        phone: contact?.phone || null,
-      },
-      statusHistory: [
-        {
-          status: "Pending",
-          changedBy: "system",
-          note: "Sell request created",
-        },
-      ],
+    const sellRequest = await SellRequest.findById(sellRequestId);
+    if (!sellRequest) {
+      return res.status(404).json({ message: "Sell request not found" });
+    }
+
+    const rider = await Rider.findById(riderId);
+    if (!rider) {
+      return res.status(404).json({ message: "Rider not found" });
+    }
+
+    // ✅ SAFE assignment (no undefined crash)
+    sellRequest.assignedRider = {
+      riderId: rider._id.toString(),
+      riderName: rider.name,
+    };
+
+    sellRequest.pickup = {
+      status: "Scheduled",
+      scheduledAt: new Date(),
+    };
+
+    sellRequest.statusHistory.push({
+      status: "Pickup Scheduled",
+      changedBy: "admin",
+      note: `Assigned to rider ${rider.name}`,
     });
 
-    res.status(201).json(sellRequest);
+    await sellRequest.save();
+
+    res.json({ success: true });
   } catch (err) {
-    console.error("SELL REQUEST ERROR:", err);
-    res.status(500).json({ message: "Failed to submit sell request" });
-  }
-};
-
-/**
- * GET MY SELL REQUESTS (USER)
- */
-export const getMySellRequests = async (req, res) => {
-  try {
-    const requests = await SellRequest.find({
-      "user.uid": req.user.uid,
-    }).sort({ createdAt: -1 });
-
-    res.json(requests);
-  } catch {
-    res.status(500).json({ message: "Failed to load sell requests" });
+    console.error("ASSIGN RIDER ERROR:", err);
+    res.status(500).json({ message: "Failed to assign rider" });
   }
 };
