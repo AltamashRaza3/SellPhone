@@ -6,19 +6,18 @@ import {
   sendOtp,
   verifyOtp,
 } from "../controllers/riderAuth.controller.js";
+import { calculateFinalPrice } from "../utils/priceRules.js";
 
 const router = express.Router();
 
 /* ======================================================
-   MULTER CONFIG (PICKUP IMAGES)
+   MULTER CONFIG
 ====================================================== */
 const storage = multer.diskStorage({
   destination: "uploads/pickups",
-  filename: (req, file, cb) => {
-    cb(null, `${Date.now()}-${file.originalname}`);
-  },
+  filename: (_, file, cb) =>
+    cb(null, `${Date.now()}-${file.originalname}`),
 });
-
 const upload = multer({ storage });
 
 /* ======================================================
@@ -47,14 +46,14 @@ router.get("/pickups", riderAuth, async (req, res) => {
 });
 
 /* ======================================================
-   GET SINGLE PICKUP DETAILS
+   GET PICKUP DETAILS
 ====================================================== */
 router.get("/pickups/:id", riderAuth, async (req, res) => {
   try {
     const pickup = await SellRequest.findOne({
       _id: req.params.id,
       "assignedRider.riderId": req.rider.riderId,
-    }).lean();
+    });
 
     if (!pickup) {
       return res.status(404).json({ message: "Pickup not found" });
@@ -68,7 +67,63 @@ router.get("/pickups/:id", riderAuth, async (req, res) => {
 });
 
 /* ======================================================
-   UPLOAD PICKUP IMAGES (MANDATORY BEFORE COMPLETE)
+   VERIFY DEVICE (PRICE CALCULATION HAPPENS HERE)
+====================================================== */
+router.put("/pickups/:id/verify", riderAuth, async (req, res) => {
+  try {
+    const { checks, riderNotes } = req.body;
+
+    const pickup = await SellRequest.findOne({
+      _id: req.params.id,
+      "assignedRider.riderId": req.rider.riderId,
+    });
+
+    if (!pickup) {
+      return res.status(404).json({ message: "Pickup not found" });
+    }
+
+    if (pickup.pickup.status !== "Scheduled") {
+      return res.status(400).json({ message: "Invalid pickup state" });
+    }
+
+    const { deductions, finalPrice } = calculateFinalPrice(
+      pickup.expectedPrice,
+      checks
+    );
+
+    pickup.verification = {
+      checks,
+      deductions,
+      finalPrice,
+      riderNotes: riderNotes || "",
+      verifiedAt: new Date(),
+      images: pickup.verification?.images || [],
+    };
+
+    pickup.pickup.status = "Picked";
+    pickup.status = "Picked";
+
+    pickup.history.push({
+      action: "Device Verified",
+      by: req.rider.name,
+      note: "Condition verified by rider",
+    });
+
+    await pickup.save();
+
+    res.json({
+      message: "Device verified",
+      finalPrice,
+      deductions,
+    });
+  } catch (err) {
+    console.error("VERIFY ERROR:", err);
+    res.status(500).json({ message: "Verification failed" });
+  }
+});
+
+/* ======================================================
+   UPLOAD DEVICE IMAGES (MANDATORY)
 ====================================================== */
 router.post(
   "/pickups/:id/upload-images",
@@ -85,14 +140,11 @@ router.post(
         return res.status(404).json({ message: "Pickup not found" });
       }
 
-      if (!req.files || req.files.length === 0) {
+      if (!req.files?.length) {
         return res.status(400).json({ message: "No images uploaded" });
       }
 
-      if (!pickup.verification) {
-        pickup.verification = {};
-      }
-
+      pickup.verification = pickup.verification || {};
       pickup.verification.images = req.files.map(
         (f) => `/uploads/pickups/${f.filename}`
       );
@@ -100,69 +152,21 @@ router.post(
       pickup.history.push({
         action: "Images Uploaded",
         by: req.rider.name,
-        note: `${req.files.length} images uploaded by rider`,
-        at: new Date(),
+        note: `${req.files.length} images uploaded`,
       });
 
       await pickup.save();
 
-      res.json({
-        success: true,
-        images: pickup.verification.images,
-      });
+      res.json({ success: true });
     } catch (err) {
-      console.error("UPLOAD IMAGES ERROR:", err);
-      res.status(500).json({ message: "Failed to upload images" });
+      console.error("UPLOAD ERROR:", err);
+      res.status(500).json({ message: "Image upload failed" });
     }
   }
 );
 
 /* ======================================================
-   MARK PICKUP AS PICKED
-====================================================== */
-router.put("/pickups/:id/picked", riderAuth, async (req, res) => {
-  try {
-    const { notes } = req.body;
-
-    const pickup = await SellRequest.findOne({
-      _id: req.params.id,
-      "assignedRider.riderId": req.rider.riderId,
-    });
-
-    if (!pickup) {
-      return res.status(404).json({ message: "Pickup not found" });
-    }
-
-    if (pickup.pickup.status !== "Scheduled") {
-      return res.status(400).json({ message: "Pickup already processed" });
-    }
-
-    pickup.pickup.status = "Picked";
-
-    pickup.verification = {
-      ...(pickup.verification || {}),
-      riderNotes: notes || "",
-      verifiedAt: new Date(),
-    };
-
-    pickup.history.push({
-      action: "Picked",
-      by: req.rider.name,
-      note: notes || "Pickup marked as picked",
-      at: new Date(),
-    });
-
-    await pickup.save();
-
-    res.json({ success: true });
-  } catch (err) {
-    console.error("MARK PICKED ERROR:", err);
-    res.status(500).json({ message: "Failed to mark pickup as picked" });
-  }
-});
-
-/* ======================================================
-   MARK PICKUP AS COMPLETED (FINAL)
+   COMPLETE PICKUP (USER DECIDES NEXT)
 ====================================================== */
 router.put("/pickups/:id/complete", riderAuth, async (req, res) => {
   try {
@@ -175,10 +179,6 @@ router.put("/pickups/:id/complete", riderAuth, async (req, res) => {
       return res.status(404).json({ message: "Pickup not found" });
     }
 
-    if (pickup.pickup.status !== "Picked") {
-      return res.status(400).json({ message: "Pickup not picked yet" });
-    }
-
     if (!pickup.verification?.images?.length) {
       return res.status(400).json({
         message: "Upload images before completing pickup",
@@ -186,25 +186,25 @@ router.put("/pickups/:id/complete", riderAuth, async (req, res) => {
     }
 
     pickup.pickup.status = "Completed";
-    pickup.status = "Picked"; // user decision phase later
-    pickup.verification.verifiedAt = new Date();
 
     pickup.history.push({
-      action: "Completed",
+      action: "Pickup Completed",
       by: req.rider.name,
-      note: "Pickup completed successfully",
-      at: new Date(),
+      note: "Awaiting user confirmation",
     });
 
     await pickup.save();
 
     res.json({ success: true });
   } catch (err) {
-    console.error("MARK COMPLETED ERROR:", err);
+    console.error("COMPLETE ERROR:", err);
     res.status(500).json({ message: "Failed to complete pickup" });
   }
 });
-/* ================= REJECT PICKUP ================= */
+
+/* ======================================================
+   REJECT PICKUP
+====================================================== */
 router.put("/pickups/:id/reject", riderAuth, async (req, res) => {
   try {
     const { reason } = req.body;
@@ -222,10 +222,6 @@ router.put("/pickups/:id/reject", riderAuth, async (req, res) => {
       return res.status(404).json({ message: "Pickup not found" });
     }
 
-    if (!["Scheduled", "Picked"].includes(pickup.pickup.status)) {
-      return res.status(400).json({ message: "Pickup cannot be rejected now" });
-    }
-
     pickup.pickup.status = "Completed";
     pickup.status = "Cancelled";
 
@@ -239,11 +235,10 @@ router.put("/pickups/:id/reject", riderAuth, async (req, res) => {
 
     res.json({ success: true });
   } catch (err) {
-    console.error("REJECT PICKUP ERROR:", err);
+    console.error("REJECT ERROR:", err);
     res.status(500).json({ message: "Failed to reject pickup" });
   }
 });
-
 
 /* ======================================================
    RIDER EARNINGS
@@ -252,22 +247,19 @@ router.get("/earnings", riderAuth, async (req, res) => {
   try {
     const COMMISSION_PER_PICKUP = 300;
 
-    const completedPickups = await SellRequest.find({
+    const completed = await SellRequest.countDocuments({
       "assignedRider.riderId": req.rider.riderId,
       "pickup.status": "Completed",
-    }).lean();
-
-    const totalPickups = completedPickups.length;
-    const totalEarnings = totalPickups * COMMISSION_PER_PICKUP;
+    });
 
     res.json({
-      totalPickups,
-      totalEarnings,
+      totalPickups: completed,
+      totalEarnings: completed * COMMISSION_PER_PICKUP,
       commissionPerPickup: COMMISSION_PER_PICKUP,
     });
   } catch (err) {
-    console.error("RIDER EARNINGS ERROR:", err);
-    res.status(500).json({ message: "Failed to fetch earnings" });
+    console.error("EARNINGS ERROR:", err);
+    res.status(500).json({ message: "Failed to load earnings" });
   }
 });
 

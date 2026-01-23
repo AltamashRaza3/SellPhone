@@ -1,19 +1,19 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import riderApi from "../api/riderApi";
-import { FiPhoneCall } from "react-icons/fi";
+import { FiPhoneCall, FiCamera } from "react-icons/fi";
 import { FaWhatsapp } from "react-icons/fa";
 
 const PickupDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const cameraInputRef = useRef(null);
 
   const [pickup, setPickup] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const [images, setImages] = useState([]);
   const [uploading, setUploading] = useState(false);
-  const [imagesUploaded, setImagesUploaded] = useState(false);
 
   const [checks, setChecks] = useState({
     display: false,
@@ -35,28 +35,28 @@ const PickupDetails = () => {
     loadPickup().finally(() => setLoading(false));
   }, [id]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        Loading pickup details…
-      </div>
-    );
-  }
+  if (loading) return <div className="p-4">Loading…</div>;
+  if (!pickup) return <div className="p-4">Pickup not found</div>;
 
-  if (!pickup) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        Pickup not found
-      </div>
-    );
-  }
+  const { phone, pickup: p, contact, expectedPrice } = pickup;
 
-  const { phone, pickup: p, contact, expectedPrice, verification } = pickup;
+  /* ================= FILE SELECT ================= */
+  const handleFileSelect = (e) => {
+    setImages((prev) => [...prev, ...Array.from(e.target.files)]);
+  };
+
+  /* ================= CAMERA CAPTURE ================= */
+  const handleCameraCapture = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setImages((prev) => [...prev, file]);
+    }
+  };
 
   /* ================= IMAGE UPLOAD ================= */
   const uploadImages = async () => {
     if (images.length === 0) {
-      alert("Select at least one image");
+      alert("Capture or select at least one image");
       return;
     }
 
@@ -67,9 +67,8 @@ const PickupDetails = () => {
     try {
       await riderApi.post(`/pickups/${id}/upload-images`, formData);
       setImages([]);
-      setImagesUploaded(true);
-      await loadPickup();
       alert("Images uploaded successfully");
+      await loadPickup();
     } catch (err) {
       alert("Image upload failed");
     } finally {
@@ -80,28 +79,19 @@ const PickupDetails = () => {
   /* ================= ACCEPT & COMPLETE ================= */
   const acceptAndComplete = async () => {
     const allChecked = Object.values(checks).every(Boolean);
-
     if (!allChecked) {
       alert("Please verify all device checks");
       return;
     }
 
-    if (!verification?.images?.length && !imagesUploaded) {
-      alert("Upload device images before completing");
-      return;
-    }
-
     try {
-      // Step 1: Mark picked (ONLY if still scheduled)
       if (p.status === "Scheduled") {
         await riderApi.put(`/pickups/${id}/picked`, {
           notes: "Device verified by rider",
         });
       }
 
-      // Step 2: Complete
       await riderApi.put(`/pickups/${id}/complete`);
-
       navigate("/pickups");
     } catch (err) {
       alert(err.response?.data?.message || "Cannot complete pickup");
@@ -145,15 +135,13 @@ const PickupDetails = () => {
       <div className="bg-white p-4 rounded shadow">
         <p className="text-sm text-gray-500 mb-1">Pickup Address</p>
         <p className="text-sm">
-          {p.address.line1}
-          <br />
-          {p.address.city}, {p.address.state} – {p.address.pincode}
+          {p.address.line1}, {p.address.city}, {p.address.state} –{" "}
+          {p.address.pincode}
         </p>
       </div>
 
       {/* CONTACT */}
       <div className="bg-white p-4 rounded shadow">
-        <p className="text-sm text-gray-500 mb-2">Customer</p>
         <div className="flex gap-3">
           <a
             href={`tel:${contact.phone}`}
@@ -191,21 +179,35 @@ const PickupDetails = () => {
 
       {/* IMAGE UPLOAD */}
       <div className="bg-white p-4 rounded shadow space-y-3">
-        <p className="font-medium">Upload Device Images</p>
+        <p className="font-medium">Upload / Capture Images</p>
+
         <input
           type="file"
           multiple
           accept="image/*"
-          onChange={(e) => setImages([...e.target.files])}
+          onChange={handleFileSelect}
         />
+
         <button
-          disabled={uploading || images.length === 0}
+          onClick={() => cameraInputRef.current.click()}
+          className="w-full flex items-center justify-center gap-2 bg-gray-800 text-white py-2 rounded"
+        >
+          <FiCamera /> Open Camera
+        </button>
+
+        <input
+          ref={cameraInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={handleCameraCapture}
+        />
+
+        <button
           onClick={uploadImages}
-          className={`w-full py-2 rounded ${
-            uploading || images.length === 0
-              ? "bg-gray-300"
-              : "bg-blue-600 text-white"
-          }`}
+          disabled={uploading}
+          className="w-full bg-blue-600 text-white py-2 rounded"
         >
           {uploading ? "Uploading…" : "Upload Images"}
         </button>
@@ -221,7 +223,6 @@ const PickupDetails = () => {
 
       {/* REJECT */}
       <div className="bg-white p-4 rounded shadow space-y-2">
-        <p className="text-red-600 font-medium">Reject Pickup</p>
         <textarea
           placeholder="Reason for rejection"
           value={rejectReason}

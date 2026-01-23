@@ -30,17 +30,13 @@ router.post("/", userAuth, async (req, res) => {
         uid: req.user.uid,
         email: req.user.email,
       },
-
       contact: {
         phone: contact.phone,
         email: req.user.email,
       },
-
       phone,
       expectedPrice,
-
       status: "Pending",
-
       pickup: {
         status: "Not Scheduled",
         address: {
@@ -51,36 +47,30 @@ router.post("/", userAuth, async (req, res) => {
           pincode: pickupAddress.pincode,
         },
       },
-
       assignedRider: null,
-
       history: [
         {
           action: "Pending",
           by: req.user.uid,
-          note: "Sell request submitted by user",
+          note: "Sell request created",
         },
       ],
     });
 
-    res.status(201).json({
-      message: "Sell request submitted successfully",
-      sellRequest,
-    });
+    res.status(201).json(sellRequest);
   } catch (err) {
-    console.error("SELL REQUEST ERROR:", err);
-    res.status(500).json({ message: "Failed to submit sell request" });
+    console.error("CREATE SELL REQUEST ERROR:", err);
+    res.status(500).json({ message: "Failed to create sell request" });
   }
 });
+
 /* ======================================================
    GET MY SELL REQUESTS (USER)
 ====================================================== */
 router.get("/my", userAuth, async (req, res) => {
   try {
-    const uid = req.user.uid;
-
     const requests = await SellRequest.find({
-      "user.uid": uid,
+      "user.uid": req.user.uid,
     })
       .sort({ createdAt: -1 })
       .lean();
@@ -100,14 +90,7 @@ router.put("/:id/assign-rider", adminAuth, async (req, res) => {
     const { riderId, scheduledAt } = req.body;
 
     if (!riderId || !scheduledAt) {
-      return res
-        .status(400)
-        .json({ message: "Rider and pickup time required" });
-    }
-
-    const pickupTime = new Date(scheduledAt);
-    if (isNaN(pickupTime.getTime())) {
-      return res.status(400).json({ message: "Invalid pickup time" });
+      return res.status(400).json({ message: "Rider and time required" });
     }
 
     const rider = await Rider.findById(riderId);
@@ -120,18 +103,6 @@ router.put("/:id/assign-rider", adminAuth, async (req, res) => {
       return res.status(404).json({ message: "Sell request not found" });
     }
 
-    if (!["Pending", "In Review"].includes(request.status)) {
-      return res.status(400).json({
-        message: "Pickup cannot be scheduled at this stage",
-      });
-    }
-
-    if (!request.pickup?.address) {
-      return res.status(400).json({
-        message: "Pickup address missing",
-      });
-    }
-
     request.assignedRider = {
       riderId: rider._id,
       name: rider.name,
@@ -139,22 +110,17 @@ router.put("/:id/assign-rider", adminAuth, async (req, res) => {
     };
 
     request.pickup.status = "Scheduled";
-    request.pickup.scheduledAt = pickupTime;
-
+    request.pickup.scheduledAt = new Date(scheduledAt);
     request.status = "Pickup Scheduled";
 
     request.history.push({
       action: "Pickup Scheduled",
       by: req.admin._id.toString(),
-      note: `Pickup assigned to rider ${rider.name}`,
+      note: `Assigned to ${rider.name}`,
     });
 
     await request.save();
-
-    res.json({
-      message: "Rider assigned successfully",
-      request,
-    });
+    res.json(request);
   } catch (err) {
     console.error("ASSIGN RIDER ERROR:", err);
     res.status(500).json({ message: "Failed to assign rider" });
@@ -162,7 +128,7 @@ router.put("/:id/assign-rider", adminAuth, async (req, res) => {
 });
 
 /* ======================================================
-   USER FINAL DECISION
+   USER FINAL DECISION (AFTER RIDER VERIFICATION)
 ====================================================== */
 router.put("/:id/user-decision", userAuth, async (req, res) => {
   try {
@@ -177,19 +143,16 @@ router.put("/:id/user-decision", userAuth, async (req, res) => {
       return res.status(404).json({ message: "Sell request not found" });
     }
 
-    if (request.status !== "Picked") {
+    if (
+      request.status !== "Picked" ||
+      !request.verification?.finalPrice
+    ) {
       return res.status(400).json({
-        message: "Request is not awaiting user decision",
+        message: "Final price not ready for decision",
       });
     }
 
     if (decision === "accept") {
-      if (!request.verification?.finalPrice) {
-        return res
-          .status(400)
-          .json({ message: "Final price not available" });
-      }
-
       request.status = "Completed";
       request.finalPrice = request.verification.finalPrice;
     } else {
@@ -197,17 +160,13 @@ router.put("/:id/user-decision", userAuth, async (req, res) => {
     }
 
     request.history.push({
-      action: request.status,
+      action: `User ${decision}`,
       by: request.user.uid,
       note: `User ${decision}ed final price`,
     });
 
     await request.save();
-
-    res.json({
-      message: "Decision recorded successfully",
-      request,
-    });
+    res.json(request);
   } catch (err) {
     console.error("USER DECISION ERROR:", err);
     res.status(500).json({ message: "Failed to process decision" });
