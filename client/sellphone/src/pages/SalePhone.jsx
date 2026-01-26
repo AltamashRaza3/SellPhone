@@ -1,14 +1,16 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
-import { auth } from "../utils/firebase";
 
+/* ================= HELPERS ================= */
 const normalizeRam = (value) => {
   const num = value.replace(/\D/g, "");
   return num ? `${num}GB` : "";
 };
 
-const SellPhone = () => {
+const SalePhone = () => {
   const [loading, setLoading] = useState(false);
+  const [images, setImages] = useState([]);
+  const [previews, setPreviews] = useState([]);
 
   const [form, setForm] = useState({
     brand: "",
@@ -17,19 +19,25 @@ const SellPhone = () => {
     ram: "",
     color: "",
     condition: "Good",
-    expectedPrice: "",
+    purchaseYear: "",
     phone: "",
-    images: "",
-
     fullAddress: "",
     city: "",
     state: "",
     pincode: "",
-    landmark: "",
   });
 
+  /* ================= CLEANUP PREVIEWS ================= */
+  useEffect(() => {
+    return () => {
+      previews.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [previews]);
+
+  /* ================= HANDLERS ================= */
   const handleChange = (e) => {
     const { name, value } = e.target;
+
     if (name === "ram") {
       setForm({ ...form, ram: normalizeRam(value) });
     } else {
@@ -37,54 +45,86 @@ const SellPhone = () => {
     }
   };
 
+  const handleImages = (e) => {
+    const files = Array.from(e.target.files);
+
+    if (files.length + images.length > 5) {
+      toast.error("Maximum 5 images allowed");
+      return;
+    }
+
+    const newPreviews = files.map((f) => URL.createObjectURL(f));
+
+    setImages((prev) => [...prev, ...files]);
+    setPreviews((prev) => [...prev, ...newPreviews]);
+  };
+
+  /* ================= SUBMIT ================= */
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!auth.currentUser) {
-      toast.error("Please login first");
+    if (
+      !form.brand ||
+      !form.model ||
+      !form.condition ||
+      !form.purchaseYear ||
+      !form.phone ||
+      !form.fullAddress ||
+      !form.city ||
+      !form.state ||
+      !form.pincode
+    ) {
+      toast.error("Please fill all required fields");
+      return;
+    }
+
+    if (images.length < 3) {
+      toast.error("Upload at least 3 phone images");
       return;
     }
 
     try {
       setLoading(true);
-      const token = await auth.currentUser.getIdToken();
 
-      const imageUrls = form.images
-        ? form.images.split(",").map((u) => u.trim())
-        : [];
+      const formData = new FormData();
+
+      /* PHONE */
+      formData.append("brand", form.brand);
+      formData.append("model", form.model);
+      formData.append("storage", form.storage);
+      formData.append("ram", form.ram);
+      formData.append("color", form.color);
+      formData.append("declaredCondition", form.condition);
+      formData.append("purchaseYear", form.purchaseYear);
+
+      /* CONTACT */
+      formData.append("phone", form.phone);
+
+      /* ADDRESS */
+      formData.append("fullAddress", form.fullAddress);
+      formData.append("city", form.city);
+      formData.append("state", form.state);
+      formData.append("pincode", form.pincode);
+
+      /* IMAGES */
+      images.forEach((img) => {
+        formData.append("images", img);
+      });
 
       const res = await fetch("http://localhost:5000/api/sell-requests", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          phone: {
-            brand: form.brand,
-            model: form.model,
-            storage: form.storage,
-            ram: form.ram,
-            color: form.color,
-            condition: form.condition,
-            images: imageUrls,
-          },
-          expectedPrice: Number(form.expectedPrice),
-          contact: { phone: form.phone },
-          pickupAddress: {
-            fullAddress: form.fullAddress,
-            city: form.city,
-            state: form.state,
-            pincode: form.pincode,
-            landmark: form.landmark,
-          },
-        }),
+        credentials: "include",
+        body: formData,
       });
 
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.message || "Failed to submit request");
+      }
 
       toast.success("Sell request submitted successfully");
 
+      /* RESET */
       setForm({
         brand: "",
         model: "",
@@ -92,22 +132,24 @@ const SellPhone = () => {
         ram: "",
         color: "",
         condition: "Good",
-        expectedPrice: "",
+        purchaseYear: "",
         phone: "",
-        images: "",
         fullAddress: "",
         city: "",
         state: "",
         pincode: "",
-        landmark: "",
       });
-    } catch {
-      toast.error("Submission failed");
+
+      setImages([]);
+      setPreviews([]);
+    } catch (err) {
+      toast.error(err.message || "Submission failed");
     } finally {
       setLoading(false);
     }
   };
 
+  /* ================= UI ================= */
   return (
     <div className="appContainer py-12">
       <div className="max-w-3xl mx-auto glass-card space-y-6">
@@ -156,39 +198,52 @@ const SellPhone = () => {
             value={form.condition}
             onChange={handleChange}
           >
-            <option>Excellent</option>
-            <option>Good</option>
-            <option>Fair</option>
+            <option value="Excellent">Excellent</option>
+            <option value="Good">Good</option>
+            <option value="Fair">Fair</option>
           </select>
 
           <input
-            className="input md:col-span-2"
+            className="input"
             type="number"
-            name="expectedPrice"
-            placeholder="Expected Price (₹) *"
-            value={form.expectedPrice}
+            name="purchaseYear"
+            placeholder="Purchase Year *"
+            value={form.purchaseYear}
             onChange={handleChange}
           />
           <input
-            className="input md:col-span-2"
+            className="input"
             name="phone"
-            placeholder="WhatsApp Mobile Number *"
+            placeholder="Mobile Number (WhatsApp) *"
             value={form.phone}
             onChange={handleChange}
           />
-          <textarea
-            className="input md:col-span-2"
-            name="images"
-            placeholder="Paste image URLs (comma separated)"
-            rows={3}
-            value={form.images}
-            onChange={handleChange}
-          />
 
-          <div className="md:col-span-2 text-gray-400 font-semibold">
-            Pickup Address
+          {/* IMAGES */}
+          <div className="md:col-span-2">
+            <label className="text-sm font-semibold text-gray-300">
+              Phone Images (Min 3 required)
+            </label>
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handleImages}
+              className="input"
+            />
+
+            <div className="grid grid-cols-3 gap-3 mt-2">
+              {previews.map((src, i) => (
+                <img
+                  key={i}
+                  src={src}
+                  className="h-24 w-full object-cover rounded-lg border border-white/10"
+                />
+              ))}
+            </div>
           </div>
 
+          {/* ADDRESS */}
           <textarea
             className="input md:col-span-2"
             name="fullAddress"
@@ -217,13 +272,6 @@ const SellPhone = () => {
             value={form.pincode}
             onChange={handleChange}
           />
-          <input
-            className="input"
-            name="landmark"
-            placeholder="Landmark (optional)"
-            value={form.landmark}
-            onChange={handleChange}
-          />
 
           <button disabled={loading} className="btn-primary md:col-span-2 py-3">
             {loading ? "Submitting..." : "Submit Sell Request"}
@@ -234,4 +282,4 @@ const SellPhone = () => {
   );
 };
 
-export default SellPhone;
+export default SalePhone;

@@ -8,12 +8,46 @@ import {
 import { auth } from "../utils/firebase";
 import { toast } from "react-hot-toast";
 
+/*
+  IMPORTANT:
+  Ensure this exists in client/.env
+
+  VITE_API_BASE_URL=http://localhost:5000
+*/
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
 const Auth = () => {
   const [isSignup, setIsSignup] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
+  /* ================= FIREBASE → BACKEND SESSION ================= */
+  const createBackendSession = async () => {
+    const user = auth.currentUser;
+    if (!user) {
+      throw new Error("User not available after Firebase login");
+    }
+
+    const idToken = await user.getIdToken();
+
+    const res = await fetch(`${API_BASE_URL}/api/auth/firebase-login`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include", // 🔥 REQUIRED FOR COOKIES
+      body: JSON.stringify({ idToken }),
+    });
+
+    if (!res.ok) {
+      const data = await res.json();
+      throw new Error(data.message || "Backend session creation failed");
+    }
+  };
+
+  /* ================= EMAIL / PASSWORD ================= */
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -27,35 +61,52 @@ const Auth = () => {
         await signInWithEmailAndPassword(auth, email, password);
         toast.success("Logged in");
       }
+
+      // 🔥 CRITICAL: Create backend cookie session
+      await createBackendSession();
     } catch (err) {
-      toast.error(err.message || "Auth failed");
+      console.error(err);
+      toast.error(err.message || "Authentication failed");
     } finally {
       setLoading(false);
     }
   };
 
+  /* ================= GOOGLE LOGIN ================= */
   const handleGoogleAuth = async () => {
     try {
+      setLoading(true);
+
       const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
       toast.success("Logged in with Google");
+
+      // 🔥 CRITICAL: Create backend cookie session
+      await createBackendSession();
     } catch (err) {
-      toast.error(err.message || "Google auth failed");
+      console.error(err);
+      toast.error(err.message || "Google authentication failed");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center">
-      <form onSubmit={handleSubmit} className="space-y-4 w-80">
+      <form
+        onSubmit={handleSubmit}
+        className="space-y-4 w-80 bg-black/30 p-6 rounded-xl"
+      >
         <input
-          className="input"
+          className="input w-full"
           placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
         />
+
         <input
-          className="input"
+          className="input w-full"
           placeholder="Password"
           type="password"
           value={password}
@@ -63,13 +114,14 @@ const Auth = () => {
           required
         />
 
-        <button className="btn-primary w-full" disabled={loading}>
+        <button className="btn-primary w-full" disabled={loading} type="submit">
           {loading ? "Please wait..." : isSignup ? "Sign Up" : "Login"}
         </button>
 
         <button
           type="button"
           onClick={handleGoogleAuth}
+          disabled={loading}
           className="w-full border rounded-lg py-2"
         >
           Continue with Google

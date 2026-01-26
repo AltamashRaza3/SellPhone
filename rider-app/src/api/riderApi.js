@@ -14,6 +14,7 @@ riderApi.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
+    // 🔥 CRITICAL FIX — NEVER SET CONTENT-TYPE FOR FORM DATA
     if (config.data instanceof FormData) {
       delete config.headers["Content-Type"];
     }

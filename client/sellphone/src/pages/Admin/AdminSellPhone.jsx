@@ -2,11 +2,9 @@ import { useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
 import AssignRider from "../../components/Admin/AssignRider";
 
-/* ================= STATUS UI MAP ================= */
+/* ================= ADMIN STATUS UI MAP ================= */
 const STATUS_BADGE = {
   Pending: "bg-yellow-500/20 text-yellow-400",
-  "In Review": "bg-blue-500/20 text-blue-400",
-  Scheduled: "bg-indigo-500/20 text-indigo-400",
   Approved: "bg-green-500/20 text-green-400",
   Rejected: "bg-red-500/20 text-red-400",
 };
@@ -16,13 +14,13 @@ const AdminSellPhones = () => {
   const [loading, setLoading] = useState(true);
   const [notes, setNotes] = useState({});
 
+  /* ================= FETCH ================= */
   const fetchRequests = async () => {
     try {
       setLoading(true);
       const res = await fetch("http://localhost:5000/api/admin/sell-requests", {
         credentials: "include",
       });
-
       if (!res.ok) throw new Error();
       setRequests(await res.json());
     } catch {
@@ -36,6 +34,7 @@ const AdminSellPhones = () => {
     fetchRequests();
   }, []);
 
+  /* ================= UPDATE ADMIN STATUS ================= */
   const updateStatus = async (id, status) => {
     try {
       const res = await fetch(
@@ -46,7 +45,7 @@ const AdminSellPhones = () => {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             status,
-            note: notes[id] || "",
+            remarks: notes[id] || "",
           }),
         },
       );
@@ -74,6 +73,7 @@ const AdminSellPhones = () => {
       {requests.map((req) => {
         const phone = req.phone || {};
         const address = req.pickup?.address;
+        const adminStatus = req.admin?.status || "Pending";
 
         return (
           <div key={req._id} className="glass-card space-y-4">
@@ -84,36 +84,26 @@ const AdminSellPhones = () => {
                   {phone.brand} {phone.model}
                 </h3>
                 <p className="text-sm text-gray-400">
-                  {phone.storage} • {phone.condition}
+                  {phone.storage} • {phone.declaredCondition}
                 </p>
                 <p className="mt-1 text-orange-400 font-semibold">
-                  Expected ₹{req.expectedPrice}
+                  Base Price ₹{req.pricing?.basePrice}
                 </p>
               </div>
 
               <span
                 className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                  STATUS_BADGE[req.status] || STATUS_BADGE.Pending
+                  STATUS_BADGE[adminStatus]
                 }`}
               >
-                {req.status}
+                {adminStatus}
               </span>
             </div>
 
             {/* SELLER */}
             <div className="p-3 rounded-lg bg-white/5 border border-white/10">
               <p className="text-sm text-gray-400">Seller</p>
-              <p className="text-white">{req.contact?.email}</p>
-              {req.contact?.phone && (
-                <a
-                  href={`https://wa.me/91${req.contact.phone}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-green-400 underline"
-                >
-                  +91 {req.contact.phone}
-                </a>
-              )}
+              <p className="text-white">{req.user?.email}</p>
             </div>
 
             {/* PICKUP ADDRESS */}
@@ -123,10 +113,7 @@ const AdminSellPhones = () => {
               </p>
               {address ? (
                 <>
-                  <p className="text-sm text-white">
-                    {address.line1}
-                    {address.line2 && `, ${address.line2}`}
-                  </p>
+                  <p className="text-sm text-white">{address.line1}</p>
                   <p className="text-sm text-gray-300">
                     {address.city}, {address.state} – {address.pincode}
                   </p>
@@ -136,31 +123,9 @@ const AdminSellPhones = () => {
               )}
             </div>
 
-            {/* ================= PHONE IMAGES ================= */}
-            {Array.isArray(phone.images) && phone.images.length > 0 && (
-              <div>
-                <p className="text-sm text-gray-400 mb-2">Phone Images</p>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {phone.images.map((url, i) => (
-                    <img
-                      key={i}
-                      src={url}
-                      alt="phone"
-                      className="h-32 w-full object-cover rounded-lg border border-white/10"
-                      onError={(e) => (e.target.style.display = "none")}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* ================= ADMIN REVIEW ================= */}
-            {req.status !== "Approved" && req.status !== "Rejected" && (
+            {/* ADMIN ACTIONS */}
+            {adminStatus === "Pending" && (
               <div className="bg-black/30 p-4 rounded-xl space-y-3">
-                <p className="text-sm font-semibold text-gray-300">
-                  Admin Review
-                </p>
-
                 <textarea
                   rows={2}
                   placeholder="Internal admin notes"
@@ -171,7 +136,7 @@ const AdminSellPhones = () => {
                   className="input w-full"
                 />
 
-                <div className="flex gap-3 flex-wrap">
+                <div className="flex gap-3">
                   <button
                     onClick={() => updateStatus(req._id, "Approved")}
                     className="px-4 py-2 rounded-lg bg-green-600/20 text-green-400"
@@ -184,37 +149,25 @@ const AdminSellPhones = () => {
                   >
                     Reject
                   </button>
-                  <button
-                    onClick={() => updateStatus(req._id, "In Review")}
-                    className="px-4 py-2 rounded-lg bg-blue-600/20 text-blue-400"
-                  >
-                    Mark In Review
-                  </button>
                 </div>
               </div>
             )}
 
-            {/* ================= PICKUP OPERATIONS ================= */}
-            {req.status === "In Review" && !req.assignedRider && (
-              <div className="p-4 rounded-xl bg-yellow-500/10 border border-yellow-500/20">
-                <p className="text-sm font-semibold text-yellow-400 mb-2">
-                  🚚 Assign Rider
-                </p>
-
-                <AssignRider requestId={req._id} onAssigned={fetchRequests} />
-              </div>
+            {/* ASSIGN RIDER */}
+            {adminStatus === "Approved" && !req.assignedRider && (
+              <AssignRider requestId={req._id} onAssigned={fetchRequests} />
             )}
 
+            {/* ASSIGNED RIDER */}
             {req.assignedRider && (
               <div className="p-4 rounded-xl bg-indigo-500/10 border border-indigo-500/20">
                 <p className="text-sm font-semibold text-indigo-400">
-                  ✅ Pickup Assigned
+                  Pickup Assigned
                 </p>
-                <p className="text-white">{req.assignedRider.name}</p>
-                <p className="text-gray-300">📞 {req.assignedRider.phone}</p>
+                <p className="text-white">{req.assignedRider.riderName}</p>
                 {req.pickup?.scheduledAt && (
                   <p className="text-gray-300">
-                    🕒 {new Date(req.pickup.scheduledAt).toLocaleString()}
+                    {new Date(req.pickup.scheduledAt).toLocaleString()}
                   </p>
                 )}
               </div>

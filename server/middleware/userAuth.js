@@ -1,14 +1,14 @@
-import admin from "../utils/firebaseAdmin.js";
+import jwt from "jsonwebtoken";
 
-const userAuth = async (req, res, next) => {
+const userAuth = (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader?.startsWith("Bearer ")) {
+    const token = req.cookies?.token;
+
+    if (!token) {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    const token = authHeader.split(" ")[1];
-    const decoded = await admin.auth().verifyIdToken(token);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     req.user = {
       uid: decoded.uid,
@@ -18,7 +18,7 @@ const userAuth = async (req, res, next) => {
     next();
   } catch (err) {
     console.error("USER AUTH ERROR:", err.message);
-    res.status(401).json({ message: "Invalid token" });
+    return res.status(401).json({ message: "Invalid or expired token" });
   }
 };
 

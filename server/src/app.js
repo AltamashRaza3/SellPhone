@@ -8,6 +8,8 @@ import { fileURLToPath } from "url";
 import { apiLimiter } from "../middleware/rateLimiter.js";
 
 /* ================= ROUTES ================= */
+import authRoutes from "../routes/auth.routes.js";
+
 import productRoutes from "../routes/productRoutes.js";
 import orderRoutes from "../routes/orderRoutes.js";
 import cartRoutes from "../routes/cartRoutes.js";
@@ -33,39 +35,38 @@ app.use(cookieParser());
 /* ================= SECURITY ================= */
 app.use("/api", apiLimiter);
 
-/* ================= CORS ================= */
-const allowedOrigins = [
-  "http://localhost:5173", // Client app
-  "http://localhost:5174", // Rider app
-];
-
+/* ================= CORS (FINAL & CORRECT) ================= */
+/*
+  Client App  → http://localhost:5174
+  Rider App   → http://localhost:5173
+  Backend     → http://localhost:5000
+*/
 app.use(
   cors({
-    origin: (origin, callback) => {
-      if (!origin) return callback(null, true);
-      if (allowedOrigins.includes(origin)) return callback(null, true);
-      return callback(new Error("Not allowed by CORS"));
-    },
+    origin: ["http://localhost:5174", "http://localhost:5173"],
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
-/* ================= STATIC FILES (IMAGE UPLOADS) ================= */
-/* 🔥 REQUIRED FOR MULTER UPLOADS 🔥 */
+/* ================= STATIC FILES ================= */
 app.use(
   "/uploads",
   express.static(path.join(__dirname, "uploads"))
 );
 
-/* ================= HEALTH ================= */
+/* ================= HEALTH CHECK ================= */
 app.get("/api/health", (req, res) => {
   res.json({
     status: "OK",
     uptime: process.uptime(),
   });
 });
+
+/* ================= AUTH ================= */
+/* Firebase → Backend session bridge */
+app.use("/api/auth", authRoutes);
 
 /* ================= PUBLIC ================= */
 app.use("/api/products", productRoutes);
