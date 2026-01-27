@@ -10,10 +10,10 @@ const AssignRider = ({ requestId, onAssigned }) => {
   /* ================= LOAD RIDERS ================= */
   useEffect(() => {
     fetch("http://localhost:5000/api/admin/riders", {
-      credentials: "include", // admin cookie
+      credentials: "include",
     })
       .then((res) => {
-        if (!res.ok) throw new Error();
+        if (!res.ok) throw new Error("Failed to load riders");
         return res.json();
       })
       .then((data) => {
@@ -24,8 +24,8 @@ const AssignRider = ({ requestId, onAssigned }) => {
 
   /* ================= ASSIGN RIDER ================= */
   const assignRider = async () => {
-    if (!riderId || !scheduledAt) {
-      toast.error("Select rider and pickup time");
+    if (!riderId) {
+      toast.error("Please select a rider");
       return;
     }
 
@@ -33,16 +33,16 @@ const AssignRider = ({ requestId, onAssigned }) => {
       setLoading(true);
 
       const res = await fetch(
-        `http://localhost:5000/api/admin/sell-requests/${requestId}/assign-rider`,
+        `http://localhost:5000/api/sell-requests/${requestId}/assign-rider`,
         {
           method: "PUT",
-          credentials: "include", // 🔐 admin auth
+          credentials: "include",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
             riderId,
-            scheduledAt,
+            scheduledAt: scheduledAt || undefined,
           }),
         },
       );
@@ -56,7 +56,7 @@ const AssignRider = ({ requestId, onAssigned }) => {
       toast.success("Rider assigned successfully");
       setRiderId("");
       setScheduledAt("");
-      onAssigned(); // refresh parent list
+      onAssigned?.();
     } catch (err) {
       console.error("ASSIGN RIDER ERROR:", err);
       toast.error(err.message || "Failed to assign rider");

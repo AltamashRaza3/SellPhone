@@ -3,6 +3,16 @@ import { useNavigate, useParams } from "react-router-dom";
 import riderApi from "../api/riderApi";
 import { FiCamera } from "react-icons/fi";
 
+/* ================= VERIFICATION CHECKLIST ================= */
+const VERIFICATION_CHECKS = {
+  screenCrack: "Screen intact",
+  bodyDent: "No body dents",
+  speakerFault: "Speaker working",
+  micFault: "Mic working",
+  batteryBelow80: "Battery health ≥ 80%",
+  cameraFault: "Camera working",
+};
+
 const PickupDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -15,13 +25,12 @@ const PickupDetails = () => {
   const [uploading, setUploading] = useState(false);
   const [verifying, setVerifying] = useState(false);
 
-  const [checks, setChecks] = useState({
-    display: false,
-    battery: false,
-    speaker: false,
-    camera: false,
-    buttons: false,
-  });
+  const [checks, setChecks] = useState(
+    Object.keys(VERIFICATION_CHECKS).reduce(
+      (acc, key) => ({ ...acc, [key]: false }),
+      {}
+    )
+  );
 
   const [rejectReason, setRejectReason] = useState("");
 
@@ -36,11 +45,7 @@ const PickupDetails = () => {
   }, [id]);
 
   if (loading) {
-    return (
-      <div className="py-20 text-center text-zinc-400">
-        Loading pickup details…
-      </div>
-    );
+    return <div className="py-20 text-center text-zinc-400">Loading…</div>;
   }
 
   if (!pickup) {
@@ -49,12 +54,23 @@ const PickupDetails = () => {
     );
   }
 
-  const { phone, pickup: p, expectedPrice, verification } = pickup;
+  const { phone, pickup: p, pricing, verification } = pickup;
 
-  const isPickupScheduled = p?.status === "Scheduled" && p?.scheduledAt;
+  /* ================= STATE FLAGS ================= */
+  const isScheduled = p?.status === "Scheduled";
+  const isPicked = p?.status === "Picked";
+  const isCompleted = p?.status === "Completed";
 
-  const isVerified = verification?.checks;
-  const hasImages = verification?.images?.length > 0;
+  const hasUploadedImages =
+    Array.isArray(verification?.images) && verification.images.length > 0;
+
+  const isVerified =
+    verification?.checks && Object.keys(verification.checks).length > 0;
+
+  const canVerify =
+    (isScheduled || isPicked) && !isVerified && hasUploadedImages;
+
+  const canComplete = isPicked && isVerified && hasUploadedImages;
 
   /* ================= IMAGE HANDLERS ================= */
   const handleFileSelect = (e) => {
@@ -85,10 +101,7 @@ const PickupDetails = () => {
 
   /* ================= VERIFY DEVICE ================= */
   const verifyDevice = async () => {
-    if (!isPickupScheduled) return;
-
-    const hasAnyCheck = Object.values(checks).some(Boolean);
-    if (!hasAnyCheck) return;
+    if (!canVerify) return;
 
     setVerifying(true);
     try {
@@ -104,28 +117,16 @@ const PickupDetails = () => {
 
   /* ================= COMPLETE PICKUP ================= */
   const completePickup = async () => {
-    if (!hasImages || !isVerified) return;
-
-    try {
-      await riderApi.put(`/pickups/${id}/complete`);
-      navigate("/pickups");
-    } catch (err) {
-      console.error(err);
-    }
+    if (!canComplete) return;
+    await riderApi.put(`/pickups/${id}/complete`);
+    navigate("/pickups");
   };
 
   /* ================= REJECT PICKUP ================= */
   const rejectPickup = async () => {
     if (!rejectReason.trim()) return;
-
-    try {
-      await riderApi.put(`/pickups/${id}/reject`, {
-        reason: rejectReason,
-      });
-      navigate("/pickups");
-    } catch (err) {
-      console.error(err);
-    }
+    await riderApi.put(`/pickups/${id}/reject`, { reason: rejectReason });
+    navigate("/pickups");
   };
 
   return (
@@ -143,40 +144,34 @@ const PickupDetails = () => {
         <h2 className="font-semibold text-lg text-white">
           {phone.brand} {phone.model}
         </h2>
-        <p className="text-sm text-zinc-400 mt-0.5">
-          {phone.storage} • {phone.color} • {phone.condition}
+        <p className="text-sm text-zinc-400">
+          {phone.storage} • {phone.color} • {phone.declaredCondition}
         </p>
 
-        <div className="mt-3">
-          <p className="text-emerald-400 font-semibold">
-            Expected Price: ₹{expectedPrice}
+        <p className="mt-2 text-emerald-400 font-semibold">
+          Base Price: ₹{pricing?.basePrice?.toLocaleString("en-IN")}
+        </p>
+
+        {pricing?.finalPrice && (
+          <p className="text-red-400 font-semibold">
+            Final Price: ₹{pricing.finalPrice.toLocaleString("en-IN")}
           </p>
-          {verification?.finalPrice && (
-            <p className="text-red-400 font-semibold">
-              Final Price: ₹{verification.finalPrice}
-            </p>
-          )}
-        </div>
+        )}
       </div>
 
-      {/* SCHEDULING WARNING */}
-      {!isPickupScheduled && (
-        <div className="rounded-xl bg-yellow-500/10 border border-yellow-500/30 p-3 text-sm text-yellow-400">
-          Pickup must be scheduled before device verification.
-        </div>
-      )}
-
-      {/* USER IMAGES */}
-      {phone?.images?.length > 0 && (
+      {/* USER UPLOADED IMAGES (FIXED) */}
+      {Array.isArray(phone.images) && phone.images.length > 0 && (
         <div className="rounded-2xl bg-zinc-900 border border-white/10 p-4">
-          <p className="text-sm font-medium mb-3">User Uploaded Images</p>
+          <p className="text-sm font-medium mb-3 text-white">
+            User Uploaded Images
+          </p>
           <div className="grid grid-cols-3 gap-2">
             {phone.images.map((img, idx) => (
               <img
                 key={idx}
-                src={img}
-                className="w-full h-24 object-cover rounded-xl border border-white/10"
-                alt="User device"
+                src={`http://localhost:5000${img}`}
+                className="h-24 w-full object-cover rounded-xl"
+                alt="User Device"
               />
             ))}
           </div>
@@ -184,106 +179,104 @@ const PickupDetails = () => {
       )}
 
       {/* VERIFICATION */}
-      <div className="rounded-2xl bg-zinc-900 border border-white/10 p-4 space-y-3">
-        <p className="font-medium text-white">Device Verification</p>
+      {!isVerified && (isScheduled || isPicked) && (
+        <div className="rounded-2xl bg-zinc-900 border border-white/10 p-4 space-y-3">
+          <p className="font-medium text-white">Device Verification</p>
 
-        {Object.keys(checks).map((key) => (
-          <label key={key} className="flex items-center gap-3 text-sm">
-            <input
-              type="checkbox"
-              checked={checks[key]}
-              disabled={!isPickupScheduled || isVerified}
-              onChange={(e) =>
-                setChecks({ ...checks, [key]: e.target.checked })
-              }
-            />
-            {key.charAt(0).toUpperCase() + key.slice(1)} working
-          </label>
-        ))}
+          {Object.entries(VERIFICATION_CHECKS).map(([key, label]) => (
+            <label key={key} className="flex items-center gap-3 text-sm">
+              <input
+                type="checkbox"
+                checked={checks[key]}
+                onChange={(e) =>
+                  setChecks({ ...checks, [key]: e.target.checked })
+                }
+              />
+              {label}
+            </label>
+          ))}
 
-        <button
-          onClick={verifyDevice}
-          disabled={verifying || !isPickupScheduled || isVerified}
-          className={`w-full h-11 rounded-xl font-medium transition ${
-            isPickupScheduled && !isVerified
-              ? "bg-zinc-800 text-white"
-              : "bg-zinc-900 text-zinc-500 cursor-not-allowed"
-          }`}
-        >
-          {isVerified
-            ? "Device Verified"
-            : verifying
-              ? "Verifying…"
-              : !isPickupScheduled
-                ? "Pickup not scheduled"
-                : "Verify Device"}
-        </button>
-      </div>
+          <button
+            onClick={verifyDevice}
+            disabled={!canVerify || verifying}
+            className="w-full h-11 rounded-xl bg-zinc-800 text-white disabled:opacity-50"
+          >
+            {verifying ? "Verifying…" : "Verify Device"}
+          </button>
+        </div>
+      )}
 
       {/* IMAGE UPLOAD */}
-      <div className="rounded-2xl bg-zinc-900 border border-white/10 p-4 space-y-3">
-        <input
-          type="file"
-          multiple
-          accept="image/*"
-          onChange={handleFileSelect}
-          className="text-sm"
-        />
+      {!isCompleted && (
+        <div className="rounded-2xl bg-zinc-900 border border-white/10 p-4 space-y-3">
+          <input
+            type="file"
+            multiple
+            accept="image/*"
+            onChange={handleFileSelect}
+          />
 
+          <button
+            onClick={() => cameraInputRef.current.click()}
+            className="w-full h-11 rounded-xl bg-zinc-800 text-white flex items-center justify-center gap-2"
+          >
+            <FiCamera /> Open Camera
+          </button>
+
+          <input
+            ref={cameraInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={handleCameraCapture}
+          />
+
+          <button
+            onClick={uploadImages}
+            disabled={uploading || images.length === 0}
+            className="w-full h-11 rounded-xl bg-purple-600 text-white font-semibold disabled:opacity-50"
+          >
+            {uploading ? "Uploading…" : "Upload Images"}
+          </button>
+        </div>
+      )}
+
+      {/* COMPLETE PICKUP */}
+      {canComplete && (
         <button
-          onClick={() => cameraInputRef.current.click()}
-          className="w-full h-11 rounded-xl bg-zinc-800 text-white flex items-center justify-center gap-2"
+          onClick={completePickup}
+          className="w-full h-12 rounded-xl bg-emerald-600 text-black font-semibold"
         >
-          <FiCamera /> Open Camera
+          Complete Pickup
         </button>
+      )}
 
-        <input
-          ref={cameraInputRef}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          className="hidden"
-          onChange={handleCameraCapture}
-        />
-
-        <button
-          onClick={uploadImages}
-          disabled={uploading || images.length === 0}
-          className="w-full h-11 rounded-xl bg-purple-600 text-white font-semibold disabled:opacity-50"
-        >
-          {uploading ? "Uploading…" : "Upload Images"}
-        </button>
-      </div>
-
-      {/* COMPLETE */}
-      <button
-        onClick={completePickup}
-        disabled={!isVerified || !hasImages}
-        className={`w-full h-12 rounded-xl font-semibold transition ${
-          isVerified && hasImages
-            ? "bg-gradient-to-r from-emerald-500 to-green-600 text-black"
-            : "bg-zinc-800 text-zinc-500 cursor-not-allowed"
-        }`}
-      >
-        Complete Pickup
-      </button>
+      {/* COMPLETED */}
+      {isCompleted && (
+        <div className="p-4 rounded-xl bg-green-500/10 text-green-400 font-semibold text-center">
+          Pickup Completed Successfully
+        </div>
+      )}
 
       {/* REJECT */}
-      <div className="rounded-2xl bg-zinc-900 border border-white/10 p-4 space-y-3">
-        <textarea
-          placeholder="Reason for rejection"
-          value={rejectReason}
-          onChange={(e) => setRejectReason(e.target.value)}
-          className="w-full rounded-xl bg-zinc-800 border border-white/10 p-3 text-sm text-white"
-        />
-        <button
-          onClick={rejectPickup}
-          disabled={!rejectReason.trim()}
-          className="w-full h-11 rounded-xl bg-red-600 text-white disabled:opacity-50"
-        >
-          Reject Pickup
-        </button>
-      </div>
+      {!isCompleted && (
+        <div className="rounded-2xl bg-zinc-900 border border-white/10 p-4 space-y-3">
+          <textarea
+            placeholder="Reason for rejection"
+            value={rejectReason}
+            onChange={(e) => setRejectReason(e.target.value)}
+            className="w-full rounded-xl bg-zinc-800 p-3 text-sm text-white"
+          />
+          <button
+            onClick={rejectPickup}
+            disabled={!rejectReason.trim()}
+            className="w-full h-11 rounded-xl bg-red-600 text-white disabled:opacity-50"
+          >
+            Reject Pickup
+          </button>
+        </div>
+      )}
     </div>
   );
 };

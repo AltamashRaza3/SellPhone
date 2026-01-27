@@ -5,7 +5,7 @@ const verificationImageSchema = new mongoose.Schema(
   {
     url: { type: String, required: true },
     uploadedAt: { type: Date, default: Date.now },
-    uploadedBy: { type: String, required: true },
+    uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: "Rider" },
   },
   { _id: false }
 );
@@ -13,7 +13,7 @@ const verificationImageSchema = new mongoose.Schema(
 /* ================= MAIN SCHEMA ================= */
 const sellRequestSchema = new mongoose.Schema(
   {
-    /* USER */
+    /* ================= USER ================= */
     user: {
       uid: { type: String, required: true, index: true },
       email: { type: String, required: true },
@@ -24,7 +24,7 @@ const sellRequestSchema = new mongoose.Schema(
       email: String,
     },
 
-    /* PHONE (USER DECLARATION) */
+    /* ================= PHONE ================= */
     phone: {
       brand: { type: String, required: true },
       model: { type: String, required: true },
@@ -44,12 +44,13 @@ const sellRequestSchema = new mongoose.Schema(
       },
     },
 
-    /* PRICING (SYSTEM) */
+    /* ================= PRICING ================= */
     pricing: {
       basePrice: { type: Number, required: true },
+      finalPrice: Number,
     },
 
-    /* ADMIN */
+    /* ================= ADMIN ================= */
     admin: {
       status: {
         type: String,
@@ -60,19 +61,23 @@ const sellRequestSchema = new mongoose.Schema(
       approvedAt: Date,
     },
 
-    /* RIDER */
+    /* ================= RIDER ================= */
     assignedRider: {
-      riderId: String,
+      riderId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Rider",
+      },
       riderName: String,
       assignedAt: Date,
     },
 
-    /* PICKUP */
+    /* ================= PICKUP ================= */
     pickup: {
       status: {
         type: String,
-        enum: ["NotScheduled", "Scheduled", "Picked", "Completed", "Rejected"],
-        default: "NotScheduled",
+        enum: ["Pending", "Scheduled", "Picked", "Completed", "Rejected"],
+        default: "Pending",
+        index: true,
       },
       scheduledAt: Date,
       completedAt: Date,
@@ -84,23 +89,29 @@ const sellRequestSchema = new mongoose.Schema(
       },
     },
 
-    /* VERIFICATION */
+    /* ================= VERIFICATION ================= */
     verification: {
       checks: { type: Object, default: {} },
       deductions: [{ reason: String, amount: Number }],
       totalDeduction: Number,
       finalPrice: Number,
-      verifiedBy: String,
+      verifiedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Rider",
+      },
       verifiedAt: Date,
       userAccepted: { type: Boolean, default: null },
       images: { type: [verificationImageSchema], default: [] },
     },
 
-    /* AUDIT */
+    /* ================= AUDIT ================= */
     statusHistory: [
       {
         status: String,
-        changedBy: { type: String, enum: ["user", "admin", "rider", "system"] },
+        changedBy: {
+          type: String,
+          enum: ["user", "admin", "rider", "system"],
+        },
         note: String,
         changedAt: { type: Date, default: Date.now },
       },

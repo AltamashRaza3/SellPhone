@@ -1,224 +1,113 @@
 import express from "express";
-import SellRequest from "../models/SellRequest.js";
-import Rider from "../models/Rider.js";
+import multer from "multer";
+import SellRequest from "../src/models/SellRequest.js";
 import userAuth from "../middleware/userAuth.js";
 import adminAuth from "../middleware/adminAuth.js";
-import { calculateBasePrice } from "../utils/priceRules.js";
-import multer from "multer";
+import {
+  createSellRequest,
+  assignRider,
+} from "../controllers/sellRequest.controller.js";
+
+const router = express.Router();
 
 /* ================= MULTER ================= */
-const storage = multer.diskStorage({
-  destination: "uploads/pickups",
+const sellStorage = multer.diskStorage({
+  destination: (_, __, cb) => cb(null, "uploads/sell"),
   filename: (_, file, cb) =>
     cb(null, `${Date.now()}-${file.originalname}`),
 });
 
-const upload = multer({ storage });
+const uploadSellImages = multer({ storage: sellStorage });
 
-const router = express.Router();
-
-/* ======================================================
-   CREATE SELL REQUEST (USER)
-====================================================== */
+/* ================= CREATE SELL REQUEST ================= */
 router.post(
   "/",
   userAuth,
-  upload.array("images", 5),
-  async (req, res) => {
-    try {
-      if (!req.files || req.files.length < 3) {
-        return res.status(400).json({
-          message: "At least 3 phone images are required",
-        });
-      }
-
-      const {
-        brand,
-        model,
-        storage,
-        ram,
-        color,
-        declaredCondition,
-        purchaseYear,
-        phone,
-        fullAddress,
-        city,
-        state,
-        pincode,
-      } = req.body;
-
-      if (
-        !brand ||
-        !model ||
-        !declaredCondition ||
-        !purchaseYear ||
-        !phone ||
-        !fullAddress ||
-        !city ||
-        !state ||
-        !pincode
-      ) {
-        return res.status(400).json({
-          message: "Missing required fields",
-        });
-      }
-
-      const imageUrls = req.files.map(
-        (file) => `/uploads/pickups/${file.filename}`
-      );
-
-      const catalog = {
-        baseMarketPrice: 22000,
-        depreciationPerYear: 0.12,
-        maxDepreciation: 0.6,
-      };
-
-      const basePrice = calculateBasePrice({
-        catalog,
-        purchaseYear: Number(purchaseYear),
-        declaredCondition,
-      });
-
-      const request = await SellRequest.create({
-        user: {
-          uid: req.user.uid,
-          email: req.user.email,
-        },
-
-        phone: {
-          brand,
-          model,
-          storage,
-          ram,
-          color,
-          declaredCondition,
-          purchaseYear: Number(purchaseYear),
-          images: imageUrls,
-        },
-
-        contact: {
-          phone,
-          email: req.user.email,
-        },
-
-        pricing: {
-          basePrice,
-        },
-
-        pickup: {
-          status: "NotScheduled",
-          address: {
-            line1: fullAddress,
-            city,
-            state,
-            pincode,
-          },
-        },
-
-        admin: {
-          status: "Pending",
-        },
-
-        statusHistory: [
-          {
-            status: "Request Created",
-            changedBy: "user",
-          },
-        ],
-      });
-
-      res.status(201).json(request);
-    } catch (err) {
-      console.error("CREATE SELL REQUEST ERROR:", err);
-      res.status(500).json({
-        message: "Failed to create sell request",
-      });
-    }
-  }
+  uploadSellImages.array("images", 5),
+  createSellRequest
 );
 
-/* ======================================================
-   GET MY SELL REQUESTS (USER)
-====================================================== */
+/* ================= GET MY SELL REQUESTS ================= */
 router.get("/my", userAuth, async (req, res) => {
   try {
+    if (!req.user?.uid) {
+      return res.status(401).json({ message: "Unauthenticated" });
+    }
+
     const requests = await SellRequest.find({
       "user.uid": req.user.uid,
     }).sort({ createdAt: -1 });
 
     res.json(requests);
-  } catch (err) {
-    console.error("FETCH USER REQUESTS ERROR:", err);
-    res.status(500).json({
-      message: "Failed to fetch sell requests",
-    });
+  } catch (error) {
+    console.error("FETCH MY SELL REQUESTS ERROR:", error);
+    res.status(500).json({ message: "Failed to fetch sell requests" });
   }
 });
 
-/* ======================================================
-   ASSIGN RIDER (ADMIN)
-====================================================== */
-router.put("/:id/assign-rider", adminAuth, async (req, res) => {
+/* ================= SELLER DECISION (FINAL PRICE) ================= */
+router.put("/:id/decision", userAuth, async (req, res) => {
   try {
-    const { riderId, scheduledAt } = req.body;
+    const { accept } = req.body;
 
-    if (!riderId) {
+    if (typeof accept !== "boolean") {
       return res.status(400).json({
-        message: "Rider ID required",
+        message: "accept must be boolean",
       });
     }
 
-    const request = await SellRequest.findById(req.params.id);
+    const request = await SellRequest.findOne({
+      _id: req.params.id,
+      "user.uid": req.user.uid,
+    }).lean();
+
     if (!request) {
-      return res.status(404).json({
-        message: "Sell request not found",
+      return res.status(404).json({ message: "Sell request not found" });
+    }
+
+    if (!request.verification?.finalPrice) {
+      return res.status(400).json({
+        message: "Final price not available yet",
       });
     }
 
-    if (request.admin?.status !== "Approved") {
-      return res.status(409).json({
-        message: "Admin approval required",
+    if (request.verification.userAccepted !== null) {
+      return res.status(400).json({
+        message: "Decision already submitted",
       });
     }
 
-    if (request.assignedRider?.riderId) {
-      return res.status(409).json({
-        message: "Rider already assigned",
-      });
-    }
+    // 🔐 UPDATE WITHOUT VALIDATION (LEGACY SAFE)
+    await SellRequest.updateOne(
+      { _id: request._id },
+      {
+        $set: {
+          "verification.userAccepted": accept,
+          status: accept ? "Completed" : "Cancelled",
+        },
+        $push: {
+          statusHistory: {
+            status: accept
+              ? "User Accepted Final Price"
+              : "User Rejected Final Price",
+            changedBy: "user",
+            changedAt: new Date(),
+          },
+        },
+      }
+    );
 
-    const rider = await Rider.findById(riderId);
-    if (!rider) {
-      return res.status(404).json({
-        message: "Rider not found",
-      });
-    }
-
-    request.assignedRider = {
-      riderId: rider._id.toString(),
-      riderName: rider.name,
-      assignedAt: new Date(),
-    };
-
-    request.pickup.status = "Scheduled";
-    request.pickup.scheduledAt = scheduledAt
-      ? new Date(scheduledAt)
-      : new Date();
-
-    request.statusHistory.push({
-      status: "Pickup Scheduled",
-      changedBy: "admin",
-      note: `Assigned to rider ${rider.name}`,
+    res.json({
+      success: true,
+      decision: accept ? "ACCEPTED" : "REJECTED",
     });
-
-    await request.save();
-    res.json(request);
   } catch (err) {
-    console.error("ASSIGN RIDER ERROR:", err);
-    res.status(500).json({
-      message: "Failed to assign rider",
-    });
+    console.error("SELLER DECISION ERROR:", err);
+    res.status(500).json({ message: "Failed to submit decision" });
   }
 });
+
+/* ================= ASSIGN RIDER ================= */
+router.put("/:id/assign-rider", adminAuth, assignRider);
 
 export default router;

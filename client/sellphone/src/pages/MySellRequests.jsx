@@ -2,21 +2,20 @@ import { useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
 import { Link } from "react-router-dom";
 
-const statusLabel = (req) => {
-  if (req.finalStatus === "Closed") return "Closed";
+/* ================= STATUS HELPERS ================= */
+const getStatusLabel = (req) => {
   if (req.pickup?.status === "Completed") return "Pickup Completed";
-  if (req.pickup?.status === "Picked") return "Device Picked";
   if (req.pickup?.status === "Scheduled") return "Pickup Scheduled";
-  if (req.adminStatus === "Approved" && req.finalPrice)
-    return "Final Price Offered";
+  if (req.pickup?.status === "Picked") return "Device Picked";
+  if (req.pickup?.status === "Pending") return "Pickup Pending";
   return "Under Review";
 };
 
 const badgeColor = {
-  Closed: "bg-red-500/20 text-red-400",
   "Pickup Completed": "bg-green-600/20 text-green-400",
   "Pickup Scheduled": "bg-blue-500/20 text-blue-400",
-  "Final Price Offered": "bg-orange-500/20 text-orange-400",
+  "Device Picked": "bg-indigo-500/20 text-indigo-400",
+  "Pickup Pending": "bg-yellow-500/20 text-yellow-400",
   "Under Review": "bg-gray-500/20 text-gray-300",
 };
 
@@ -62,48 +61,46 @@ const MySellRequests = () => {
       <h1 className="text-2xl font-bold">My Sell Requests</h1>
 
       {requests.map((req) => {
-        const label = statusLabel(req);
+        const label = getStatusLabel(req);
 
         return (
           <div key={req._id} className="glass-card space-y-3">
             <h3 className="text-lg font-semibold">
-              {req.phone.brand} {req.phone.model}
+              {req.phone?.brand} {req.phone?.model}
             </h3>
 
             <p className="text-sm text-gray-400">
-              {req.phone.storage} • {req.phone.condition}
+              {req.phone?.storage} • {req.phone?.condition}
             </p>
 
+            {/* BASE PRICE */}
             <p className="text-orange-400">
-              Expected Price: ₹{req.expectedPrice}
+              Estimated Price: ₹
+              {req.pricing?.basePrice?.toLocaleString("en-IN")}
             </p>
 
-            {req.finalPrice && (
+            {/* FINAL PRICE (LATER PHASE) */}
+            {req.pricing?.finalPrice && (
               <p className="text-green-400 font-semibold">
-                Final Price: ₹{req.finalPrice}
+                Final Price: ₹{req.pricing.finalPrice.toLocaleString("en-IN")}
               </p>
             )}
 
-            {/* STATUS */}
+            {/* STATUS BADGE */}
             <span
-              className={`inline-block px-3 py-1 rounded text-sm ${badgeColor[label]}`}
+              className={`inline-block px-3 py-1 rounded text-sm ${
+                badgeColor[label]
+              }`}
             >
               {label}
             </span>
 
-            {/* RIDER INFO – ONLY IF ACTIVE */}
-            {req.assignedRider && req.pickup?.status !== "Completed" && (
+            {/* RIDER INFO */}
+            {req.assignedRider && (
               <div className="mt-2 text-sm text-gray-300">
                 <p>Rider: {req.assignedRider.name}</p>
                 <p>Phone: {req.assignedRider.phone}</p>
               </div>
-            )}
-
-            {/* FINAL MESSAGE */}
-            {req.finalStatus === "Closed" && (
-              <p className="text-sm text-gray-400">
-                This request has been closed.
-              </p>
             )}
           </div>
         );

@@ -29,31 +29,32 @@ const __dirname = path.dirname(__filename);
 const app = express();
 
 /* ================= CORE ================= */
-app.use(express.json());
+app.use(express.json({ limit: "10mb" }));
 app.use(cookieParser());
 
 /* ================= SECURITY ================= */
 app.use("/api", apiLimiter);
 
-/* ================= CORS (FINAL & CORRECT) ================= */
+/* ================= CORS ================= */
 /*
   Client App  → http://localhost:5174
   Rider App   → http://localhost:5173
-  Backend     → http://localhost:5000
 */
-app.use(
-  cors({
-    origin: ["http://localhost:5174", "http://localhost:5173"],
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  })
-);
+/* ================= CORS ================= */
+const corsOptions = {
+  origin: ["http://localhost:5174", "http://localhost:5173"],
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+};
+app.use(cors(corsOptions));
+
 
 /* ================= STATIC FILES ================= */
+/* uploads folder is at project root */
 app.use(
   "/uploads",
-  express.static(path.join(__dirname, "uploads"))
+  express.static(path.join(__dirname, "..", "uploads"))
 );
 
 /* ================= HEALTH CHECK ================= */
@@ -61,11 +62,11 @@ app.get("/api/health", (req, res) => {
   res.json({
     status: "OK",
     uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
   });
 });
 
 /* ================= AUTH ================= */
-/* Firebase → Backend session bridge */
 app.use("/api/auth", authRoutes);
 
 /* ================= PUBLIC ================= */
@@ -85,7 +86,7 @@ app.use("/api/admin/riders", adminRiderRoutes);
 /* ================= RIDER ================= */
 app.use("/api/rider", riderRoutes);
 
-/* ================= FALLBACK ================= */
+/* ================= 404 FALLBACK ================= */
 app.use((req, res) => {
   res.status(404).json({ message: "API route not found" });
 });
