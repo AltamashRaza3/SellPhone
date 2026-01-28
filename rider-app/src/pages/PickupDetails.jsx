@@ -28,8 +28,8 @@ const PickupDetails = () => {
   const [checks, setChecks] = useState(
     Object.keys(VERIFICATION_CHECKS).reduce(
       (acc, key) => ({ ...acc, [key]: false }),
-      {}
-    )
+      {},
+    ),
   );
 
   const [rejectReason, setRejectReason] = useState("");
@@ -152,14 +152,14 @@ const PickupDetails = () => {
           Base Price: ₹{pricing?.basePrice?.toLocaleString("en-IN")}
         </p>
 
-        {pricing?.finalPrice && (
+        {verification?.finalPrice && (
           <p className="text-red-400 font-semibold">
-            Final Price: ₹{pricing.finalPrice.toLocaleString("en-IN")}
+            Final Price: ₹{verification.finalPrice.toLocaleString("en-IN")}
           </p>
         )}
       </div>
 
-      {/* USER UPLOADED IMAGES (FIXED) */}
+      {/* USER UPLOADED IMAGES */}
       {Array.isArray(phone.images) && phone.images.length > 0 && (
         <div className="rounded-2xl bg-zinc-900 border border-white/10 p-4">
           <p className="text-sm font-medium mb-3 text-white">
@@ -177,6 +177,26 @@ const PickupDetails = () => {
           </div>
         </div>
       )}
+
+      {/* RIDER VERIFICATION IMAGES */}
+      {Array.isArray(verification?.images) &&
+        verification.images.length > 0 && (
+          <div className="rounded-2xl bg-zinc-900 border border-white/10 p-4">
+            <p className="text-sm font-medium mb-3 text-white">
+              Rider Verification Images
+            </p>
+            <div className="grid grid-cols-3 gap-2">
+              {verification.images.map((img, idx) => (
+                <img
+                  key={idx}
+                  src={`http://localhost:5000${img.url}`}
+                  className="h-24 w-full object-cover rounded-xl"
+                  alt="Verification"
+                />
+              ))}
+            </div>
+          </div>
+        )}
 
       {/* VERIFICATION */}
       {!isVerified && (isScheduled || isPicked) && (
@@ -206,8 +226,8 @@ const PickupDetails = () => {
         </div>
       )}
 
-      {/* IMAGE UPLOAD */}
-      {!isCompleted && (
+      {/* IMAGE UPLOAD (ONLY BEFORE VERIFICATION) */}
+      {!isCompleted && !isVerified && (
         <div className="rounded-2xl bg-zinc-900 border border-white/10 p-4 space-y-3">
           <input
             type="file"

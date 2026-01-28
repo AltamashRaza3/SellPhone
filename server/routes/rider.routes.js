@@ -6,6 +6,7 @@ import SellRequest from "../src/models/SellRequest.js";
 import riderAuth from "../middleware/riderAuth.js";
 import { sendOtp, verifyOtp } from "../controllers/riderAuth.controller.js";
 import { calculateFinalPrice } from "../utils/priceRules.js";
+import { generateInvoice } from "../utils/invoiceGenerator.js";
 
 const router = express.Router();
 
@@ -18,7 +19,12 @@ if (!fs.existsSync(uploadDir)) {
 const storage = multer.diskStorage({
   destination: uploadDir,
   filename: (_, file, cb) =>
-    cb(null, `${Date.now()}-${Math.round(Math.random() * 1e9)}${path.extname(file.originalname)}`),
+    cb(
+      null,
+      `${Date.now()}-${Math.round(Math.random() * 1e9)}${path.extname(
+        file.originalname
+      )}`
+    ),
 });
 
 const upload = multer({ storage });
@@ -50,7 +56,8 @@ router.get("/pickups/:id", riderAuth, async (req, res) => {
   res.json(pickup);
 });
 
-/* ================= UPLOAD IMAGES (NO VALIDATION) ================= */
+/* ================= UPLOAD VERIFICATION IMAGES ================= */
+/* 🔥 NO document save() — avoids validation errors */
 router.post(
   "/pickups/:id/upload-images",
   riderAuth,
@@ -125,31 +132,48 @@ router.put("/pickups/:id/verify", riderAuth, async (req, res) => {
   res.json({ success: true, finalPrice });
 });
 
-/* ================= COMPLETE PICKUP ================= */
+/* ================= COMPLETE PICKUP + GENERATE INVOICE ================= */
 router.put("/pickups/:id/complete", riderAuth, async (req, res) => {
-  const result = await SellRequest.updateOne(
-    {
-      _id: req.params.id,
-      "assignedRider.riderId": req.rider.riderId,
-      "verification.images.0": { $exists: true },
-    },
-    {
-      $set: {
-        "pickup.status": "Completed",
-        status: "Completed",
-        "pickup.completedAt": new Date(),
-      },
-    }
-  );
+  const request = await SellRequest.findOne({
+    _id: req.params.id,
+    "assignedRider.riderId": req.rider.riderId,
+    "pickup.status": "Picked",
+    "verification.images.0": { $exists: true },
+    "verification.finalPrice": { $exists: true },
+  });
 
-  if (!result.matchedCount) {
+  if (!request) {
     return res.status(400).json({
-      message: "Images required before completing pickup",
+      message: "Verify device, upload images, and set final price first",
     });
   }
 
-  res.json({ success: true });
+  /* 🔥 GENERATE INVOICE */
+  const invoice = await generateInvoice(request);
+
+  request.pickup.status = "Completed";
+  request.pickup.completedAt = new Date();
+  request.status = "Completed";
+
+  request.invoice = {
+    number: invoice.invoiceNumber,
+    url: invoice.url,
+    generatedAt: new Date(),
+  };
+
+  request.statusHistory.push({
+    status: "Pickup Completed",
+    changedBy: "rider",
+  });
+
+  await request.save();
+
+  res.json({
+    success: true,
+    invoiceUrl: invoice.url,
+  });
 });
+
 
 /* ================= RIDER EARNINGS ================= */
 router.get("/earnings", riderAuth, async (req, res) => {

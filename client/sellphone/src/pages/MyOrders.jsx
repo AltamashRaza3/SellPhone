@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import axios from "../utils/axios";
 import OrderStatusBadge from "../components/OrderStatusBadge";
-import AppContainer from "../components/AppContainer";
 
 const MyOrders = () => {
   const [orders, setOrders] = useState([]);

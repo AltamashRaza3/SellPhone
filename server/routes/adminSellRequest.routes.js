@@ -10,9 +10,7 @@ const router = express.Router();
 ====================================================== */
 router.get("/", adminAuth, async (req, res) => {
   try {
-    const requests = await SellRequest.find()
-      .sort({ createdAt: -1 });
-
+    const requests = await SellRequest.find().sort({ createdAt: -1 });
     res.json(requests);
   } catch (err) {
     console.error("ADMIN FETCH ERROR:", err);
@@ -23,16 +21,16 @@ router.get("/", adminAuth, async (req, res) => {
 });
 
 /* ======================================================
-   APPROVE / REJECT / IN REVIEW SELL REQUEST
+   UPDATE ADMIN STATUS
    PUT /api/admin/sell-requests/:id
 ====================================================== */
 router.put("/:id", adminAuth, async (req, res) => {
   try {
     const { status, remarks } = req.body;
 
-    if (!["Approved", "Rejected", "In Review"].includes(status)) {
+    if (!["Approved", "Rejected", "Pending"].includes(status)) {
       return res.status(400).json({
-        message: "Invalid status",
+        message: "Invalid admin status",
       });
     }
 
@@ -43,24 +41,19 @@ router.put("/:id", adminAuth, async (req, res) => {
       });
     }
 
-    /* ================= SAFE INIT ================= */
-    request.admin = request.admin || {};
-    request.statusHistory = request.statusHistory || [];
-
-    /* ================= ADMIN UPDATE ================= */
-    request.admin.status = status;
-    request.admin.remarks = remarks || "";
-    request.admin.approvedAt =
-      status === "Approved" ? new Date() : null;
+    request.admin = {
+      status,
+      remarks: remarks || "",
+      approvedAt: status === "Approved" ? new Date() : null,
+    };
 
     request.statusHistory.push({
       status: `Admin ${status}`,
       changedBy: "admin",
       note: remarks || `Marked as ${status}`,
-      changedAt: new Date(),
     });
 
-    await request.save({ validateBeforeSave: false });
+    await request.save();
     res.json(request);
   } catch (err) {
     console.error("ADMIN STATUS UPDATE ERROR:", err);
@@ -91,6 +84,7 @@ router.put("/:id/assign-rider", adminAuth, async (req, res) => {
       });
     }
 
+    /* ===== HARD BUSINESS RULES ===== */
     if (request.admin?.status !== "Approved") {
       return res.status(409).json({
         message: "Admin approval required before assigning rider",
@@ -110,13 +104,9 @@ router.put("/:id/assign-rider", adminAuth, async (req, res) => {
       });
     }
 
-    /* ================= SAFE INIT ================= */
-    request.pickup = request.pickup || {};
-    request.statusHistory = request.statusHistory || [];
-
-    /* ================= ASSIGN ================= */
+    /* ===== ASSIGN RIDER ===== */
     request.assignedRider = {
-      riderId: rider._id.toString(),
+      riderId: rider._id,
       riderName: rider.name,
       assignedAt: new Date(),
     };
@@ -128,10 +118,9 @@ router.put("/:id/assign-rider", adminAuth, async (req, res) => {
       status: "Pickup Scheduled",
       changedBy: "admin",
       note: `Assigned to rider ${rider.name}`,
-      changedAt: new Date(),
     });
 
-    await request.save({ validateBeforeSave: false });
+    await request.save();
     res.json(request);
   } catch (err) {
     console.error("ASSIGN RIDER ERROR:", err);

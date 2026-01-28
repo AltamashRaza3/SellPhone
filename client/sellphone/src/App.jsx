@@ -27,7 +27,7 @@ import AppContainer from "./components/AppContainer";
 
 /* ================= USER PAGES ================= */
 import Home from "./pages/Home";
-import SalePhone from "./pages/SalePhone";
+import SalePhone from "./pages/sell/SalePhone";
 import PhoneDetails from "./pages/PhoneDetails";
 import Cart from "./pages/Cart";
 import Auth from "./pages/Auth";
@@ -35,7 +35,9 @@ import Checkout from "./pages/Checkout";
 import OrderSuccess from "./pages/OrderSuccess";
 import MyOrders from "./pages/MyOrders";
 import OrderDetails from "./pages/OrderDetails";
-import MySellRequests from "./pages/MySellRequests";
+import SellRequestList from "./pages/sell/SellRequestsList";
+import SellRequestDetails from "./pages/sell/SellRequestDetails";
+
 
 /* ================= GUARDS ================= */
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -88,7 +90,7 @@ const App = () => {
     return () => unsubscribe();
   }, [dispatch]);
 
-  /* ================= GLOBAL AUTH REDIRECT ================= */
+  /* ================= AUTH REDIRECT ================= */
   useEffect(() => {
     if (!authLoaded) return;
 
@@ -97,14 +99,14 @@ const App = () => {
       return;
     }
 
-    const isPublicUserRoute =
+    const isPublic =
       location.pathname === "/" ||
       location.pathname.startsWith("/phone/") ||
       location.pathname === "/auth";
 
     if (location.pathname.startsWith("/admin")) return;
 
-    if (!user && !isPublicUserRoute) {
+    if (!user && !isPublic) {
       navigate("/auth", { replace: true });
     }
   }, [user, authLoaded, location.pathname, navigate]);
@@ -159,7 +161,7 @@ const App = () => {
     }).catch(() => {});
   }, [cartItems, authLoaded, cartLoaded, user]);
 
-  /* ================= GLOBAL LOADER ================= */
+  /* ================= LOADER ================= */
   if (!authLoaded) {
     return (
       <div className="flex items-center justify-center h-screen text-xl font-semibold">
@@ -189,6 +191,7 @@ const App = () => {
                 </ProtectedRoute>
               }
             />
+
             <Route
               path="/checkout"
               element={
@@ -197,6 +200,7 @@ const App = () => {
                 </ProtectedRoute>
               }
             />
+
             <Route
               path="/orders"
               element={
@@ -205,6 +209,7 @@ const App = () => {
                 </ProtectedRoute>
               }
             />
+
             <Route
               path="/order/:id"
               element={
@@ -213,6 +218,7 @@ const App = () => {
                 </ProtectedRoute>
               }
             />
+
             <Route
               path="/order-success"
               element={
@@ -221,14 +227,26 @@ const App = () => {
                 </ProtectedRoute>
               }
             />
+
+            {/* ✅ SELL REQUEST LIST + DETAILS (SAME COMPONENT) */}
             <Route
               path="/my-sell-requests"
               element={
                 <ProtectedRoute>
-                  <MySellRequests />
+                  <SellRequestList />
                 </ProtectedRoute>
               }
             />
+
+            <Route
+              path="/my-sell-requests/:id"
+              element={
+                <ProtectedRoute>
+                  <SellRequestDetails/>
+                </ProtectedRoute>
+              }
+            />
+
             <Route
               path="/sale"
               element={
@@ -256,13 +274,11 @@ const App = () => {
             <Route index element={<AdminDashboard />} />
             <Route path="orders" element={<AdminOrders />} />
             <Route path="orders/:id" element={<AdminOrderDetails />} />
-
             <Route path="sell-phones" element={<AdminSellPhones />} />
             <Route
               path="sell-phones/:id/timeline"
               element={<AdminTimeline />}
             />
-
             <Route path="products" element={<AdminProducts />} />
             <Route path="products/add" element={<AdminAddProduct />} />
             <Route path="products/edit/:id" element={<AdminEditProduct />} />

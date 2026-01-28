@@ -90,5 +90,13 @@ app.use("/api/rider", riderRoutes);
 app.use((req, res) => {
   res.status(404).json({ message: "API route not found" });
 });
+/* ================= GLOBAL ERROR HANDLER ================= */
+app.use((err, req, res, next) => {
+  console.error("🔥 GLOBAL ERROR:", err);
 
+  const statusCode = err.status || 500;
+  res.status(statusCode).json({
+    message: err.message || "Internal Server Error",
+  });
+});
 export default app;

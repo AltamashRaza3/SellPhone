@@ -2,24 +2,26 @@ import express from "express";
 import multer from "multer";
 import SellRequest from "../src/models/SellRequest.js";
 import userAuth from "../middleware/userAuth.js";
-import adminAuth from "../middleware/adminAuth.js";
-import {
-  createSellRequest,
-  assignRider,
-} from "../controllers/sellRequest.controller.js";
+import { createSellRequest } from "../controllers/sellRequest.controller.js";
+import { generateInvoice } from "../utils/invoiceGenerator.js";
+import path from "path";
+import fs from "fs";
+import { fileURLToPath } from "url";
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const router = express.Router();
 
 /* ================= MULTER ================= */
 const sellStorage = multer.diskStorage({
-  destination: (_, __, cb) => cb(null, "uploads/sell"),
-  filename: (_, file, cb) =>
-    cb(null, `${Date.now()}-${file.originalname}`),
+  destination: "uploads/sell",
+  filename: (_, file, cb) => cb(null, `${Date.now()}-${file.originalname}`),
 });
-
 const uploadSellImages = multer({ storage: sellStorage });
 
-/* ================= CREATE SELL REQUEST ================= */
+/* ======================================================
+   CREATE SELL REQUEST (USER)
+====================================================== */
 router.post(
   "/",
   userAuth,
@@ -27,47 +29,106 @@ router.post(
   createSellRequest
 );
 
-/* ================= GET MY SELL REQUESTS ================= */
+/* ======================================================
+   GET MY SELL REQUESTS (USER)
+====================================================== */
 router.get("/my", userAuth, async (req, res) => {
   try {
-    if (!req.user?.uid) {
-      return res.status(401).json({ message: "Unauthenticated" });
-    }
-
     const requests = await SellRequest.find({
       "user.uid": req.user.uid,
     }).sort({ createdAt: -1 });
 
     res.json(requests);
-  } catch (error) {
-    console.error("FETCH MY SELL REQUESTS ERROR:", error);
+  } catch (err) {
+    console.error("FETCH MY SELL REQUESTS ERROR:", err);
     res.status(500).json({ message: "Failed to fetch sell requests" });
   }
 });
 
-/* ================= SELLER DECISION (FINAL PRICE) ================= */
-router.put("/:id/decision", userAuth, async (req, res) => {
+/* ======================================================
+   SELLER CANCEL (BEFORE RIDER ASSIGNED)
+====================================================== */
+router.put("/:id/cancel", userAuth, async (req, res) => {
   try {
-    const { accept } = req.body;
-
-    if (typeof accept !== "boolean") {
-      return res.status(400).json({
-        message: "accept must be boolean",
-      });
-    }
-
     const request = await SellRequest.findOne({
       _id: req.params.id,
       "user.uid": req.user.uid,
-    }).lean();
+    });
 
     if (!request) {
       return res.status(404).json({ message: "Sell request not found" });
     }
 
+    /* ❌ HARD LOCKS */
+    if (request.assignedRider?.riderId) {
+      return res.status(409).json({
+        message: "Cannot cancel after rider assignment",
+      });
+    }
+
+    if (request.pickup?.status !== "Pending") {
+      return res.status(409).json({
+        message: "Cannot cancel after pickup scheduling",
+      });
+    }
+
+    if (request.verification?.finalPrice) {
+      return res.status(409).json({
+        message: "Cannot cancel after final price generation",
+      });
+    }
+
+    /* ✅ CANCEL */
+    request.pickup.status = "Rejected";
+
+    request.statusHistory.push({
+      status: "Cancelled by Seller",
+      changedBy: "user",
+      changedAt: new Date(),
+    });
+
+    await request.save({ validateBeforeSave: false });
+
+    res.json({
+      success: true,
+      message: "Sell request cancelled successfully",
+    });
+  } catch (err) {
+    console.error("SELLER CANCEL ERROR:", err);
+    res.status(500).json({ message: "Failed to cancel request" });
+  }
+});
+
+/* ======================================================
+   SELLER FINAL DECISION (AFTER RIDER VERIFICATION)
+====================================================== */
+router.put("/:id/decision", userAuth, async (req, res) => {
+  try {
+    const { accept } = req.body;
+
+    if (typeof accept !== "boolean") {
+      return res.status(400).json({ message: "accept must be boolean" });
+    }
+
+    const request = await SellRequest.findOne({
+      _id: req.params.id,
+      "user.uid": req.user.uid,
+    });
+
+    if (!request) {
+      return res.status(404).json({ message: "Sell request not found" });
+    }
+
+    /* 🔒 BUSINESS LOCKS */
+    if (request.admin?.status !== "Approved") {
+      return res.status(400).json({
+        message: "Request not approved by admin yet",
+      });
+    }
+
     if (!request.verification?.finalPrice) {
       return res.status(400).json({
-        message: "Final price not available yet",
+        message: "Final price not generated yet",
       });
     }
 
@@ -77,25 +138,25 @@ router.put("/:id/decision", userAuth, async (req, res) => {
       });
     }
 
-    // 🔐 UPDATE WITHOUT VALIDATION (LEGACY SAFE)
-    await SellRequest.updateOne(
-      { _id: request._id },
-      {
-        $set: {
-          "verification.userAccepted": accept,
-          status: accept ? "Completed" : "Cancelled",
-        },
-        $push: {
-          statusHistory: {
-            status: accept
-              ? "User Accepted Final Price"
-              : "User Rejected Final Price",
-            changedBy: "user",
-            changedAt: new Date(),
-          },
-        },
-      }
-    );
+    /* ✅ APPLY DECISION */
+    request.verification.userAccepted = accept;
+    request.pickup.status = accept ? "Scheduled" : "Rejected";
+
+    request.statusHistory.push({
+      status: accept
+        ? "User Accepted Final Price"
+        : "User Rejected Final Price",
+      changedBy: "user",
+      changedAt: new Date(),
+    });
+
+    /* 🧾 AUTO-GENERATE INVOICE (ONLY IF ACCEPTED) */
+    if (accept && !request.invoice?.url) {
+      const invoice = await generateInvoice(request);
+      request.invoice = invoice;
+    }
+
+    await request.save({ validateBeforeSave: false });
 
     res.json({
       success: true,
@@ -107,7 +168,49 @@ router.put("/:id/decision", userAuth, async (req, res) => {
   }
 });
 
-/* ================= ASSIGN RIDER ================= */
-router.put("/:id/assign-rider", adminAuth, assignRider);
+/* ======================================================
+   DOWNLOAD INVOICE (USER)
+====================================================== */
+router.get("/:id/invoice", userAuth, async (req, res) => {
+  try {
+    const request = await SellRequest.findOne({
+      _id: req.params.id,
+      "user.uid": req.user.uid,
+    });
+
+    if (!request || !request.invoice?.url) {
+      return res.status(404).json({
+        message: "Invoice not available",
+      });
+    }
+
+    // ✅ CORRECT ABSOLUTE PATH
+    const filePath = path.join(
+      __dirname,      // routes
+      "..",           // server
+      "..",           // project root
+      request.invoice.url // /uploads/invoices/INV-TEST-001.pdf
+    );
+
+    if (!fs.existsSync(filePath)) {
+      console.error("❌ Invoice file not found at:", filePath);
+      return res.status(404).json({
+        message: "Invoice file missing on server",
+      });
+    }
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `inline; filename="${path.basename(filePath)}"`
+    );
+
+    res.sendFile(filePath);
+  } catch (err) {
+    console.error("INVOICE DOWNLOAD ERROR:", err);
+    res.status(500).json({ message: "Failed to download invoice" });
+  }
+});
+
 
 export default router;

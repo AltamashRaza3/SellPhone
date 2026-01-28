@@ -31,16 +31,21 @@ const sellRequestSchema = new mongoose.Schema(
       storage: { type: String, required: true },
       ram: String,
       color: String,
+
+      // 🔒 SAFE DEFAULT (prevents legacy validation crash)
       declaredCondition: {
         type: String,
         enum: ["Excellent", "Good", "Fair"],
         required: true,
+        default: "Good",
       },
+
       purchaseYear: { type: Number, required: true },
+
       images: {
         type: [String],
         required: true,
-        validate: (v) => v.length >= 3,
+        validate: (v) => Array.isArray(v) && v.length >= 3,
       },
     },
 
@@ -101,9 +106,20 @@ const sellRequestSchema = new mongoose.Schema(
       },
       verifiedAt: Date,
       userAccepted: { type: Boolean, default: null },
-      images: { type: [verificationImageSchema], default: [] },
+
+      // 🔒 LOCKED STRUCTURE (prevents primitive push errors)
+      images: {
+        type: [verificationImageSchema],
+        default: [],
+      },
     },
 
+    invoice: {
+     number: String,
+    url: String,
+    generatedAt: Date,
+    },
+    
     /* ================= AUDIT ================= */
     statusHistory: [
       {
