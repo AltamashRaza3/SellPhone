@@ -12,11 +12,8 @@ router.get("/", adminAuth, async (req, res) => {
   try {
     const requests = await SellRequest.find().sort({ createdAt: -1 });
     res.json(requests);
-  } catch (err) {
-    console.error("ADMIN FETCH ERROR:", err);
-    res.status(500).json({
-      message: "Failed to fetch sell requests",
-    });
+  } catch {
+    res.status(500).json({ message: "Failed to fetch sell requests" });
   }
 });
 
@@ -26,26 +23,34 @@ router.get("/", adminAuth, async (req, res) => {
 ====================================================== */
 router.put("/:id", adminAuth, async (req, res) => {
   try {
-    const { status, remarks } = req.body;
+    const { status, remarks = "" } = req.body;
 
     if (!["Approved", "Rejected", "Pending"].includes(status)) {
-      return res.status(400).json({
-        message: "Invalid admin status",
-      });
+      return res.status(400).json({ message: "Invalid admin status" });
     }
 
     const request = await SellRequest.findById(req.params.id);
     if (!request) {
-      return res.status(404).json({
-        message: "Sell request not found",
+      return res.status(404).json({ message: "Sell request not found" });
+    }
+
+    // 🔒 LOCK: cannot change status after rider assignment
+    if (request.assignedRider?.riderId) {
+      return res.status(409).json({
+        message: "Cannot change status after rider assignment",
       });
     }
 
-    request.admin = {
-      status,
-      remarks: remarks || "",
-      approvedAt: status === "Approved" ? new Date() : null,
-    };
+    // 🔒 LOCK: cannot approve after rejection
+    if (request.admin?.status === "Rejected" && status === "Approved") {
+      return res.status(409).json({
+        message: "Rejected request cannot be approved",
+      });
+    }
+
+    request.admin.status = status;
+    request.admin.remarks = remarks;
+    request.admin.approvedAt = status === "Approved" ? new Date() : null;
 
     request.statusHistory.push({
       status: `Admin ${status}`,
@@ -55,11 +60,8 @@ router.put("/:id", adminAuth, async (req, res) => {
 
     await request.save();
     res.json(request);
-  } catch (err) {
-    console.error("ADMIN STATUS UPDATE ERROR:", err);
-    res.status(500).json({
-      message: "Failed to update status",
-    });
+  } catch {
+    res.status(500).json({ message: "Failed to update status" });
   }
 });
 
@@ -72,36 +74,35 @@ router.put("/:id/assign-rider", adminAuth, async (req, res) => {
     const { riderId } = req.body;
 
     if (!riderId) {
-      return res.status(400).json({
-        message: "Rider ID required",
-      });
+      return res.status(400).json({ message: "Rider ID required" });
     }
 
     const request = await SellRequest.findById(req.params.id);
     if (!request) {
-      return res.status(404).json({
-        message: "Sell request not found",
-      });
+      return res.status(404).json({ message: "Sell request not found" });
     }
 
     /* ===== HARD BUSINESS RULES ===== */
+
     if (request.admin?.status !== "Approved") {
       return res.status(409).json({
         message: "Admin approval required before assigning rider",
       });
     }
 
+    if (request.admin?.status === "Rejected") {
+      return res
+        .status(409)
+        .json({ message: "Cannot assign rider to rejected request" });
+    }
+
     if (request.assignedRider?.riderId) {
-      return res.status(409).json({
-        message: "Rider already assigned",
-      });
+      return res.status(409).json({ message: "Rider already assigned" });
     }
 
     const rider = await Rider.findById(riderId);
     if (!rider) {
-      return res.status(404).json({
-        message: "Rider not found",
-      });
+      return res.status(404).json({ message: "Rider not found" });
     }
 
     /* ===== ASSIGN RIDER ===== */
@@ -122,11 +123,8 @@ router.put("/:id/assign-rider", adminAuth, async (req, res) => {
 
     await request.save();
     res.json(request);
-  } catch (err) {
-    console.error("ASSIGN RIDER ERROR:", err);
-    res.status(500).json({
-      message: "Failed to assign rider",
-    });
+  } catch {
+    res.status(500).json({ message: "Failed to assign rider" });
   }
 });
 

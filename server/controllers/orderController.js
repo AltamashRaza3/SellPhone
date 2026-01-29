@@ -1,8 +1,9 @@
 import Order from "../models/Order.js";
+import InventoryItem from "../models/InventoryItem.js";
 
 /* ======================================================
    STATUS TRANSITIONS (BACKEND AUTHORITY)
-   ====================================================== */
+====================================================== */
 const STATUS_TRANSITIONS = {
   Pending: ["Processing"],
   Processing: ["Shipped"],
@@ -14,7 +15,7 @@ const STATUS_TRANSITIONS = {
 /* ======================================================
    CREATE ORDER (USER)
    POST /api/orders
-   ====================================================== */
+====================================================== */
 export const createOrder = async (req, res) => {
   try {
     const user = req.user;
@@ -22,6 +23,18 @@ export const createOrder = async (req, res) => {
 
     if (!items?.length || !totalAmount || !shippingAddress) {
       return res.status(400).json({ message: "Invalid order data" });
+    }
+
+    /* 🔒 OPTIONAL SAFETY CHECK (recommended) */
+    for (const item of items) {
+      if (item.inventoryId) {
+        const inventory = await InventoryItem.findById(item.inventoryId);
+        if (!inventory || inventory.status !== "Available") {
+          return res.status(400).json({
+            message: "One or more items are no longer available",
+          });
+        }
+      }
     }
 
     const order = await Order.create({
@@ -42,7 +55,7 @@ export const createOrder = async (req, res) => {
       ],
     });
 
-    return res.status(201).json({ order });
+    return res.status(201).json(order);
   } catch (error) {
     console.error("❌ CREATE ORDER ERROR:", error);
     return res.status(500).json({ message: "Order creation failed" });
@@ -52,7 +65,7 @@ export const createOrder = async (req, res) => {
 /* ======================================================
    GET USER ORDERS
    GET /api/orders/my
-   ====================================================== */
+====================================================== */
 export const getUserOrders = async (req, res) => {
   try {
     const orders = await Order.find({ "user.uid": req.user.uid })
@@ -69,7 +82,7 @@ export const getUserOrders = async (req, res) => {
 /* ======================================================
    GET SINGLE ORDER (USER SAFE + ADMIN)
    GET /api/orders/:id
-   ====================================================== */
+====================================================== */
 export const getOrderById = async (req, res) => {
   try {
     const order = await Order.findById(req.params.id).lean();
@@ -95,7 +108,7 @@ export const getOrderById = async (req, res) => {
 /* ======================================================
    USER – CANCEL ORDER
    PUT /api/orders/:id/cancel
-   ====================================================== */
+====================================================== */
 export const cancelOrder = async (req, res) => {
   try {
     const order = await Order.findById(req.params.id);
@@ -132,7 +145,7 @@ export const cancelOrder = async (req, res) => {
 /* ======================================================
    ADMIN – GET ALL ORDERS
    GET /api/admin/orders
-   ====================================================== */
+====================================================== */
 export const getAllOrders = async (req, res) => {
   try {
     const orders = await Order.find({})
@@ -149,7 +162,7 @@ export const getAllOrders = async (req, res) => {
 /* ======================================================
    ADMIN – UPDATE ORDER STATUS
    PUT /api/admin/orders/:id
-   ====================================================== */
+====================================================== */
 export const updateOrderStatus = async (req, res) => {
   try {
     const { status } = req.body;
@@ -177,7 +190,20 @@ export const updateOrderStatus = async (req, res) => {
 
     if (status === "Processing") order.processedAt = new Date();
     if (status === "Shipped") order.shippedAt = new Date();
-    if (status === "Delivered") order.deliveredAt = new Date();
+
+    /* 🔥 INVENTORY AUTO-SYNC ON DELIVERY */
+    if (status === "Delivered") {
+      order.deliveredAt = new Date();
+
+      for (const item of order.items) {
+        if (item.inventoryId) {
+          await InventoryItem.findByIdAndUpdate(item.inventoryId, {
+            status: "Sold",
+            soldAt: new Date(),
+          });
+        }
+      }
+    }
 
     order.statusHistory.push({
       status,

@@ -112,6 +112,16 @@ const AdminLayout = () => {
           >
             🔁 Sale Requests
           </NavLink>
+
+          <NavLink
+            to="/admin/inventory"
+            onClick={() => setSidebarOpen(false)}
+            className={({ isActive }) =>
+              `${baseLink} ${isActive ? active : inactive}`
+            }
+          >
+            📦 Inventory
+          </NavLink>
         </nav>
 
         {/* Logout */}

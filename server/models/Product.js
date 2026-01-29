@@ -55,6 +55,13 @@ const productSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    inventoryItemId: {
+     type: mongoose.Schema.Types.ObjectId,
+     ref: "InventoryItem",
+     unique: true,
+     sparse: true, // allows old products without inventory
+},
+
   },
   {
     timestamps: true, // adds createdAt & updatedAt

@@ -32,7 +32,6 @@ const sellRequestSchema = new mongoose.Schema(
       ram: String,
       color: String,
 
-      // 🔒 SAFE DEFAULT (prevents legacy validation crash)
       declaredCondition: {
         type: String,
         enum: ["Excellent", "Good", "Fair"],
@@ -107,19 +106,19 @@ const sellRequestSchema = new mongoose.Schema(
       verifiedAt: Date,
       userAccepted: { type: Boolean, default: null },
 
-      // 🔒 LOCKED STRUCTURE (prevents primitive push errors)
       images: {
         type: [verificationImageSchema],
         default: [],
       },
     },
 
+    /* ================= INVOICE ================= */
     invoice: {
-     number: String,
-    url: String,
-    generatedAt: Date,
+      number: String,
+      url: String,
+      generatedAt: Date,
     },
-    
+
     /* ================= AUDIT ================= */
     statusHistory: [
       {
@@ -135,6 +134,41 @@ const sellRequestSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+/* =====================================================
+   🔒 PRODUCTION STATE HELPERS (NON-BREAKING)
+   ===================================================== */
+
+/**
+ * Can rider verify the device?
+ */
+sellRequestSchema.methods.canVerify = function () {
+  if (this.pickup?.status === "Completed") return false;
+  if (this.verification?.finalPrice) return false; // already verified
+  return ["Scheduled", "Picked"].includes(this.pickup?.status);
+};
+
+/**
+ * Can rider complete the pickup?
+ */
+sellRequestSchema.methods.canComplete = function () {
+  return (
+    this.pickup?.status === "Picked" &&
+    !!this.verification?.finalPrice &&
+    this.verification?.userAccepted === true
+  );
+};
+
+/**
+ * Assertion helper for routes/controllers
+ */
+sellRequestSchema.methods.assert = function (condition, message) {
+  if (!condition) {
+    const err = new Error(message);
+    err.statusCode = 400;
+    throw err;
+  }
+};
 
 export default mongoose.models.SellRequest ||
   mongoose.model("SellRequest", sellRequestSchema);

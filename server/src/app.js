@@ -19,6 +19,7 @@ import adminRoutes from "../routes/adminRoutes.js";
 import adminOrderRoutes from "../routes/adminOrderRoutes.js";
 import adminSellRequestRoutes from "../routes/adminSellRequest.routes.js";
 import adminRiderRoutes from "../routes/adminRider.routes.js";
+import adminInventoryRoutes from "../routes/admin.inventory.routes.js";
 
 import riderRoutes from "../routes/rider.routes.js";
 
@@ -40,7 +41,6 @@ app.use("/api", apiLimiter);
   Client App  → http://localhost:5174
   Rider App   → http://localhost:5173
 */
-/* ================= CORS ================= */
 const corsOptions = {
   origin: ["http://localhost:5174", "http://localhost:5173"],
   credentials: true,
@@ -48,7 +48,6 @@ const corsOptions = {
   allowedHeaders: ["Content-Type", "Authorization"],
 };
 app.use(cors(corsOptions));
-
 
 /* ================= STATIC FILES ================= */
 /* uploads folder is at project root */
@@ -82,6 +81,7 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/admin/orders", adminOrderRoutes);
 app.use("/api/admin/sell-requests", adminSellRequestRoutes);
 app.use("/api/admin/riders", adminRiderRoutes);
+app.use("/api/admin/inventory", adminInventoryRoutes);
 
 /* ================= RIDER ================= */
 app.use("/api/rider", riderRoutes);
@@ -90,13 +90,14 @@ app.use("/api/rider", riderRoutes);
 app.use((req, res) => {
   res.status(404).json({ message: "API route not found" });
 });
+
 /* ================= GLOBAL ERROR HANDLER ================= */
 app.use((err, req, res, next) => {
   console.error("🔥 GLOBAL ERROR:", err);
 
-  const statusCode = err.status || 500;
-  res.status(statusCode).json({
+  res.status(err.status || 500).json({
     message: err.message || "Internal Server Error",
   });
 });
+
 export default app;

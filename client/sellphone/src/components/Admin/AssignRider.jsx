@@ -4,7 +4,6 @@ import { toast } from "react-hot-toast";
 const AssignRider = ({ requestId, onAssigned }) => {
   const [riders, setRiders] = useState([]);
   const [riderId, setRiderId] = useState("");
-  const [scheduledAt, setScheduledAt] = useState("");
   const [loading, setLoading] = useState(false);
 
   /* ================= LOAD RIDERS ================= */
@@ -13,7 +12,7 @@ const AssignRider = ({ requestId, onAssigned }) => {
       credentials: "include",
     })
       .then((res) => {
-        if (!res.ok) throw new Error("Failed to load riders");
+        if (!res.ok) throw new Error();
         return res.json();
       })
       .then((data) => {
@@ -33,17 +32,14 @@ const AssignRider = ({ requestId, onAssigned }) => {
       setLoading(true);
 
       const res = await fetch(
-        `http://localhost:5000/api/sell-requests/${requestId}/assign-rider`,
+        `http://localhost:5000/api/admin/sell-requests/${requestId}/assign-rider`,
         {
           method: "PUT",
           credentials: "include",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            riderId,
-            scheduledAt: scheduledAt || undefined,
-          }),
+          body: JSON.stringify({ riderId }),
         },
       );
 
@@ -55,10 +51,8 @@ const AssignRider = ({ requestId, onAssigned }) => {
 
       toast.success("Rider assigned successfully");
       setRiderId("");
-      setScheduledAt("");
       onAssigned?.();
     } catch (err) {
-      console.error("ASSIGN RIDER ERROR:", err);
       toast.error(err.message || "Failed to assign rider");
     } finally {
       setLoading(false);
@@ -81,13 +75,6 @@ const AssignRider = ({ requestId, onAssigned }) => {
           </option>
         ))}
       </select>
-
-      <input
-        type="datetime-local"
-        className="input w-full"
-        value={scheduledAt}
-        onChange={(e) => setScheduledAt(e.target.value)}
-      />
 
       <button
         disabled={loading}

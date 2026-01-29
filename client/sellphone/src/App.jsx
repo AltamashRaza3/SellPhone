@@ -38,7 +38,6 @@ import OrderDetails from "./pages/OrderDetails";
 import SellRequestList from "./pages/sell/SellRequestsList";
 import SellRequestDetails from "./pages/sell/SellRequestDetails";
 
-
 /* ================= GUARDS ================= */
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminProtectedRoute from "./components/AdminProtectedRoute";
@@ -54,6 +53,7 @@ import AdminAddProduct from "./pages/Admin/AdminAddProduct";
 import AdminEditProduct from "./pages/Admin/AdminEditProduct";
 import AdminSellPhones from "./pages/Admin/AdminSellPhone";
 import AdminTimeline from "./pages/Admin/AdminTimeline";
+import AdminInventory from "./pages/Admin/AdminInventory";
 
 /* ================= UI ================= */
 import { Toaster } from "react-hot-toast";
@@ -228,7 +228,6 @@ const App = () => {
               }
             />
 
-            {/* ✅ SELL REQUEST LIST + DETAILS (SAME COMPONENT) */}
             <Route
               path="/my-sell-requests"
               element={
@@ -242,7 +241,7 @@ const App = () => {
               path="/my-sell-requests/:id"
               element={
                 <ProtectedRoute>
-                  <SellRequestDetails/>
+                  <SellRequestDetails />
                 </ProtectedRoute>
               }
             />
@@ -282,6 +281,9 @@ const App = () => {
             <Route path="products" element={<AdminProducts />} />
             <Route path="products/add" element={<AdminAddProduct />} />
             <Route path="products/edit/:id" element={<AdminEditProduct />} />
+
+            {/* ✅ INVENTORY */}
+            <Route path="inventory" element={<AdminInventory />} />
           </Route>
         </Routes>
       )}

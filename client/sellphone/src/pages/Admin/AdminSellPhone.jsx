@@ -6,6 +6,9 @@ const AdminSellPhones = () => {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const [remarks, setRemarks] = useState({});
+  const [updatingId, setUpdatingId] = useState(null);
+
   /* ================= FETCH ================= */
   const fetchRequests = async () => {
     try {
@@ -26,6 +29,35 @@ const AdminSellPhones = () => {
     fetchRequests();
   }, []);
 
+  /* ================= ADMIN ACTION ================= */
+  const updateStatus = async (id, status) => {
+    try {
+      setUpdatingId(id);
+      const res = await fetch(
+        `http://localhost:5000/api/admin/sell-requests/${id}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            status,
+            remarks: remarks[id] || "",
+          }),
+        },
+      );
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
+
+      toast.success(`Request ${status}`);
+      fetchRequests();
+    } catch (err) {
+      toast.error(err.message || "Action failed");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
   if (loading) return <p className="text-gray-400">Loading…</p>;
 
   return (
@@ -35,10 +67,30 @@ const AdminSellPhones = () => {
       {requests.map((req) => {
         const phone = req.phone || {};
         const address = req.pickup?.address;
-        const canAssignRider = req.pickup?.status === "Pending";
+        const adminStatus = req.admin?.status || "Pending";
+        const pickupStatus = req.pickup?.status;
+
+        const isEscalated = pickupStatus === "Rejected";
+
+        const canApproveReject =
+          adminStatus === "Pending" && !req.assignedRider;
+
+        const canAssignRider = adminStatus === "Approved" && !req.assignedRider;
+
+        const canReassign = adminStatus === "Approved" && isEscalated;
+
+        const riderRejection = req.statusHistory?.find(
+          (h) =>
+            h.status === "Pickup Rejected by Rider" && h.changedBy === "rider",
+        );
 
         return (
-          <div key={req._id} className="glass-card space-y-4">
+          <div
+            key={req._id}
+            className={`glass-card space-y-4 ${
+              isEscalated ? "ring-1 ring-red-500/40" : ""
+            }`}
+          >
             {/* HEADER */}
             <div className="flex justify-between items-start">
               <div>
@@ -46,19 +98,30 @@ const AdminSellPhones = () => {
                   {phone.brand} {phone.model}
                 </h3>
                 <p className="text-sm text-gray-400">
-                  {phone.storage} • {phone.condition}
+                  {phone.storage} • {phone.declaredCondition}
                 </p>
                 <p className="mt-1 text-orange-400 font-semibold">
                   Base Price ₹{req.pricing?.basePrice?.toLocaleString("en-IN")}
                 </p>
               </div>
 
-              <span className="px-3 py-1 rounded-full text-xs font-semibold bg-yellow-500/20 text-yellow-400">
-                {req.pickup?.status}
+              <span
+                className={`px-3 py-1 rounded-full text-xs font-semibold
+                  ${
+                    isEscalated
+                      ? "bg-red-600/20 text-red-400"
+                      : adminStatus === "Approved"
+                        ? "bg-green-500/20 text-green-400"
+                        : adminStatus === "Rejected"
+                          ? "bg-red-500/20 text-red-400"
+                          : "bg-yellow-500/20 text-yellow-400"
+                  }`}
+              >
+                {isEscalated ? "Escalated" : adminStatus}
               </span>
             </div>
 
-            {/* IMAGES */}
+            {/* USER IMAGES */}
             {phone.images?.length > 0 && (
               <div className="grid grid-cols-3 gap-3">
                 {phone.images.map((img, i) => (
@@ -95,8 +158,52 @@ const AdminSellPhones = () => {
               )}
             </div>
 
-            {/* ASSIGN RIDER */}
-            {canAssignRider && !req.assignedRider && (
+            {/* 🚨 ESCALATION DETAILS */}
+            {isEscalated && riderRejection && (
+              <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20">
+                <p className="text-sm font-semibold text-red-400">
+                  Rider Escalation Reason
+                </p>
+                <p className="text-sm text-red-300 mt-1">
+                  {riderRejection.note}
+                </p>
+              </div>
+            )}
+
+            {/* ADMIN ACTIONS */}
+            {canApproveReject && (
+              <div className="space-y-3">
+                <textarea
+                  placeholder="Remarks (optional)"
+                  value={remarks[req._id] || ""}
+                  onChange={(e) =>
+                    setRemarks({ ...remarks, [req._id]: e.target.value })
+                  }
+                  className="w-full rounded-lg bg-black/40 border border-white/10 p-3 text-sm text-white"
+                />
+
+                <div className="flex gap-3">
+                  <button
+                    disabled={updatingId === req._id}
+                    onClick={() => updateStatus(req._id, "Approved")}
+                    className="flex-1 h-10 rounded-lg bg-green-600 text-white font-semibold"
+                  >
+                    Approve
+                  </button>
+
+                  <button
+                    disabled={updatingId === req._id}
+                    onClick={() => updateStatus(req._id, "Rejected")}
+                    className="flex-1 h-10 rounded-lg bg-red-600 text-white font-semibold"
+                  >
+                    Reject
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ASSIGN / REASSIGN RIDER */}
+            {(canAssignRider || canReassign) && (
               <AssignRider requestId={req._id} onAssigned={fetchRequests} />
             )}
 
@@ -104,9 +211,9 @@ const AdminSellPhones = () => {
             {req.assignedRider && (
               <div className="p-4 rounded-xl bg-indigo-500/10 border border-indigo-500/20">
                 <p className="text-sm font-semibold text-indigo-400">
-                  Pickup Assigned
+                  Assigned Rider
                 </p>
-                <p className="text-white">{req.assignedRider.name}</p>
+                <p className="text-white">{req.assignedRider.riderName}</p>
                 {req.pickup?.scheduledAt && (
                   <p className="text-gray-300">
                     {new Date(req.pickup.scheduledAt).toLocaleString()}

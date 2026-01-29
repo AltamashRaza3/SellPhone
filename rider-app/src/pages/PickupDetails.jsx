@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import riderApi from "../api/riderApi";
-import { FiCamera } from "react-icons/fi";
+import { FiCamera, FiPhoneCall } from "react-icons/fi";
+import { FaWhatsapp } from "react-icons/fa";
 
 /* ================= VERIFICATION CHECKLIST ================= */
 const VERIFICATION_CHECKS = {
@@ -24,6 +25,7 @@ const PickupDetails = () => {
   const [images, setImages] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  const [rejecting, setRejecting] = useState(false);
 
   const [checks, setChecks] = useState(
     Object.keys(VERIFICATION_CHECKS).reduce(
@@ -54,12 +56,13 @@ const PickupDetails = () => {
     );
   }
 
-  const { phone, pickup: p, pricing, verification } = pickup;
+  const { phone, pickup: p, pricing, verification, contact } = pickup;
 
   /* ================= STATE FLAGS ================= */
   const isScheduled = p?.status === "Scheduled";
   const isPicked = p?.status === "Picked";
   const isCompleted = p?.status === "Completed";
+  const isRejected = p?.status === "Rejected";
 
   const hasUploadedImages =
     Array.isArray(verification?.images) && verification.images.length > 0;
@@ -68,9 +71,13 @@ const PickupDetails = () => {
     verification?.checks && Object.keys(verification.checks).length > 0;
 
   const canVerify =
-    (isScheduled || isPicked) && !isVerified && hasUploadedImages;
+    !isRejected &&
+    (isScheduled || isPicked) &&
+    !isVerified &&
+    hasUploadedImages;
 
-  const canComplete = isPicked && isVerified && hasUploadedImages;
+  const canComplete =
+    !isRejected && isPicked && isVerified && hasUploadedImages;
 
   /* ================= IMAGE HANDLERS ================= */
   const handleFileSelect = (e) => {
@@ -84,7 +91,7 @@ const PickupDetails = () => {
 
   /* ================= IMAGE UPLOAD ================= */
   const uploadImages = async () => {
-    if (!images.length) return;
+    if (!images.length || isRejected) return;
 
     const formData = new FormData();
     images.forEach((img) => formData.append("images", img));
@@ -122,11 +129,22 @@ const PickupDetails = () => {
     navigate("/pickups");
   };
 
-  /* ================= REJECT PICKUP ================= */
+  /* ================= 🚨 REJECT PICKUP ================= */
   const rejectPickup = async () => {
-    if (!rejectReason.trim()) return;
-    await riderApi.put(`/pickups/${id}/reject`, { reason: rejectReason });
-    navigate("/pickups");
+    if (!rejectReason.trim() || isRejected) return;
+
+    if (!window.confirm("This will escalate the issue to admin. Are you sure?"))
+      return;
+
+    setRejecting(true);
+    try {
+      await riderApi.put(`/pickups/${id}/reject`, {
+        reason: rejectReason,
+      });
+      await loadPickup();
+    } finally {
+      setRejecting(false);
+    }
   };
 
   return (
@@ -140,15 +158,16 @@ const PickupDetails = () => {
       </button>
 
       {/* DEVICE INFO */}
-      <div className="rounded-2xl bg-zinc-900 border border-white/10 p-4">
+      <div className="rounded-2xl bg-zinc-900 border border-white/10 p-4 space-y-2">
         <h2 className="font-semibold text-lg text-white">
           {phone.brand} {phone.model}
         </h2>
+
         <p className="text-sm text-zinc-400">
           {phone.storage} • {phone.color} • {phone.declaredCondition}
         </p>
 
-        <p className="mt-2 text-emerald-400 font-semibold">
+        <p className="text-emerald-400 font-semibold">
           Base Price: ₹{pricing?.basePrice?.toLocaleString("en-IN")}
         </p>
 
@@ -159,47 +178,36 @@ const PickupDetails = () => {
         )}
       </div>
 
-      {/* USER UPLOADED IMAGES */}
-      {Array.isArray(phone.images) && phone.images.length > 0 && (
-        <div className="rounded-2xl bg-zinc-900 border border-white/10 p-4">
-          <p className="text-sm font-medium mb-3 text-white">
-            User Uploaded Images
-          </p>
-          <div className="grid grid-cols-3 gap-2">
-            {phone.images.map((img, idx) => (
-              <img
-                key={idx}
-                src={`http://localhost:5000${img}`}
-                className="h-24 w-full object-cover rounded-xl"
-                alt="User Device"
-              />
-            ))}
-          </div>
+      {/* 📞 CONTACT */}
+      {contact?.phone && !isRejected && (
+        <div className="flex gap-3">
+          <a
+            href={`tel:${contact.phone}`}
+            className="flex-1 h-12 rounded-xl bg-emerald-600 text-black font-semibold flex items-center justify-center gap-2"
+          >
+            <FiPhoneCall /> Call
+          </a>
+
+          <a
+            href={`https://wa.me/91${contact.phone}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex-1 h-12 rounded-xl bg-green-600 text-black font-semibold flex items-center justify-center gap-2"
+          >
+            <FaWhatsapp /> WhatsApp
+          </a>
         </div>
       )}
 
-      {/* RIDER VERIFICATION IMAGES */}
-      {Array.isArray(verification?.images) &&
-        verification.images.length > 0 && (
-          <div className="rounded-2xl bg-zinc-900 border border-white/10 p-4">
-            <p className="text-sm font-medium mb-3 text-white">
-              Rider Verification Images
-            </p>
-            <div className="grid grid-cols-3 gap-2">
-              {verification.images.map((img, idx) => (
-                <img
-                  key={idx}
-                  src={`http://localhost:5000${img.url}`}
-                  className="h-24 w-full object-cover rounded-xl"
-                  alt="Verification"
-                />
-              ))}
-            </div>
-          </div>
-        )}
+      {/* 🚨 REJECTED STATE */}
+      {isRejected && (
+        <div className="p-4 rounded-xl bg-red-500/10 text-red-400 text-center font-semibold">
+          Pickup rejected and escalated to admin
+        </div>
+      )}
 
       {/* VERIFICATION */}
-      {!isVerified && (isScheduled || isPicked) && (
+      {!isVerified && !isRejected && (isScheduled || isPicked) && (
         <div className="rounded-2xl bg-zinc-900 border border-white/10 p-4 space-y-3">
           <p className="font-medium text-white">Device Verification</p>
 
@@ -226,8 +234,8 @@ const PickupDetails = () => {
         </div>
       )}
 
-      {/* IMAGE UPLOAD (ONLY BEFORE VERIFICATION) */}
-      {!isCompleted && !isVerified && (
+      {/* IMAGE UPLOAD */}
+      {!isCompleted && !isVerified && !isRejected && (
         <div className="rounded-2xl bg-zinc-900 border border-white/10 p-4 space-y-3">
           <input
             type="file"
@@ -262,7 +270,7 @@ const PickupDetails = () => {
         </div>
       )}
 
-      {/* COMPLETE PICKUP */}
+      {/* COMPLETE */}
       {canComplete && (
         <button
           onClick={completePickup}
@@ -272,29 +280,28 @@ const PickupDetails = () => {
         </button>
       )}
 
-      {/* COMPLETED */}
-      {isCompleted && (
-        <div className="p-4 rounded-xl bg-green-500/10 text-green-400 font-semibold text-center">
-          Pickup Completed Successfully
-        </div>
-      )}
-
-      {/* REJECT */}
-      {!isCompleted && (
+      {/* 🚨 REJECT PICKUP */}
+      {!isCompleted && !isRejected && (
         <div className="rounded-2xl bg-zinc-900 border border-white/10 p-4 space-y-3">
           <textarea
-            placeholder="Reason for rejection"
+            placeholder="Reason for rejection / escalation"
             value={rejectReason}
             onChange={(e) => setRejectReason(e.target.value)}
             className="w-full rounded-xl bg-zinc-800 p-3 text-sm text-white"
           />
           <button
             onClick={rejectPickup}
-            disabled={!rejectReason.trim()}
+            disabled={!rejectReason.trim() || rejecting}
             className="w-full h-11 rounded-xl bg-red-600 text-white disabled:opacity-50"
           >
-            Reject Pickup
+            {rejecting ? "Escalating…" : "Reject & Escalate"}
           </button>
+        </div>
+      )}
+
+      {isCompleted && (
+        <div className="p-4 rounded-xl bg-green-500/10 text-green-400 font-semibold text-center">
+          Pickup Completed Successfully
         </div>
       )}
     </div>

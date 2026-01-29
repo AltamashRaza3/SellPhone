@@ -18,13 +18,21 @@ const orderSchema = new mongoose.Schema(
     /* ================= ITEMS ================= */
     items: [
       {
-        phone: {
-          type: Object, // snapshot of phone at purchase time
+        inventoryId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "InventoryItem",
           required: true,
         },
+
+        phone: {
+          type: Object, // snapshot at purchase time
+          required: true,
+        },
+
         quantity: {
           type: Number,
           required: true,
+          default: 1,
         },
       },
     ],
@@ -37,7 +45,7 @@ const orderSchema = new mongoose.Schema(
 
     /* ================= SHIPPING ================= */
     shippingAddress: {
-      type: String, // stored as formatted string
+      type: String,
       required: true,
     },
 
@@ -66,17 +74,11 @@ const orderSchema = new mongoose.Schema(
     shippedAt: Date,
     deliveredAt: Date,
 
-    /* ================= STATUS HISTORY (PHASE 15.3) ================= */
+    /* ================= STATUS HISTORY ================= */
     statusHistory: [
       {
-        status: {
-          type: String,
-          required: true,
-        },
-        changedBy: {
-          type: String, // "admin" | "user"
-          required: true,
-        },
+        status: String,
+        changedBy: String,
         changedAt: {
           type: Date,
           default: Date.now,
@@ -87,4 +89,5 @@ const orderSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-export default mongoose.model("Order", orderSchema);
+export default mongoose.models.Order ||
+  mongoose.model("Order", orderSchema);
