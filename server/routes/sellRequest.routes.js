@@ -190,7 +190,7 @@ router.put("/:id/decision", userAuth, async (req, res) => {
 });
 
 /* ======================================================
-   DOWNLOAD INVOICE (USER)
+   DOWNLOAD INVOICE (USER) ✅ FIXED
 ====================================================== */
 router.get("/:id/invoice", userAuth, async (req, res) => {
   try {
@@ -205,14 +205,14 @@ router.get("/:id/invoice", userAuth, async (req, res) => {
       });
     }
 
-    const filePath = path.join(
-      __dirname,
-      "..",
-      "..",
-      request.invoice.url
-    );
+    // 🔥 REMOVE leading slash from URL
+    const relativePath = request.invoice.url.replace(/^\/+/, "");
+
+    // ✅ Resolve from project root
+    const filePath = path.resolve(process.cwd(), relativePath);
 
     if (!fs.existsSync(filePath)) {
+      console.error("❌ Invoice file not found at:", filePath);
       return res.status(404).json({
         message: "Invoice file missing on server",
       });
@@ -230,5 +230,6 @@ router.get("/:id/invoice", userAuth, async (req, res) => {
     res.status(500).json({ message: "Failed to download invoice" });
   }
 });
+
 
 export default router;

@@ -27,11 +27,7 @@ const inventoryItemSchema = new mongoose.Schema(
 
       images: {
         type: [String],
-        required: true,
-        validate: {
-          validator: (arr) => Array.isArray(arr) && arr.length > 0,
-          message: "At least one product image is required",
-        },
+        default:[],
       },
     },
 

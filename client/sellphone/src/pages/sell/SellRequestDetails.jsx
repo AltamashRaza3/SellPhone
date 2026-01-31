@@ -69,13 +69,6 @@ const SellRequestDetails = () => {
       setCancelling(false);
     }
   };
-console.log("SELLER DETAILS DEBUG:", {
-  verification,
-  finalPrice: verification?.finalPrice,
-  userAccepted: verification?.userAccepted,
-  pickupStatus: pickup?.status,
-  fullRequest: request,
-});
 
   return (
     <div className="appContainer py-10 space-y-6">
@@ -150,9 +143,9 @@ console.log("SELLER DETAILS DEBUG:", {
         </button>
       )}
 
-      {pickup?.status === "Completed" && invoice?.url && (
+      {pickup?.status === "Completed" && (
         <a
-          href={`${import.meta.env.VITE_API_BASE_URL}${invoice.url}`}
+          href={`${import.meta.env.VITE_API_BASE_URL}/api/sell-requests/${request._id}/invoice`}
           target="_blank"
           rel="noopener noreferrer"
           className="h-11 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold flex items-center justify-center"

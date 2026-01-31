@@ -1,22 +1,29 @@
 import express from "express";
 import multer from "multer";
+import fs from "fs";
+import path from "path";
 import adminAuth from "../middleware/adminAuth.js";
 import InventoryItem from "../models/InventoryItem.js";
 import Product from "../models/Product.js";
 
 const router = express.Router();
 
+/* ================= ENSURE UPLOAD DIR ================= */
+const uploadDir = "uploads/inventory";
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
 /* ================= MULTER ================= */
 const storage = multer.diskStorage({
-  destination: "uploads/inventory",
+  destination: uploadDir,
   filename: (_, file, cb) =>
     cb(null, `${Date.now()}-${file.originalname}`),
 });
-
 const upload = multer({ storage });
 
 /* ======================================================
-   GET INVENTORY (ADMIN)
+   GET INVENTORY
 ====================================================== */
 router.get("/", adminAuth, async (req, res) => {
   try {
@@ -26,13 +33,13 @@ router.get("/", adminAuth, async (req, res) => {
 
     res.json(items);
   } catch (err) {
-    console.error("INVENTORY FETCH ERROR:", err);
-    res.status(500).json({ message: "Failed to load inventory" });
+    console.error("GET INVENTORY ERROR:", err);
+    res.status(500).json({ message: "Failed to fetch inventory" });
   }
 });
 
 /* ======================================================
-   SET / UPDATE SELLING PRICE (AUTO LIST)
+   UPDATE PRICE
 ====================================================== */
 router.put("/:id/price", adminAuth, async (req, res) => {
   try {
@@ -48,50 +55,33 @@ router.put("/:id/price", adminAuth, async (req, res) => {
     }
 
     if (item.status === "Sold") {
+      return res.status(409).json({ message: "Sold item locked" });
+    }
+
+    if (!item.phone.images.length) {
       return res
-        .status(409)
-        .json({ message: "Sold items cannot be modified" });
+        .status(400)
+        .json({ message: "Upload images before pricing" });
     }
 
     item.sellingPrice = sellingPrice;
-    item.status = "Available";
-    item.listedAt = new Date();
     await item.save();
 
-    /* 🔄 Sync Product */
-    const product = await Product.findOne({
-      inventoryItemId: item._id,
-    });
+    /* 🔄 Sync Product Price */
+    await Product.updateOne(
+      { inventoryItemId: item._id },
+      { price: sellingPrice }
+    );
 
-    if (product) {
-      product.price = sellingPrice;
-      await product.save();
-    } else {
-      await Product.create({
-        inventoryItemId: item._id,
-        brand: item.phone.brand,
-        model: item.phone.model,
-        storage: item.phone.storage,
-        ram: item.phone.ram,
-        color: item.phone.color,
-        condition: item.phone.condition,
-        price: sellingPrice,
-        stock: 1,
-        isActive: true,
-        images: item.phone.images,
-        description: "Verified refurbished phone",
-      });
-    }
-
-    res.json({ message: "Price updated & listed", item });
+    res.json({ success: true });
   } catch (err) {
-    console.error("PRICE UPDATE ERROR:", err);
+    console.error("UPDATE PRICE ERROR:", err);
     res.status(500).json({ message: "Failed to update price" });
   }
 });
 
 /* ======================================================
-   UPDATE INVENTORY IMAGES  ✅ (FIXES YOUR 404)
+   UPDATE IMAGES
 ====================================================== */
 router.put(
   "/:id/images",
@@ -99,7 +89,7 @@ router.put(
   upload.array("images", 6),
   async (req, res) => {
     try {
-      if (!req.files || req.files.length === 0) {
+      if (!req.files?.length) {
         return res.status(400).json({ message: "No images uploaded" });
       }
 
@@ -109,62 +99,72 @@ router.put(
       }
 
       if (item.status === "Sold") {
-        return res
-          .status(409)
-          .json({ message: "Sold items cannot be modified" });
+        return res.status(409).json({ message: "Sold item locked" });
       }
 
       const imagePaths = req.files.map(
-        (f) => `/uploads/inventory/${f.filename}`,
+        (f) => `/uploads/inventory/${f.filename}`
       );
 
       item.phone.images = imagePaths;
       await item.save();
 
       /* 🔄 Sync Product Images */
-      const product = await Product.findOne({
-        inventoryItemId: item._id,
-      });
+      await Product.updateOne(
+        { inventoryItemId: item._id },
+        { images: imagePaths }
+      );
 
-      if (product) {
-        product.images = imagePaths;
-        await product.save();
-      }
-
-      res.json({ message: "Images updated", images: imagePaths });
+      res.json({ success: true, images: imagePaths });
     } catch (err) {
-      console.error("IMAGE UPDATE ERROR:", err);
+      console.error("UPDATE IMAGES ERROR:", err);
       res.status(500).json({ message: "Failed to update images" });
     }
-  },
+  }
 );
 
 /* ======================================================
-   UNLIST PRODUCT
+   UPDATE STATUS
 ====================================================== */
-router.put("/:id/unlist", adminAuth, async (req, res) => {
+router.put("/:id/status", adminAuth, async (req, res) => {
   try {
+    const { status } = req.body;
+
+    if (!["Available", "Unlisted", "Sold"].includes(status)) {
+      return res.status(400).json({ message: "Invalid status" });
+    }
+
     const item = await InventoryItem.findById(req.params.id);
     if (!item) {
       return res.status(404).json({ message: "Inventory item not found" });
     }
 
     if (item.status === "Sold") {
-      return res.status(409).json({ message: "Sold item cannot be unlisted" });
+      return res.status(409).json({ message: "Sold item locked" });
     }
 
-    item.status = "Unlisted";
+    if (status === "Available" && !item.phone.images.length) {
+      return res
+        .status(400)
+        .json({ message: "Images required before listing" });
+    }
+
+    item.status = status;
+    if (status === "Available") item.listedAt = new Date();
+    if (status === "Sold") item.soldAt = new Date();
+
     await item.save();
 
+    /* 🔄 Sync Product Visibility */
     await Product.updateOne(
       { inventoryItemId: item._id },
-      { isActive: false },
+      { isActive: status === "Available" }
     );
 
-    res.json({ message: "Product unlisted successfully" });
+    res.json({ success: true });
   } catch (err) {
-    console.error("UNLIST ERROR:", err);
-    res.status(500).json({ message: "Failed to unlist product" });
+    console.error("UPDATE STATUS ERROR:", err);
+    res.status(500).json({ message: "Failed to update status" });
   }
 });
 

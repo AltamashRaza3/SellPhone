@@ -12,6 +12,9 @@ import { calculateFinalPrice } from "../utils/priceRules.js";
 
 const router = express.Router();
 
+/* ================= CONSTANTS ================= */
+const RIDER_PAYOUT_AMOUNT = 150;
+
 /* ================= MULTER ================= */
 const uploadDir = "uploads/pickups";
 if (!fs.existsSync(uploadDir)) {
@@ -63,7 +66,7 @@ router.get("/pickups/:id", riderAuth, async (req, res) => {
   res.json(pickup);
 });
 
-/* ================= UPLOAD IMAGES ================= */
+/* ================= UPLOAD VERIFICATION IMAGES ================= */
 router.post(
   "/pickups/:id/upload-images",
   riderAuth,
@@ -90,14 +93,13 @@ router.post(
     }));
 
     request.verification.images.push(...images);
-
     await request.save();
 
     res.json({ success: true });
   }
 );
 
-/* ================= VERIFY DEVICE (🔥 CRITICAL) ================= */
+/* ================= VERIFY DEVICE ================= */
 router.put("/pickups/:id/verify", riderAuth, async (req, res) => {
   try {
     const { checks = {} } = req.body;
@@ -116,12 +118,23 @@ router.put("/pickups/:id/verify", riderAuth, async (req, res) => {
       return res.status(409).json({ message: "Already verified" });
     }
 
+    if (!request.verification.images.length) {
+      return res.status(400).json({
+        message: "Upload verification images before verifying",
+      });
+    }
+
+    if (!Object.values(checks).some(Boolean)) {
+      return res.status(400).json({
+        message: "Select at least one verification check",
+      });
+    }
+
     const { deductions, finalPrice } = calculateFinalPrice(
       request.pricing.basePrice,
       checks
     );
 
-    /* ✅ SINGLE SOURCE OF TRUTH */
     request.verification = {
       ...request.verification,
       checks,
@@ -141,7 +154,6 @@ router.put("/pickups/:id/verify", riderAuth, async (req, res) => {
     });
 
     await request.save();
-
     res.json({ success: true, finalPrice });
   } catch (err) {
     console.error("VERIFY DEVICE ERROR:", err);
@@ -149,38 +161,7 @@ router.put("/pickups/:id/verify", riderAuth, async (req, res) => {
   }
 });
 
-/* ================= REJECT PICKUP ================= */
-router.put("/pickups/:id/reject", riderAuth, async (req, res) => {
-  const { reason } = req.body;
-
-  if (!reason?.trim()) {
-    return res.status(400).json({ message: "Reason required" });
-  }
-
-  const request = await SellRequest.findOne({
-    _id: req.params.id,
-    "assignedRider.riderId": req.rider.riderId,
-  });
-
-  if (!request) {
-    return res.status(404).json({ message: "Pickup not found" });
-  }
-
-  request.pickup.status = "Rejected";
-  request.pickup.rejectedReason = reason;
-
-  request.statusHistory.push({
-    status: "Pickup Rejected by Rider",
-    changedBy: "rider",
-    note: reason,
-  });
-
-  await request.save();
-
-  res.json({ success: true });
-});
-
-/* ================= COMPLETE PICKUP ================= */
+/* ================= COMPLETE PICKUP (🔥 INVENTORY + PAYOUT) ================= */
 router.put("/pickups/:id/complete", riderAuth, async (req, res) => {
   const request = await SellRequest.findOne({
     _id: req.params.id,
@@ -195,10 +176,30 @@ router.put("/pickups/:id/complete", riderAuth, async (req, res) => {
     });
   }
 
-  // ✅ ENSURE PAYOUT IS SET
+  /* ================= INVENTORY (SCHEMA SAFE) ================= */
+  await InventoryItem.findOneAndUpdate(
+    { sellRequestId: request._id },
+    {
+      sellRequestId: request._id,
+      phone: {
+        brand: request.phone.brand,
+        model: request.phone.model,
+        storage: request.phone.storage,
+        ram: request.phone.ram,
+        color: request.phone.color,
+        condition: request.phone.declaredCondition,
+        images: [], // admin uploads later
+      },
+      purchasePrice: request.verification.finalPrice,
+      status: "Draft",
+    },
+    { upsert: true, new: true, runValidators: true }
+  );
+
+  /* ================= RIDER PAYOUT ================= */
   if (!request.riderPayout?.amount) {
     request.riderPayout = {
-      amount: 150, // fixed payout (can change later)
+      amount: RIDER_PAYOUT_AMOUNT,
       calculatedAt: new Date(),
     };
   }
@@ -206,8 +207,18 @@ router.put("/pickups/:id/complete", riderAuth, async (req, res) => {
   request.pickup.status = "Completed";
   request.pickup.completedAt = new Date();
 
+  request.statusHistory.push({
+    status: "Pickup Completed",
+    changedBy: "rider",
+    note: `Inventory created | Rider payout ₹${RIDER_PAYOUT_AMOUNT}`,
+  });
+
   await request.save();
-  res.json({ success: true });
+
+  res.json({
+    success: true,
+    message: "Pickup completed successfully",
+  });
 });
 
 /* ================= RIDER EARNINGS ================= */
