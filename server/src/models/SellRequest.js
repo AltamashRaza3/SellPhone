@@ -5,7 +5,7 @@ const verificationImageSchema = new mongoose.Schema(
   {
     url: { type: String, required: true },
     uploadedAt: { type: Date, default: Date.now },
-    uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: "Rider" },
+    uploadedBy: { type: String }, // riderId (string)
   },
   { _id: false }
 );
@@ -26,52 +26,36 @@ const sellRequestSchema = new mongoose.Schema(
 
     /* ================= PHONE ================= */
     phone: {
-      brand: { type: String, required: true },
-      model: { type: String, required: true },
-      storage: { type: String, required: true },
+      brand: String,
+      model: String,
+      storage: String,
       ram: String,
       color: String,
-
-      declaredCondition: {
-        type: String,
-        enum: ["Excellent", "Good", "Fair"],
-        required: true,
-        default: "Good",
-      },
-
-      purchaseYear: { type: Number, required: true },
-
-      images: {
-        type: [String],
-        required: true,
-        validate: (v) => Array.isArray(v) && v.length >= 3,
-      },
+      declaredCondition: String,
+      purchaseYear: Number,
+      images: [String],
     },
 
     /* ================= PRICING ================= */
     pricing: {
-      basePrice: { type: Number, required: true },
-      finalPrice: Number,
+      basePrice: Number, // 🔒 base only
     },
-
-    /* ================= ADMIN ================= */
     admin: {
-      status: {
-        type: String,
-        enum: ["Pending", "Approved", "Rejected"],
-        default: "Pending",
-      },
-      remarks: String,
-      approvedAt: Date,
+    status: {
+      type: String,
+      enum: ["Pending", "Approved", "Rejected"],
+      default: "Pending",
+      index: true,
     },
+    remarks: String,
+    approvedAt: Date,
+},
 
-    /* ================= RIDER ================= */
+    /* ================= ASSIGNED RIDER ================= */
     assignedRider: {
-      riderId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Rider",
-      },
+      riderId: { type: String, index: true }, // 🔥 STRING (critical)
       riderName: String,
+      riderPhone: String,
       assignedAt: Date,
     },
 
@@ -85,6 +69,7 @@ const sellRequestSchema = new mongoose.Schema(
       },
       scheduledAt: Date,
       completedAt: Date,
+      rejectedReason: String,
       address: {
         line1: String,
         city: String,
@@ -97,29 +82,20 @@ const sellRequestSchema = new mongoose.Schema(
     verification: {
       checks: { type: Object, default: {} },
       deductions: [{ reason: String, amount: Number }],
-      totalDeduction: Number,
       finalPrice: Number,
-      verifiedBy: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Rider",
-      },
+      verifiedBy: String, // riderId
       verifiedAt: Date,
       userAccepted: { type: Boolean, default: null },
-
-      images: {
-        type: [verificationImageSchema],
-        default: [],
-      },
+      images: { type: [verificationImageSchema], default: [] },
     },
 
-    /* ================= INVOICE ================= */
-    invoice: {
-      number: String,
-      url: String,
-      generatedAt: Date,
+      /* ================= RIDER PAYOUT (🔥 CRITICAL) ================= */
+    riderPayout: {
+      amount: { type: Number, default: 0 },
+      calculatedAt: Date,
     },
-
-    /* ================= AUDIT ================= */
+    
+    /* ================= STATUS HISTORY ================= */
     statusHistory: [
       {
         status: String,
@@ -135,40 +111,20 @@ const sellRequestSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-/* =====================================================
-   🔒 PRODUCTION STATE HELPERS (NON-BREAKING)
-   ===================================================== */
-
-/**
- * Can rider verify the device?
- */
+/* ================= HELPERS ================= */
 sellRequestSchema.methods.canVerify = function () {
-  if (this.pickup?.status === "Completed") return false;
-  if (this.verification?.finalPrice) return false; // already verified
-  return ["Scheduled", "Picked"].includes(this.pickup?.status);
-};
-
-/**
- * Can rider complete the pickup?
- */
-sellRequestSchema.methods.canComplete = function () {
   return (
-    this.pickup?.status === "Picked" &&
-    !!this.verification?.finalPrice &&
-    this.verification?.userAccepted === true
+    ["Scheduled", "Picked"].includes(this.pickup.status) &&
+    !this.verification.finalPrice
   );
 };
 
-/**
- * Assertion helper for routes/controllers
- */
-sellRequestSchema.methods.assert = function (condition, message) {
-  if (!condition) {
-    const err = new Error(message);
-    err.statusCode = 400;
-    throw err;
-  }
+sellRequestSchema.methods.canComplete = function () {
+  return (
+    this.pickup.status === "Picked" &&
+    !!this.verification.finalPrice &&
+    this.verification.userAccepted === true
+  );
 };
 
-export default mongoose.models.SellRequest ||
-  mongoose.model("SellRequest", sellRequestSchema);
+export default mongoose.model("SellRequest", sellRequestSchema);

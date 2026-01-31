@@ -57,8 +57,9 @@ export const createSellRequest = async (req, res) => {
     }
 
     /* ---------- IMAGE PATHS ---------- */
+    const baseUrl = `${req.protocol}://${req.get("host")}`;
     const imageUrls = req.files.map(
-      (file) => `/uploads/sell/${file.filename}`
+    (file) => `${baseUrl}/uploads/sell/${file.filename}`
     );
 
     /* ---------- PRICE CALC ---------- */
@@ -92,7 +93,7 @@ export const createSellRequest = async (req, res) => {
         storage,
         ram,
         color,
-        declaredCondition, // ✅ FIXED (MATCHES SCHEMA)
+        declaredCondition,
         purchaseYear: year,
         images: imageUrls,
       },
@@ -154,11 +155,12 @@ export const assignRider = async (req, res) => {
     }
 
     /* ---------- STATE GUARD ---------- */
-    if (sellRequest.pickup.status !== "Pending") {
-      return res.status(409).json({
-        message: "Pickup already scheduled or completed",
-      });
-    }
+if (["Picked", "Completed"].includes(sellRequest.pickup.status)) {
+  return res.status(409).json({
+    message: "Cannot reassign rider after pickup",
+  });
+}
+
 
     const rider = await Rider.findById(riderId);
     if (!rider) {
@@ -171,6 +173,7 @@ export const assignRider = async (req, res) => {
     sellRequest.assignedRider = {
       riderId: rider._id,
       riderName: rider.name,
+      riderPhone: rider.phone,
       assignedAt: new Date(),
     };
 
@@ -197,3 +200,41 @@ export const assignRider = async (req, res) => {
     });
   }
 };
+/* ======================================================
+   USER ACCEPT FINAL PRICE
+====================================================== */
+export const acceptFinalPrice = async (req, res) => {
+  try {
+    const sellRequest = await SellRequest.findOne({
+      _id: req.params.id,
+      "user.uid": req.user.uid,
+    });
+
+    if (!sellRequest) {
+      return res.status(404).json({ message: "Sell request not found" });
+    }
+
+    if (!sellRequest.verification.finalPrice) {
+      return res.status(409).json({ message: "Final price not set yet" });
+    }
+
+    if (sellRequest.verification.userAccepted === true) {
+      return res.status(409).json({ message: "Already accepted" });
+    }
+
+    sellRequest.verification.userAccepted = true;
+
+    sellRequest.statusHistory.push({
+      status: "User Accepted Final Price",
+      changedBy: "user",
+    });
+
+    await sellRequest.save();
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to accept price" });
+  }
+};
+

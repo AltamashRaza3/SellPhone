@@ -11,21 +11,17 @@ const SellRequestDetails = () => {
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
 
-  /* ================= FETCH REQUEST ================= */
+  /* ================= FETCH SINGLE REQUEST ================= */
   const fetchRequest = async () => {
     try {
-      const res = await fetch("http://localhost:5000/api/sell-requests/my", {
-        credentials: "include",
-      });
+      const res = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL}/api/sell-requests/${id}`,
+        { credentials: "include" },
+      );
 
       if (!res.ok) throw new Error();
 
-      const data = await res.json();
-      const found = data.find((r) => r._id === id);
-
-      if (!found) throw new Error("Not found");
-
-      setRequest(found);
+      setRequest(await res.json());
     } catch {
       toast.error("Sell request not found");
       navigate("/my-sell-requests", { replace: true });
@@ -35,13 +31,7 @@ const SellRequestDetails = () => {
   };
 
   useEffect(() => {
-    let mounted = true;
-
-    if (mounted) fetchRequest();
-
-    return () => {
-      mounted = false;
-    };
+    fetchRequest();
   }, [id]);
 
   if (loading) {
@@ -53,13 +43,11 @@ const SellRequestDetails = () => {
   const { phone, pricing, verification, pickup, assignedRider, invoice } =
     request;
 
-  /* ================= CANCEL RULE ================= */
   const canCancel =
     pickup?.status === "Pending" &&
     !assignedRider?.riderId &&
     !verification?.finalPrice;
 
-  /* ================= CANCEL HANDLER ================= */
   const cancelRequest = async () => {
     if (!window.confirm("Do you want to cancel this sell request?")) return;
 
@@ -67,7 +55,7 @@ const SellRequestDetails = () => {
       setCancelling(true);
 
       const res = await fetch(
-        `http://localhost:5000/api/sell-requests/${request._id}/cancel`,
+        `${import.meta.env.VITE_API_BASE_URL}/api/sell-requests/${request._id}/cancel`,
         { method: "PUT", credentials: "include" },
       );
 
@@ -81,26 +69,31 @@ const SellRequestDetails = () => {
       setCancelling(false);
     }
   };
+console.log("SELLER DETAILS DEBUG:", {
+  verification,
+  finalPrice: verification?.finalPrice,
+  userAccepted: verification?.userAccepted,
+  pickupStatus: pickup?.status,
+  fullRequest: request,
+});
 
   return (
     <div className="appContainer py-10 space-y-6">
-      {/* BACK */}
       <button onClick={() => navigate(-1)} className="text-sm text-gray-400">
         ← Back
       </button>
 
-      {/* PHONE INFO */}
       <div className="glass-card space-y-2">
         <h2 className="text-xl font-semibold">
-          {phone?.brand} {phone?.model}
+          {phone.brand} {phone.model}
         </h2>
 
         <p className="text-gray-400">
-          {phone?.storage} • {phone?.declaredCondition}
+          {phone.storage} • {phone.declaredCondition}
         </p>
 
         <p className="text-orange-400">
-          Base Price: ₹{pricing?.basePrice?.toLocaleString("en-IN")}
+          Base Price: ₹{pricing.basePrice.toLocaleString("en-IN")}
         </p>
 
         {verification?.finalPrice && (
@@ -110,7 +103,6 @@ const SellRequestDetails = () => {
         )}
       </div>
 
-      {/* RIDER IMAGES */}
       {verification?.images?.length > 0 && (
         <div className="glass-card">
           <p className="font-medium mb-3">Rider Verification Images</p>
@@ -118,7 +110,7 @@ const SellRequestDetails = () => {
             {verification.images.map((img, i) => (
               <img
                 key={i}
-                src={`http://localhost:5000${img.url}`}
+                src={`${import.meta.env.VITE_API_BASE_URL}${img.url}`}
                 className="h-24 w-full object-cover rounded-lg"
                 alt="Verification"
               />
@@ -127,25 +119,27 @@ const SellRequestDetails = () => {
         </div>
       )}
 
-      {/* SELLER DECISION */}
+      {/* ✅ ACCEPT / REJECT BUTTONS */}
       {verification?.finalPrice && verification.userAccepted === null && (
-        <SellerDecision request={request} onDecision={fetchRequest} />
+        <SellerDecision
+          requestId={request._id}
+          finalPrice={verification.finalPrice}
+          onDecision={fetchRequest}
+        />
       )}
 
-      {/* FINAL STATES */}
       {verification?.userAccepted === true && (
         <div className="p-4 rounded-xl bg-green-500/10 text-green-400 text-center font-semibold">
-          You accepted the final price. Pickup completed.
+          You accepted the final price. The rider will complete the pickup.
         </div>
       )}
 
       {verification?.userAccepted === false && (
         <div className="p-4 rounded-xl bg-red-500/10 text-red-400 text-center font-semibold">
-          You rejected the final price.
+          You rejected the final price. The request is closed.
         </div>
       )}
 
-      {/* CANCEL */}
       {canCancel && (
         <button
           onClick={cancelRequest}
@@ -156,10 +150,9 @@ const SellRequestDetails = () => {
         </button>
       )}
 
-      {/* INVOICE DOWNLOAD */}
       {pickup?.status === "Completed" && invoice?.url && (
         <a
-          href={`http://localhost:5000${invoice.url}`}
+          href={`${import.meta.env.VITE_API_BASE_URL}${invoice.url}`}
           target="_blank"
           rel="noopener noreferrer"
           className="h-11 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold flex items-center justify-center"

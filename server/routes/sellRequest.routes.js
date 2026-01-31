@@ -3,10 +3,10 @@ import multer from "multer";
 import SellRequest from "../src/models/SellRequest.js";
 import userAuth from "../middleware/userAuth.js";
 import { createSellRequest } from "../controllers/sellRequest.controller.js";
-import { generateInvoice } from "../utils/invoiceGenerator.js";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -14,9 +14,12 @@ const router = express.Router();
 
 /* ================= MULTER ================= */
 const sellStorage = multer.diskStorage({
-  destination: "uploads/sell",
+  destination: (req, file, cb) => {
+    cb(null, path.join("uploads", "sell"));
+  },
   filename: (_, file, cb) => cb(null, `${Date.now()}-${file.originalname}`),
 });
+
 const uploadSellImages = multer({ storage: sellStorage });
 
 /* ======================================================
@@ -42,6 +45,27 @@ router.get("/my", userAuth, async (req, res) => {
   } catch (err) {
     console.error("FETCH MY SELL REQUESTS ERROR:", err);
     res.status(500).json({ message: "Failed to fetch sell requests" });
+  }
+});
+
+/* ======================================================
+   GET SINGLE SELL REQUEST (USER)  ✅ CRITICAL
+====================================================== */
+router.get("/:id", userAuth, async (req, res) => {
+  try {
+    const request = await SellRequest.findOne({
+      _id: req.params.id,
+      "user.uid": req.user.uid,
+    });
+
+    if (!request) {
+      return res.status(404).json({ message: "Sell request not found" });
+    }
+
+    res.json(request);
+  } catch (err) {
+    console.error("FETCH SELL REQUEST ERROR:", err);
+    res.status(500).json({ message: "Failed to fetch sell request" });
   }
 });
 
@@ -140,7 +164,10 @@ router.put("/:id/decision", userAuth, async (req, res) => {
 
     /* ✅ APPLY DECISION */
     request.verification.userAccepted = accept;
-    request.pickup.status = accept ? "Scheduled" : "Rejected";
+
+    if (!accept) {
+      request.pickup.status = "Rejected";
+    }
 
     request.statusHistory.push({
       status: accept
@@ -149,12 +176,6 @@ router.put("/:id/decision", userAuth, async (req, res) => {
       changedBy: "user",
       changedAt: new Date(),
     });
-
-    /* 🧾 AUTO-GENERATE INVOICE (ONLY IF ACCEPTED) */
-    if (accept && !request.invoice?.url) {
-      const invoice = await generateInvoice(request);
-      request.invoice = invoice;
-    }
 
     await request.save({ validateBeforeSave: false });
 
@@ -184,16 +205,14 @@ router.get("/:id/invoice", userAuth, async (req, res) => {
       });
     }
 
-    // ✅ CORRECT ABSOLUTE PATH
     const filePath = path.join(
-      __dirname,      // routes
-      "..",           // server
-      "..",           // project root
-      request.invoice.url // /uploads/invoices/INV-TEST-001.pdf
+      __dirname,
+      "..",
+      "..",
+      request.invoice.url
     );
 
     if (!fs.existsSync(filePath)) {
-      console.error("❌ Invoice file not found at:", filePath);
       return res.status(404).json({
         message: "Invoice file missing on server",
       });
@@ -211,6 +230,5 @@ router.get("/:id/invoice", userAuth, async (req, res) => {
     res.status(500).json({ message: "Failed to download invoice" });
   }
 });
-
 
 export default router;

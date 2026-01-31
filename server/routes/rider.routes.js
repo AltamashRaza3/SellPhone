@@ -12,9 +12,7 @@ import { calculateFinalPrice } from "../utils/priceRules.js";
 
 const router = express.Router();
 
-/* ======================================================
-   MULTER CONFIG
-====================================================== */
+/* ================= MULTER ================= */
 const uploadDir = "uploads/pickups";
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
@@ -25,30 +23,24 @@ const storage = multer.diskStorage({
   filename: (_, file, cb) =>
     cb(
       null,
-      `${Date.now()}-${Math.round(Math.random() * 1e9)}${path.extname(
-        file.originalname
-      )}`
+      `${Date.now()}-${Math.random()
+        .toString(36)
+        .slice(2)}${path.extname(file.originalname)}`
     ),
 });
 
 const upload = multer({ storage });
 
-/* ======================================================
-   AUTH
-====================================================== */
+/* ================= AUTH ================= */
 router.post("/auth/send-otp", sendOtp);
 router.post("/auth/verify-otp", verifyOtp);
 
-/* ======================================================
-   GET ASSIGNED PICKUPS
-====================================================== */
+/* ================= PICKUPS LIST ================= */
 router.get("/pickups", riderAuth, async (req, res) => {
   try {
     const pickups = await SellRequest.find({
       "assignedRider.riderId": req.rider.riderId,
-      "pickup.status": {
-        $in: ["Scheduled", "Picked", "Completed", "Rejected"],
-      },
+      "pickup.status": { $in: ["Scheduled", "Picked", "Completed"] },
     }).sort({ "pickup.scheduledAt": 1 });
 
     res.json(pickups);
@@ -57,95 +49,71 @@ router.get("/pickups", riderAuth, async (req, res) => {
   }
 });
 
-/* ======================================================
-   GET PICKUP DETAILS
-====================================================== */
+/* ================= PICKUP DETAILS ================= */
 router.get("/pickups/:id", riderAuth, async (req, res) => {
-  try {
-    const pickup = await SellRequest.findOne({
-      _id: req.params.id,
-      "assignedRider.riderId": req.rider.riderId,
-    });
+  const pickup = await SellRequest.findOne({
+    _id: req.params.id,
+    "assignedRider.riderId": req.rider.riderId,
+  });
 
-    if (!pickup) {
-      return res.status(404).json({ message: "Pickup not found" });
-    }
-
-    res.json(pickup);
-  } catch {
-    res.status(500).json({ message: "Failed to load pickup" });
+  if (!pickup) {
+    return res.status(404).json({ message: "Pickup not found" });
   }
+
+  res.json(pickup);
 });
 
-/* ======================================================
-   UPLOAD VERIFICATION IMAGES
-====================================================== */
+/* ================= UPLOAD IMAGES ================= */
 router.post(
   "/pickups/:id/upload-images",
   riderAuth,
   upload.array("images", 6),
   async (req, res) => {
-    try {
-      if (!req.files?.length) {
-        return res.status(400).json({ message: "No images uploaded" });
-      }
-
-      const request = await SellRequest.findOne({
-        _id: req.params.id,
-        "assignedRider.riderId": req.rider.riderId,
-      });
-
-      if (!request) {
-        return res.status(404).json({ message: "Pickup not found" });
-      }
-
-      if (["Completed", "Rejected"].includes(request.pickup.status)) {
-        return res.status(409).json({
-          message: "Pickup already closed",
-        });
-      }
-
-      const images = req.files.map((file) => ({
-        url: `/uploads/pickups/${file.filename}`,
-        uploadedAt: new Date(),
-        uploadedBy: req.rider.riderId,
-      }));
-
-      await SellRequest.updateOne(
-        { _id: request._id },
-        { $push: { "verification.images": { $each: images } } }
-      );
-
-      res.json({ success: true });
-    } catch {
-      res.status(500).json({ message: "Image upload failed" });
+    if (!req.files?.length) {
+      return res.status(400).json({ message: "No images uploaded" });
     }
-  }
-);
-
-/* ======================================================
-   VERIFY DEVICE
-====================================================== */
-router.put("/pickups/:id/verify", riderAuth, async (req, res) => {
-  try {
-    const { checks = {}, riderNotes = "" } = req.body;
 
     const request = await SellRequest.findOne({
       _id: req.params.id,
       "assignedRider.riderId": req.rider.riderId,
+      "pickup.status": { $in: ["Scheduled", "Picked"] },
     });
 
     if (!request) {
       return res.status(404).json({ message: "Pickup not found" });
     }
 
-    if (
-      request.pickup.status !== "Scheduled" &&
-      request.pickup.status !== "Picked"
-    ) {
-      return res.status(409).json({
-        message: "Pickup cannot be verified in current state",
-      });
+    const images = req.files.map((file) => ({
+      url: `/uploads/pickups/${file.filename}`,
+      uploadedBy: req.rider.riderId,
+      uploadedAt: new Date(),
+    }));
+
+    request.verification.images.push(...images);
+
+    await request.save();
+
+    res.json({ success: true });
+  }
+);
+
+/* ================= VERIFY DEVICE (🔥 CRITICAL) ================= */
+router.put("/pickups/:id/verify", riderAuth, async (req, res) => {
+  try {
+    const { checks = {} } = req.body;
+
+    const request = await SellRequest.findOne({
+      _id: req.params.id,
+      "assignedRider.riderId": req.rider.riderId,
+      "pickup.status": { $in: ["Scheduled", "Picked"] },
+    });
+
+    if (!request) {
+      return res.status(404).json({ message: "Pickup not found" });
+    }
+
+    if (request.verification.finalPrice != null) {
+      return res.status(409).json({ message: "Already verified" });
     }
 
     const { deductions, finalPrice } = calculateFinalPrice(
@@ -153,141 +121,111 @@ router.put("/pickups/:id/verify", riderAuth, async (req, res) => {
       checks
     );
 
-    request.verification.checks = checks;
-    request.verification.deductions = deductions;
-    request.verification.finalPrice = finalPrice;
-    request.verification.verifiedAt = new Date();
-    request.verification.verifiedBy = req.rider.riderId;
-    request.verification.riderNotes = riderNotes;
+    /* ✅ SINGLE SOURCE OF TRUTH */
+    request.verification = {
+      ...request.verification,
+      checks,
+      deductions,
+      finalPrice,
+      verifiedBy: req.rider.riderId,
+      verifiedAt: new Date(),
+      userAccepted: null,
+    };
 
-    request.pricing.finalPrice = finalPrice;
     request.pickup.status = "Picked";
 
     request.statusHistory.push({
       status: "Device Verified",
       changedBy: "rider",
+      note: `Final price ₹${finalPrice}`,
     });
 
     await request.save();
 
     res.json({ success: true, finalPrice });
-  } catch {
-    res.status(500).json({ message: "Verification failed" });
-  }
-});
-
-/* ======================================================
-   REJECT PICKUP (CORE PHASE 4)
-====================================================== */
-router.put("/pickups/:id/reject", riderAuth, async (req, res) => {
-  try {
-    const { reason } = req.body;
-
-    if (!reason?.trim()) {
-      return res.status(400).json({ message: "Rejection reason required" });
-    }
-
-    const request = await SellRequest.findOne({
-      _id: req.params.id,
-      "assignedRider.riderId": req.rider.riderId,
-    });
-
-    if (!request) {
-      return res.status(404).json({ message: "Pickup not found" });
-    }
-
-    if (request.pickup.status === "Completed") {
-      return res.status(409).json({
-        message: "Completed pickup cannot be rejected",
-      });
-    }
-
-    request.pickup.status = "Rejected";
-
-    request.statusHistory.push({
-      status: "Pickup Rejected by Rider",
-      changedBy: "rider",
-      note: reason,
-    });
-
-    await request.save();
-
-    res.json({ success: true });
-  } catch {
-    res.status(500).json({ message: "Failed to reject pickup" });
-  }
-});
-
-/* ======================================================
-   COMPLETE PICKUP → CREATE INVENTORY
-====================================================== */
-router.put("/pickups/:id/complete", riderAuth, async (req, res) => {
-  try {
-    const request = await SellRequest.findOne({
-      _id: req.params.id,
-      "assignedRider.riderId": req.rider.riderId,
-      "pickup.status": "Picked",
-      "verification.finalPrice": { $exists: true },
-      "verification.userAccepted": true, // 🔒 user must accept price
-    });
-
-    if (!request) {
-      return res.status(400).json({
-        message: "User acceptance required before completion",
-      });
-    }
-
-    /* ================= CREATE / UPSERT INVENTORY ================= */
-    await InventoryItem.findOneAndUpdate(
-      { sellRequestId: request._id },
-      {
-        sellRequestId: request._id,
-        phone: {
-          brand: request.phone.brand,
-          model: request.phone.model,
-          storage: request.phone.storage,
-          ram: request.phone.ram,
-          color: request.phone.color,
-          condition: request.phone.declaredCondition,
-        },
-        purchasePrice: request.verification.finalPrice,
-      },
-      { upsert: true, new: true }
-    );
-
-    request.pickup.status = "Completed";
-    request.pickup.completedAt = new Date();
-
-    request.statusHistory.push({
-      status: "Inventory Created",
-      changedBy: "system",
-    });
-
-    await request.save();
-
-    res.json({ success: true });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Pickup completion failed" });
+    console.error("VERIFY DEVICE ERROR:", err);
+    res.status(500).json({ message: "Failed to verify device" });
   }
 });
 
-/* ======================================================
-   RIDER EARNINGS
-====================================================== */
+/* ================= REJECT PICKUP ================= */
+router.put("/pickups/:id/reject", riderAuth, async (req, res) => {
+  const { reason } = req.body;
+
+  if (!reason?.trim()) {
+    return res.status(400).json({ message: "Reason required" });
+  }
+
+  const request = await SellRequest.findOne({
+    _id: req.params.id,
+    "assignedRider.riderId": req.rider.riderId,
+  });
+
+  if (!request) {
+    return res.status(404).json({ message: "Pickup not found" });
+  }
+
+  request.pickup.status = "Rejected";
+  request.pickup.rejectedReason = reason;
+
+  request.statusHistory.push({
+    status: "Pickup Rejected by Rider",
+    changedBy: "rider",
+    note: reason,
+  });
+
+  await request.save();
+
+  res.json({ success: true });
+});
+
+/* ================= COMPLETE PICKUP ================= */
+router.put("/pickups/:id/complete", riderAuth, async (req, res) => {
+  const request = await SellRequest.findOne({
+    _id: req.params.id,
+    "assignedRider.riderId": req.rider.riderId,
+    "pickup.status": "Picked",
+    "verification.userAccepted": true,
+  });
+
+  if (!request) {
+    return res.status(409).json({
+      message: "User acceptance required",
+    });
+  }
+
+  // ✅ ENSURE PAYOUT IS SET
+  if (!request.riderPayout?.amount) {
+    request.riderPayout = {
+      amount: 150, // fixed payout (can change later)
+      calculatedAt: new Date(),
+    };
+  }
+
+  request.pickup.status = "Completed";
+  request.pickup.completedAt = new Date();
+
+  await request.save();
+  res.json({ success: true });
+});
+
+/* ================= RIDER EARNINGS ================= */
 router.get("/earnings", riderAuth, async (req, res) => {
   try {
-    const COMMISSION = 300;
-
-    const completed = await SellRequest.countDocuments({
+    const completed = await SellRequest.find({
       "assignedRider.riderId": req.rider.riderId,
       "pickup.status": "Completed",
-    });
+    }).select("riderPayout.amount");
+
+    const totalEarnings = completed.reduce(
+      (sum, r) => sum + (r.riderPayout?.amount || 0),
+      0
+    );
 
     res.json({
-      totalPickups: completed,
-      totalEarnings: completed * COMMISSION,
-      commissionPerPickup: COMMISSION,
+      totalEarnings,
+      completedPickups: completed.length,
     });
   } catch {
     res.status(500).json({ message: "Failed to load earnings" });

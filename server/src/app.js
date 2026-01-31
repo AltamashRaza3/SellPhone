@@ -23,7 +23,7 @@ import adminInventoryRoutes from "../routes/admin.inventory.routes.js";
 
 import riderRoutes from "../routes/rider.routes.js";
 
-/* ================= PATH FIX FOR ESM ================= */
+/* ================= PATH FIX (ESM) ================= */
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -31,6 +31,7 @@ const app = express();
 
 /* ================= CORE ================= */
 app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true })); // ✅ ADD THIS
 app.use(cookieParser());
 
 /* ================= SECURITY ================= */

@@ -19,7 +19,6 @@ router.get("/", adminAuth, async (req, res) => {
 
 /* ======================================================
    UPDATE ADMIN STATUS
-   PUT /api/admin/sell-requests/:id
 ====================================================== */
 router.put("/:id", adminAuth, async (req, res) => {
   try {
@@ -34,17 +33,15 @@ router.put("/:id", adminAuth, async (req, res) => {
       return res.status(404).json({ message: "Sell request not found" });
     }
 
-    // 🔒 LOCK: cannot change status after rider assignment
+    // 🔒 Ensure admin object exists
+    if (!request.admin) {
+      request.admin = {};
+    }
+
+    // 🔒 Cannot change status after rider assignment
     if (request.assignedRider?.riderId) {
       return res.status(409).json({
         message: "Cannot change status after rider assignment",
-      });
-    }
-
-    // 🔒 LOCK: cannot approve after rejection
-    if (request.admin?.status === "Rejected" && status === "Approved") {
-      return res.status(409).json({
-        message: "Rejected request cannot be approved",
       });
     }
 
@@ -60,18 +57,18 @@ router.put("/:id", adminAuth, async (req, res) => {
 
     await request.save();
     res.json(request);
-  } catch {
+  } catch (err) {
+    console.error("ADMIN STATUS ERROR:", err);
     res.status(500).json({ message: "Failed to update status" });
   }
 });
 
 /* ======================================================
-   ASSIGN RIDER (ADMIN)
-   PUT /api/admin/sell-requests/:id/assign-rider
+   ASSIGN / REASSIGN RIDER (ADMIN)
 ====================================================== */
 router.put("/:id/assign-rider", adminAuth, async (req, res) => {
   try {
-    const { riderId } = req.body;
+    const { riderId, scheduledAt } = req.body;
 
     if (!riderId) {
       return res.status(400).json({ message: "Rider ID required" });
@@ -82,48 +79,41 @@ router.put("/:id/assign-rider", adminAuth, async (req, res) => {
       return res.status(404).json({ message: "Sell request not found" });
     }
 
-    /* ===== HARD BUSINESS RULES ===== */
-
+    // 🔒 Only allow assignment AFTER admin approval
     if (request.admin?.status !== "Approved") {
       return res.status(409).json({
         message: "Admin approval required before assigning rider",
       });
     }
 
-    if (request.admin?.status === "Rejected") {
-      return res
-        .status(409)
-        .json({ message: "Cannot assign rider to rejected request" });
-    }
-
-    if (request.assignedRider?.riderId) {
-      return res.status(409).json({ message: "Rider already assigned" });
-    }
-
     const rider = await Rider.findById(riderId);
-    if (!rider) {
-      return res.status(404).json({ message: "Rider not found" });
+    if (!rider || rider.status !== "active") {
+      return res.status(404).json({ message: "Rider not available" });
     }
 
-    /* ===== ASSIGN RIDER ===== */
     request.assignedRider = {
-      riderId: rider._id,
+      riderId: rider._id.toString(),
       riderName: rider.name,
+      riderPhone: rider.phone,
       assignedAt: new Date(),
     };
 
     request.pickup.status = "Scheduled";
-    request.pickup.scheduledAt = new Date();
+    request.pickup.scheduledAt = scheduledAt
+      ? new Date(scheduledAt)
+      : new Date();
 
     request.statusHistory.push({
-      status: "Pickup Scheduled",
+      status: "Scheduled",
       changedBy: "admin",
-      note: `Assigned to rider ${rider.name}`,
+      note: `Assigned to ${rider.name}`,
     });
 
     await request.save();
-    res.json(request);
-  } catch {
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("ASSIGN RIDER ERROR:", err);
     res.status(500).json({ message: "Failed to assign rider" });
   }
 });

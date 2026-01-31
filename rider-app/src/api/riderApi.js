@@ -2,19 +2,21 @@ import axios from "axios";
 
 const riderApi = axios.create({
   baseURL: "http://localhost:5000/api/rider",
-  withCredentials: false,
 });
 
-/* ================= AUTH + FORM DATA FIX ================= */
+/* ================= AUTH INTERCEPTOR ================= */
 riderApi.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("riderToken");
 
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    if (!token) {
+      throw new Error("Rider token missing");
     }
 
-    // 🔥 CRITICAL FIX — NEVER SET CONTENT-TYPE FOR FORM DATA
+    // 🔐 THIS IS THE FIX
+    config.headers.Authorization = `Bearer ${token}`;
+
+    // 🔥 IMPORTANT: never manually set multipart boundary
     if (config.data instanceof FormData) {
       delete config.headers["Content-Type"];
     }

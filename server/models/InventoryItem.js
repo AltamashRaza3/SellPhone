@@ -7,34 +7,48 @@ const inventoryItemSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "SellRequest",
       required: true,
-      unique: true, // one inventory per pickup
+      unique: true,
+      index: true,
     },
 
     /* ================= PHONE ================= */
     phone: {
-      brand: String,
-      model: String,
+      brand: { type: String, required: true },
+      model: { type: String, required: true },
       storage: String,
       ram: String,
       color: String,
-      condition: String,
-      images: [String], // ✅ REQUIRED for listing
+
+      condition: {
+        type: String,
+        enum: ["Excellent", "Good", "Fair"],
+        required: true,
+      },
+
+      images: {
+        type: [String],
+        required: true,
+        validate: {
+          validator: (arr) => Array.isArray(arr) && arr.length > 0,
+          message: "At least one product image is required",
+        },
+      },
     },
 
     /* ================= PRICING ================= */
     purchasePrice: {
-      type: Number, // finalPrice paid to seller
+      type: Number,
       required: true,
     },
 
     sellingPrice: {
-      type: Number, // admin sets later
+      type: Number,
     },
 
     /* ================= STATUS ================= */
     status: {
       type: String,
-      enum: ["Draft", "Available", "Sold"],
+      enum: ["Draft", "Available", "Unlisted", "Sold"],
       default: "Draft",
       index: true,
     },

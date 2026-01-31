@@ -2,20 +2,68 @@ import { useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
 import AssignRider from "../../components/Admin/AssignRider";
 
+/* ================= STATUS DERIVATION ================= */
+const getDisplayStatus = (req) => {
+  const pickupStatus = req.pickup?.status;
+  const adminStatus = req.admin?.status;
+
+  if (pickupStatus === "Completed")
+    return {
+      label: "Pickup Completed",
+      color: "bg-green-600/20 text-green-400",
+    };
+
+  if (pickupStatus === "Picked")
+    return {
+      label: "Device Picked",
+      color: "bg-indigo-500/20 text-indigo-400",
+    };
+
+  if (pickupStatus === "Scheduled")
+    return {
+      label: "Pickup Scheduled",
+      color: "bg-blue-500/20 text-blue-400",
+    };
+
+  if (pickupStatus === "Rejected")
+    return {
+      label: "Escalated",
+      color: "bg-red-600/20 text-red-400",
+    };
+
+  if (adminStatus === "Rejected")
+    return {
+      label: "Rejected by Admin",
+      color: "bg-red-500/20 text-red-400",
+    };
+
+  if (adminStatus === "Approved")
+    return {
+      label: "Approved",
+      color: "bg-yellow-500/20 text-yellow-400",
+    };
+
+  return {
+    label: "Pending Review",
+    color: "bg-gray-500/20 text-gray-300",
+  };
+};
+
 const AdminSellPhones = () => {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
-
   const [remarks, setRemarks] = useState({});
   const [updatingId, setUpdatingId] = useState(null);
 
-  /* ================= FETCH ================= */
+  /* ================= FETCH REQUESTS ================= */
   const fetchRequests = async () => {
     try {
       setLoading(true);
-      const res = await fetch("http://localhost:5000/api/admin/sell-requests", {
-        credentials: "include",
-      });
+      const res = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL}/api/admin/sell-requests`,
+        { credentials: "include" },
+      );
+
       if (!res.ok) throw new Error();
       setRequests(await res.json());
     } catch {
@@ -29,12 +77,13 @@ const AdminSellPhones = () => {
     fetchRequests();
   }, []);
 
-  /* ================= ADMIN ACTION ================= */
+  /* ================= ADMIN APPROVE / REJECT ================= */
   const updateStatus = async (id, status) => {
     try {
       setUpdatingId(id);
+
       const res = await fetch(
-        `http://localhost:5000/api/admin/sell-requests/${id}`,
+        `${import.meta.env.VITE_API_BASE_URL}/api/admin/sell-requests/${id}`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -67,17 +116,20 @@ const AdminSellPhones = () => {
       {requests.map((req) => {
         const phone = req.phone || {};
         const address = req.pickup?.address;
-        const adminStatus = req.admin?.status || "Pending";
-        const pickupStatus = req.pickup?.status;
+        const status = getDisplayStatus(req);
 
-        const isEscalated = pickupStatus === "Rejected";
-
+        /* ================= FIXED LOGIC ================= */
         const canApproveReject =
-          adminStatus === "Pending" && !req.assignedRider;
+          (!req.admin || req.admin.status === "Pending") && !req.assignedRider;
 
-        const canAssignRider = adminStatus === "Approved" && !req.assignedRider;
+        const isAdminApproved = req.admin?.status === "Approved";
 
-        const canReassign = adminStatus === "Approved" && isEscalated;
+        const canAssignRider =
+          isAdminApproved &&
+          !req.assignedRider &&
+          req.pickup?.status === "Pending";
+
+        const isEscalated = req.pickup?.status === "Rejected";
 
         const riderRejection = req.statusHistory?.find(
           (h) =>
@@ -106,18 +158,9 @@ const AdminSellPhones = () => {
               </div>
 
               <span
-                className={`px-3 py-1 rounded-full text-xs font-semibold
-                  ${
-                    isEscalated
-                      ? "bg-red-600/20 text-red-400"
-                      : adminStatus === "Approved"
-                        ? "bg-green-500/20 text-green-400"
-                        : adminStatus === "Rejected"
-                          ? "bg-red-500/20 text-red-400"
-                          : "bg-yellow-500/20 text-yellow-400"
-                  }`}
+                className={`px-3 py-1 rounded-full text-xs font-semibold ${status.color}`}
               >
-                {isEscalated ? "Escalated" : adminStatus}
+                {status.label}
               </span>
             </div>
 
@@ -127,18 +170,27 @@ const AdminSellPhones = () => {
                 {phone.images.map((img, i) => (
                   <img
                     key={i}
-                    src={`http://localhost:5000${img}`}
+                    src={img}
                     alt="Phone"
                     className="h-28 w-full object-cover rounded-lg border border-white/10"
+                    onError={(e) => {
+                      e.currentTarget.src = "/no-image.png";
+                    }}
                   />
                 ))}
               </div>
             )}
 
             {/* SELLER */}
-            <div className="p-3 rounded-lg bg-white/5 border border-white/10">
+            <div className="p-3 rounded-lg bg-white/5 border border-white/10 space-y-1">
               <p className="text-sm text-gray-400">Seller</p>
               <p className="text-white">{req.user?.email}</p>
+              <p className="text-sm text-gray-300">
+                📞 Phone:{" "}
+                <span className="font-semibold">
+                  {req.contact?.phone || "N/A"}
+                </span>
+              </p>
             </div>
 
             {/* PICKUP ADDRESS */}
@@ -158,7 +210,7 @@ const AdminSellPhones = () => {
               )}
             </div>
 
-            {/* 🚨 ESCALATION DETAILS */}
+            {/* ESCALATION */}
             {isEscalated && riderRejection && (
               <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20">
                 <p className="text-sm font-semibold text-red-400">
@@ -202,9 +254,13 @@ const AdminSellPhones = () => {
               </div>
             )}
 
-            {/* ASSIGN / REASSIGN RIDER */}
-            {(canAssignRider || canReassign) && (
-              <AssignRider requestId={req._id} onAssigned={fetchRequests} />
+            {/* ASSIGN RIDER */}
+            {canAssignRider && (
+              <AssignRider
+                requestId={req._id}
+                alreadyAssigned={false}
+                onAssigned={fetchRequests}
+              />
             )}
 
             {/* ASSIGNED RIDER */}

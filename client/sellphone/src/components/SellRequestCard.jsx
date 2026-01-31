@@ -17,9 +17,8 @@ const SellRequestCard = ({ request, onUpdate }) => {
 
   /* ================= DECISION GUARD ================= */
   const canDecide =
-    admin?.status === "Approved" &&
     verification?.finalPrice &&
-    verification.userAccepted === null;
+    verification.userAccepted == null;
 
   const handleDecision = async (accept) => {
     if (loading) return;

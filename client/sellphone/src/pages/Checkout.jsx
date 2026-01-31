@@ -24,11 +24,13 @@ const Checkout = () => {
     pincode: "",
   });
 
+  /* ================= TOTAL (DISPLAY ONLY) ================= */
   const totalAmount = cartItems.reduce(
     (sum, item) => sum + item.phone.price * item.quantity,
-    0
+    0,
   );
 
+  /* ================= INPUT ================= */
   const handleChange = (e) => {
     setAddress((prev) => ({
       ...prev,
@@ -36,6 +38,7 @@ const Checkout = () => {
     }));
   };
 
+  /* ================= VALIDATION ================= */
   const validateAddress = () => {
     const { fullName, phone, line1, city, state, pincode } = address;
 
@@ -57,6 +60,7 @@ const Checkout = () => {
     return true;
   };
 
+  /* ================= PLACE ORDER ================= */
   const handlePlaceOrder = async () => {
     if (!cartItems.length) {
       toast.error("Your cart is empty");
@@ -68,29 +72,29 @@ const Checkout = () => {
     setLoading(true);
 
     try {
-      const shippingAddress = `
-${address.fullName}, ${address.phone}
-${address.line1}${address.line2 ? ", " + address.line2 : ""}
-${address.city}, ${address.state} - ${address.pincode}
-      `.trim();
-
       const payload = {
         items: cartItems.map((item) => ({
-          phone: item.phone,
+          productId: item.phone._id,
           quantity: item.quantity,
         })),
-        totalAmount,
-        shippingAddress,
+        shippingAddress: address,
         paymentMethod: "COD",
       };
 
       await axios.post("/orders", payload);
-      await axios.delete(`/cart/${auth.currentUser.uid}`);
+
+      // clear frontend cart
       dispatch(clearCart());
+
+      // clear backend cart only if logged in
+      if (auth.currentUser?.uid) {
+        await axios.delete(`/cart/${auth.currentUser.uid}`);
+      }
 
       toast.success("Order placed successfully");
       navigate("/orders");
     } catch (error) {
+      console.error("ORDER ERROR:", error);
       toast.error(error?.response?.data?.message || "Failed to place order");
     } finally {
       setLoading(false);
@@ -102,7 +106,7 @@ ${address.city}, ${address.state} - ${address.pincode}
       <div className="space-y-10">
         <h1 className="text-3xl font-semibold text-white">Checkout</h1>
 
-        {/* ADDRESS */}
+        {/* ================= ADDRESS ================= */}
         <div className="glass-card space-y-4">
           <h2 className="text-lg font-medium text-white">Delivery Address</h2>
 
@@ -112,14 +116,14 @@ ${address.city}, ${address.state} - ${address.pincode}
               placeholder="Full Name *"
               value={address.fullName}
               onChange={handleChange}
-              className="bg-black/20 border border-white/10 rounded-lg px-4 py-2"
+              className="input"
             />
             <input
               name="phone"
               placeholder="Phone Number *"
               value={address.phone}
               onChange={handleChange}
-              className="bg-black/20 border border-white/10 rounded-lg px-4 py-2"
+              className="input"
             />
           </div>
 
@@ -128,7 +132,7 @@ ${address.city}, ${address.state} - ${address.pincode}
             placeholder="House No, Street, Area *"
             value={address.line1}
             onChange={handleChange}
-            className="bg-black/20 border border-white/10 rounded-lg px-4 py-2 w-full"
+            className="input w-full"
           />
 
           <input
@@ -136,7 +140,7 @@ ${address.city}, ${address.state} - ${address.pincode}
             placeholder="Landmark (Optional)"
             value={address.line2}
             onChange={handleChange}
-            className="bg-black/20 border border-white/10 rounded-lg px-4 py-2 w-full"
+            className="input w-full"
           />
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -145,26 +149,26 @@ ${address.city}, ${address.state} - ${address.pincode}
               placeholder="City *"
               value={address.city}
               onChange={handleChange}
-              className="bg-black/20 border border-white/10 rounded-lg px-4 py-2"
+              className="input"
             />
             <input
               name="state"
               placeholder="State *"
               value={address.state}
               onChange={handleChange}
-              className="bg-black/20 border border-white/10 rounded-lg px-4 py-2"
+              className="input"
             />
             <input
               name="pincode"
               placeholder="Pincode *"
               value={address.pincode}
               onChange={handleChange}
-              className="bg-black/20 border border-white/10 rounded-lg px-4 py-2"
+              className="input"
             />
           </div>
         </div>
 
-        {/* SUMMARY */}
+        {/* ================= SUMMARY ================= */}
         <div className="glass-card space-y-4">
           <h2 className="text-lg font-medium text-white">Order Summary</h2>
 
@@ -188,6 +192,7 @@ ${address.city}, ${address.state} - ${address.pincode}
           </div>
         </div>
 
+        {/* ================= CTA ================= */}
         <button
           onClick={handlePlaceOrder}
           disabled={loading}

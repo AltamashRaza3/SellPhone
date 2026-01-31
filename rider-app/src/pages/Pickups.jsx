@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import riderApi from "../api/riderApi";
+import { toast } from "react-hot-toast";
 
 const Pickups = () => {
   const [pickups, setPickups] = useState([]);
@@ -9,12 +10,30 @@ const Pickups = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    Promise.all([riderApi.get("/pickups"), riderApi.get("/earnings")])
-      .then(([pickupsRes, earningsRes]) => {
-        setPickups(pickupsRes.data);
-        setEarnings(earningsRes.data);
-      })
-      .finally(() => setLoading(false));
+    const loadDashboard = async () => {
+      try {
+        const [pickupsRes, earningsRes] = await Promise.allSettled([
+          riderApi.get("/pickups"),
+          riderApi.get("/earnings"),
+        ]);
+
+        if (pickupsRes.status === "fulfilled") {
+          setPickups(pickupsRes.value.data);
+        } else {
+          toast.error("Failed to load pickups");
+        }
+
+        if (earningsRes.status === "fulfilled") {
+          setEarnings(earningsRes.value.data);
+        }
+      } catch (err) {
+        toast.error("Dashboard failed to load");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadDashboard();
   }, []);
 
   if (loading) {
@@ -27,32 +46,23 @@ const Pickups = () => {
 
   return (
     <div className="space-y-6">
-      {/* ================= DASHBOARD TITLE ================= */}
       <div>
         <h1 className="text-xl font-bold text-white">Dashboard</h1>
         <p className="text-sm text-zinc-400">Today’s overview</p>
       </div>
 
-      {/* ================= EARNINGS CARD ================= */}
       {earnings && (
         <div className="rounded-2xl bg-gradient-to-r from-emerald-500 to-green-600 p-5 text-black shadow-lg">
-          <p className="text-sm font-medium opacity-90">Today’s Earnings</p>
-
+          <p className="text-sm font-medium opacity-90">Total Earnings</p>
           <p className="text-3xl font-bold mt-1">₹{earnings.totalEarnings}</p>
 
           <div className="flex justify-between text-sm mt-4 opacity-90">
             <span>Completed Pickups</span>
-            <span>{earnings.totalPickups}</span>
-          </div>
-
-          <div className="flex justify-between text-xs mt-1 opacity-80">
-            <span>Per Pickup</span>
-            <span>₹{earnings.commissionPerPickup}</span>
+            <span>{earnings.completedPickups}</span>
           </div>
         </div>
       )}
 
-      {/* ================= PICKUPS LIST ================= */}
       <div>
         <h2 className="text-lg font-semibold text-white mb-3">
           Assigned Pickups

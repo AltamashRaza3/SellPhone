@@ -7,21 +7,35 @@ import {
 } from "firebase/auth";
 import { auth } from "../utils/firebase";
 import { toast } from "react-hot-toast";
+import { useDispatch } from "react-redux";
+import { mergeGuestCart } from "../redux/slices/cartSlice";
 
 /*
-  IMPORTANT:
-  Ensure this exists in client/.env
-
+  Ensure in client/.env
   VITE_API_BASE_URL=http://localhost:5000
 */
-
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 const Auth = () => {
+  const dispatch = useDispatch();
+
   const [isSignup, setIsSignup] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+
+  /* ================= MERGE GUEST CART ================= */
+  const mergeCartAfterLogin = () => {
+    try {
+      const guestCart = JSON.parse(localStorage.getItem("guest_cart")) || [];
+
+      if (guestCart.length > 0) {
+        dispatch(mergeGuestCart(guestCart));
+      }
+    } catch (err) {
+      console.error("CART MERGE ERROR:", err);
+    }
+  };
 
   /* ================= FIREBASE → BACKEND SESSION ================= */
   const createBackendSession = async () => {
@@ -34,10 +48,8 @@ const Auth = () => {
 
     const res = await fetch(`${API_BASE_URL}/api/auth/firebase-login`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      credentials: "include", // 🔥 REQUIRED FOR COOKIES
+      headers: { "Content-Type": "application/json" },
+      credentials: "include", // 🔥 cookie auth
       body: JSON.stringify({ idToken }),
     });
 
@@ -62,8 +74,8 @@ const Auth = () => {
         toast.success("Logged in");
       }
 
-      // 🔥 CRITICAL: Create backend cookie session
       await createBackendSession();
+      mergeCartAfterLogin(); // 🔥 CRITICAL
     } catch (err) {
       console.error(err);
       toast.error(err.message || "Authentication failed");
@@ -81,8 +93,8 @@ const Auth = () => {
       await signInWithPopup(auth, provider);
       toast.success("Logged in with Google");
 
-      // 🔥 CRITICAL: Create backend cookie session
       await createBackendSession();
+      mergeCartAfterLogin(); // 🔥 CRITICAL
     } catch (err) {
       console.error(err);
       toast.error(err.message || "Google authentication failed");

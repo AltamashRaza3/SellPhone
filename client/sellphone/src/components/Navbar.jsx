@@ -19,7 +19,6 @@ import {
 } from "../redux/slices/selectors/cartSelectors";
 
 const Navbar = () => {
-  /* ================= HOOKS (NEVER CONDITIONAL) ================= */
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useDispatch();
@@ -33,16 +32,13 @@ const Navbar = () => {
 
   const cartRef = useRef(null);
 
-  /* ================= ROUTE AWARENESS ================= */
   const isAuthPage = location.pathname.startsWith("/auth");
 
-  /* ================= CLEANUP ON ROUTE CHANGE ================= */
   useEffect(() => {
     setMobileMenuOpen(false);
     setDesktopCartOpen(false);
   }, [location.pathname]);
 
-  /* ================= CLICK OUTSIDE CART ================= */
   useEffect(() => {
     const handler = (e) => {
       if (cartRef.current && !cartRef.current.contains(e.target)) {
@@ -53,7 +49,6 @@ const Navbar = () => {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  /* ================= ACTIONS ================= */
   const handleSellPhone = () => {
     if (!user) {
       toast("Please login to sell your phone");
@@ -64,27 +59,15 @@ const Navbar = () => {
   };
 
   const handleLogout = async () => {
-    try {
-      await auth.signOut();
-      dispatch(clearUser());
-      dispatch(clearCart());
-      navigate("/auth", { replace: true });
-      toast.success("Logged out");
-    } catch (err) {
-      toast.error("Logout failed");
-    }
+    await auth.signOut();
+    dispatch(clearUser());
+    dispatch(clearCart());
+    navigate("/");
+    toast.success("Logged out");
   };
 
-  const handleRemoveFromCart = (id) => {
-    dispatch(removeFromCart(id));
-  };
+  if (isAuthPage) return <div />;
 
-  /* ================= HIDE NAVBAR VISUALLY (NOT LOGICALLY) ================= */
-  if (isAuthPage) {
-    return <div />; // keeps hooks consistent
-  }
-
-  /* ================= RENDER ================= */
   return (
     <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur border-b">
       <div className="max-w-7xl mx-auto px-4">
@@ -113,25 +96,25 @@ const Navbar = () => {
             </button>
 
             {user && (
-              <>
-                <Link
-                  to="/orders"
-                  className="px-5 py-2 rounded-xl bg-blue-100 text-blue-700 font-semibold"
-                >
-                  <FiPackage className="inline mr-1" />
-                  Orders
-                </Link>
-
-                <Link
-                  to="/my-sell-requests"
-                  className="px-5 py-2 rounded-xl bg-purple-100 text-purple-700 font-semibold"
-                >
-                  My Sell Requests
-                </Link>
-              </>
+              <Link
+                to="/orders"
+                className="px-5 py-2 rounded-xl bg-blue-100 text-blue-700 font-semibold"
+              >
+                <FiPackage className="inline mr-1" />
+                Orders
+              </Link>
+            )}
+            {user && (
+              <Link
+                to="/my-sell-requests"
+                className="px-5 py-2 rounded-xl bg-purple-100 text-purple-700 font-semibold"
+              >
+                <FiPackage className="inline mr-1" />
+                My Sell Requests
+              </Link>
             )}
 
-            {/* CART */}
+            {/* CART ICON */}
             <div className="relative">
               <button
                 onClick={() => setDesktopCartOpen((v) => !v)}
@@ -162,7 +145,9 @@ const Navbar = () => {
                           </p>
                         </div>
                         <button
-                          onClick={() => handleRemoveFromCart(item.phone._id)}
+                          onClick={() =>
+                            dispatch(removeFromCart(item.phone._id))
+                          }
                           className="text-red-500 text-sm"
                         >
                           Remove
@@ -175,7 +160,7 @@ const Navbar = () => {
                     to="/cart"
                     className="block mt-4 text-center bg-orange-500 text-white py-2 rounded-lg font-semibold"
                   >
-                    Checkout →
+                    View Cart →
                   </Link>
                 </div>
               )}
@@ -198,13 +183,30 @@ const Navbar = () => {
             )}
           </div>
 
-          {/* MOBILE */}
-          <button
-            className="lg:hidden p-2 rounded-lg bg-gray-100"
-            onClick={() => setMobileMenuOpen((v) => !v)}
-          >
-            {mobileMenuOpen ? <FiX /> : <FiMenu />}
-          </button>
+          {/* MOBILE RIGHT ACTIONS */}
+          <div className="flex items-center gap-3 lg:hidden">
+            {/* MOBILE CART BUTTON (🔥 FIX) */}
+            <button
+              onClick={() => navigate("/cart")}
+              className="relative p-3 w-7 rounded-xl bg-orange-500 text-white"
+              aria-label="View Cart"
+            >
+              <FiShoppingCart size={20} />
+              {cartCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-600 text-white text-xs rounded-full flex items-center justify-center">
+                  {cartCount}
+                </span>
+              )}
+            </button>
+
+            {/* MENU */}
+            <button
+              className="p-2 rounded-lg bg-gray-100"
+              onClick={() => setMobileMenuOpen((v) => !v)}
+            >
+              {mobileMenuOpen ? <FiX /> : <FiMenu />}
+            </button>
+          </div>
         </div>
 
         {/* MOBILE MENU */}
@@ -216,23 +218,13 @@ const Navbar = () => {
             >
               Sell Phone
             </button>
-
             {user && (
-              <>
-                <Link
-                  to="/orders"
-                  className="block text-center py-3 rounded-xl bg-blue-100 text-blue-700 font-bold"
-                >
-                  My Orders
-                </Link>
-
-                <Link
-                  to="/my-sell-requests"
-                  className="block text-center py-3 rounded-xl bg-purple-100 text-purple-700 font-bold"
-                >
-                  My Sell Requests
-                </Link>
-              </>
+              <Link
+                to="/my-sell-requests"
+                className="block text-center py-3 rounded-xl bg-purple-100 text-purple-700 font-bold"
+              >
+                My Sell Requests
+              </Link>
             )}
 
             {user ? (

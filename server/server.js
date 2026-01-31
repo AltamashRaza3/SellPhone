@@ -1,3 +1,6 @@
+import dotenv from "dotenv";
+dotenv.config(); // 🔥 REQUIRED
+
 import mongoose from "mongoose";
 import app from "./src/app.js";
 
@@ -13,4 +16,5 @@ mongoose
   })
   .catch((err) => {
     console.error("❌ MongoDB connection failed:", err);
+    process.exit(1); // 🔒 fail fast
   });

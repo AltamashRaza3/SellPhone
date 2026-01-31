@@ -9,7 +9,7 @@ const getStatusLabel = (req) => {
   if (req.pickup?.status === "Scheduled") return "Pickup Scheduled";
   if (req.pickup?.status === "Pending") return "Pickup Pending";
 
-  if (req.verification?.finalPrice && req.verification.userAccepted === null) {
+  if (req.verification?.finalPrice && req.verification.userAccepted == null) {
     return "Action Required";
   }
 
@@ -40,9 +40,10 @@ const SellRequestsList = () => {
   /* ================= FETCH REQUESTS ================= */
   const fetchRequests = async () => {
     try {
-      const res = await fetch("http://localhost:5000/api/sell-requests/my", {
-        credentials: "include",
-      });
+      const res = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL}/api/sell-requests/my`,
+        { credentials: "include" },
+      );
 
       if (!res.ok) throw new Error();
       setRequests(await res.json());
@@ -58,7 +59,11 @@ const SellRequestsList = () => {
   }, []);
 
   if (loading) {
-    return <div className="appContainer py-12 text-center">Loading…</div>;
+    return (
+      <div className="appContainer py-12 text-center text-gray-400">
+        Loading…
+      </div>
+    );
   }
 
   if (!requests.length) {
@@ -79,13 +84,12 @@ const SellRequestsList = () => {
       {requests.map((req) => {
         const label = getStatusLabel(req);
         const needsAction =
-          req.verification?.finalPrice &&
-          req.verification.userAccepted === null;
+          req.verification?.finalPrice && req.verification.userAccepted == null;
 
         return (
           <div key={req._id} className="glass-card p-6 space-y-4">
             {/* HEADER */}
-            <div className="space-y-1">
+            <div>
               <h3 className="text-lg font-semibold">
                 {req.phone.brand} {req.phone.model}
               </h3>
@@ -109,26 +113,44 @@ const SellRequestsList = () => {
               )}
             </div>
 
-            {/* RIDER */}
-            {req.assignedRider?.riderName && (
-              <p className="text-sm text-gray-300">
-                Rider: {req.assignedRider.riderName}
-              </p>
+            {/* RIDER DETAILS (ONLY AFTER SCHEDULING) */}
+            {req.assignedRider && req.pickup?.status === "Scheduled" && (
+              <div className="p-3 rounded-lg bg-indigo-500/10 border border-indigo-500/20 space-y-1">
+                <p className="text-sm font-semibold text-indigo-400">
+                  Assigned Rider
+                </p>
+
+                <p className="text-sm text-white">
+                  {req.assignedRider.riderName}
+                </p>
+
+                {req.assignedRider.riderPhone && (
+                  <p className="text-sm text-gray-300">
+                    📞 {req.assignedRider.riderPhone}
+                  </p>
+                )}
+
+                {req.pickup?.scheduledAt && (
+                  <p className="text-sm text-gray-300">
+                    🕒 {new Date(req.pickup.scheduledAt).toLocaleString()}
+                  </p>
+                )}
+              </div>
             )}
 
             {/* FOOTER */}
             <div className="pt-4 mt-4 border-t border-white/10 flex items-center justify-between">
               {/* STATUS BADGE */}
               <span
-                className={`h-7 px-4 rounded text-sm flex items-center whitespace-nowrap ${badgeColor[label]}`}
+                className={`h-7 px-4 rounded text-sm flex items-center ${badgeColor[label]}`}
               >
                 {label}
               </span>
 
-              {/* ACTION BUTTON */}
+              {/* DETAILS BUTTON */}
               <Link
                 to={`/my-sell-requests/${req._id}`}
-                className={`h-7 px-5 rounded-lg text-sm font-medium flex items-center transition
+                className={`h-8 px-5 rounded-lg text-sm font-medium flex items-center transition
                   ${
                     needsAction
                       ? "bg-orange-600 hover:bg-orange-700 text-white"

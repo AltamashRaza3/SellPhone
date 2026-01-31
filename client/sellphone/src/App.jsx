@@ -102,7 +102,8 @@ const App = () => {
     const isPublic =
       location.pathname === "/" ||
       location.pathname.startsWith("/phone/") ||
-      location.pathname === "/auth";
+      location.pathname === "/auth" ||
+      location.pathname === "/cart";
 
     if (location.pathname.startsWith("/admin")) return;
 
@@ -186,9 +187,7 @@ const App = () => {
             <Route
               path="/cart"
               element={
-                <ProtectedRoute>
-                  <Cart />
-                </ProtectedRoute>
+                  <Cart /> 
               }
             />
 

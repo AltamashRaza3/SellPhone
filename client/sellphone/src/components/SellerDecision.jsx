@@ -4,8 +4,10 @@ import { toast } from "react-hot-toast";
 const SellerDecision = ({ requestId, finalPrice, onDecision }) => {
   const [loading, setLoading] = useState(false);
 
-  // 🛡️ HARD GUARD (prevents crashes)
-  if (!requestId || !finalPrice) return null;
+  // ✅ FIXED GUARD (DO NOT USE !finalPrice)
+  if (!requestId || finalPrice === null || finalPrice === undefined) {
+    return null;
+  }
 
   const submitDecision = async (accept) => {
     const confirmMsg = accept
@@ -18,7 +20,7 @@ const SellerDecision = ({ requestId, finalPrice, onDecision }) => {
       setLoading(true);
 
       const res = await fetch(
-        `http://localhost:5000/api/sell-requests/${requestId}/decision`,
+        `${import.meta.env.VITE_API_BASE_URL}/api/sell-requests/${requestId}/decision`,
         {
           method: "PUT",
           credentials: "include",
@@ -27,15 +29,16 @@ const SellerDecision = ({ requestId, finalPrice, onDecision }) => {
         },
       );
 
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.message || "Request failed");
+      }
 
-      toast.success(
-        accept ? "Price accepted successfully" : "Request rejected",
-      );
+      toast.success(accept ? "Final price accepted" : "Final price rejected");
 
       onDecision?.();
-    } catch {
-      toast.error("Failed to submit decision");
+    } catch (err) {
+      toast.error(err.message || "Failed to submit decision");
     } finally {
       setLoading(false);
     }

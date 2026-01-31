@@ -2,7 +2,7 @@ import { createSelector } from "@reduxjs/toolkit";
 
 /* ================= BASE SELECTORS ================= */
 const selectCartState = (state) => state.cart;
-const selectPhonesList = (state) => state.phones.list ?? [];
+const selectPhonesList = (state) => state.phones.list;
 
 /* ================= CART ITEMS ================= */
 export const selectCartItems = createSelector(
@@ -30,7 +30,7 @@ export const selectCartCount = createSelector(
 export const selectSuggestedPhones = createSelector(
   [selectCartItems, selectPhonesList],
   (cartItems, phones) => {
-    if (!phones.length) return [];
+    if (!phones || phones.length === 0) return [];
 
     const cartPhoneIds = new Set(cartItems.map((i) => i.phone._id));
     const cartBrands = new Set(cartItems.map((i) => i.phone.brand));

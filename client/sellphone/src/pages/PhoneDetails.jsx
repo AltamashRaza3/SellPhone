@@ -7,7 +7,7 @@ import {
 } from "../redux/slices/selectedPhoneSlice";
 import { addToCart } from "../redux/slices/cartSlice";
 import toast from "react-hot-toast";
-import AppContainer from "../components/AppContainer";
+
 
 const PhoneDetails = () => {
   const { id } = useParams();

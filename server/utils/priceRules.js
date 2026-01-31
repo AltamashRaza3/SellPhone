@@ -1,10 +1,10 @@
 /**
- * PRICE ENGINE – PRODUCTION SINGLE SOURCE OF TRUTH
- * ================================================
- * - User NEVER sets price
- * - Admin NEVER negotiates price
- * - Rider NEVER enters arbitrary price
- * - System calculates everything deterministically
+ * PRICE ENGINE – SINGLE SOURCE OF TRUTH (PRODUCTION)
+ * ==================================================
+ * ✔ User NEVER sets price
+ * ✔ Admin NEVER negotiates price
+ * ✔ Rider NEVER enters arbitrary price
+ * ✔ System calculates everything deterministically
  */
 
 /* ======================================================
@@ -12,10 +12,6 @@
    (Temporary in-code catalog → later move to DB)
 ====================================================== */
 
-/**
- * Average resale market prices (₹) by brand
- * Conservative values to avoid overpricing
- */
 export const BRAND_BASE_PRICE = {
   Apple: 35000,
   Samsung: 26000,
@@ -28,9 +24,6 @@ export const BRAND_BASE_PRICE = {
   Motorola: 16000,
 };
 
-/**
- * Fallback base price if brand is unknown
- */
 const DEFAULT_BASE_PRICE = 15000;
 
 /* ======================================================
@@ -47,22 +40,14 @@ export const CONDITION_MULTIPLIER = {
    SYSTEM LIMITS (GUARDS)
 ====================================================== */
 
-const MIN_BASE_PRICE = 1000;   // never quote absurd values
-const MIN_FINAL_PRICE = 500;   // absolute payout floor
-const MAX_DEPRECIATION = 0.7;  // system never depreciates more than 70%
+const MIN_BASE_PRICE = 1000;
+const MIN_FINAL_PRICE = 500;
+const MAX_DEPRECIATION = 0.7;
 
 /* ======================================================
    CALCULATE BASE PRICE (SYSTEM GENERATED)
 ====================================================== */
 
-/**
- * Base Price = Market Price × Age Depreciation × Condition
- *
- * @param {Object} params
- * @param {string} params.brand
- * @param {number} params.purchaseYear
- * @param {string} params.declaredCondition
- */
 export const calculateBasePrice = ({
   brand,
   purchaseYear,
@@ -70,11 +55,9 @@ export const calculateBasePrice = ({
 }) => {
   const currentYear = new Date().getFullYear();
 
-  /* ---------- MARKET PRICE ---------- */
-  const baseMarketPrice =
+  const marketPrice =
     BRAND_BASE_PRICE[brand] ?? DEFAULT_BASE_PRICE;
 
-  /* ---------- SAFE AGE CALCULATION ---------- */
   const safePurchaseYear =
     typeof purchaseYear === "number" && purchaseYear > 2000
       ? purchaseYear
@@ -82,22 +65,21 @@ export const calculateBasePrice = ({
 
   const age = Math.max(currentYear - safePurchaseYear, 0);
 
-  /* ---------- AGE DEPRECIATION ---------- */
   const depreciationPerYear = 0.12; // 12% per year
-  let depreciation = age * depreciationPerYear;
-  depreciation = Math.min(depreciation, MAX_DEPRECIATION);
+  let depreciation = Math.min(
+    age * depreciationPerYear,
+    MAX_DEPRECIATION
+  );
 
   let priceAfterAge =
-    baseMarketPrice * (1 - depreciation);
+    marketPrice * (1 - depreciation);
 
-  /* ---------- CONDITION MULTIPLIER ---------- */
   const conditionMultiplier =
     CONDITION_MULTIPLIER[declaredCondition] ?? 0.8;
 
   let basePrice =
     priceAfterAge * conditionMultiplier;
 
-  /* ---------- SANITY CLAMPS ---------- */
   basePrice = Math.round(basePrice);
 
   if (basePrice < MIN_BASE_PRICE) {
@@ -108,32 +90,37 @@ export const calculateBasePrice = ({
 };
 
 /* ======================================================
-   RIDER VERIFICATION RULES (DEDUCTIONS)
+   RIDER VERIFICATION RULES (GOOD STATE KEYS)
 ====================================================== */
+/**
+ * IMPORTANT:
+ * true  → condition is GOOD
+ * false → condition FAILED → deduction applied
+ */
 
 export const PRICE_RULES = {
-  screenCrack: {
-    label: "Screen Crack",
+  screenIntact: {
+    label: "Screen damaged",
     amount: 3000,
   },
-  bodyDent: {
-    label: "Body Dent",
+  noBodyDent: {
+    label: "Body dents present",
     amount: 1500,
   },
-  speakerFault: {
-    label: "Speaker Fault",
+  speakerWorking: {
+    label: "Speaker faulty",
     amount: 1200,
   },
-  micFault: {
-    label: "Mic Fault",
+  micWorking: {
+    label: "Microphone faulty",
     amount: 1000,
   },
-  batteryBelow80: {
-    label: "Battery Health < 80%",
+  batteryAbove80: {
+    label: "Battery health below 80%",
     amount: 2000,
   },
-  cameraFault: {
-    label: "Camera Fault",
+  cameraWorking: {
+    label: "Camera faulty",
     amount: 2500,
   },
 };
@@ -142,20 +129,12 @@ export const PRICE_RULES = {
    FINAL PRICE AFTER VERIFICATION
 ====================================================== */
 
-/**
- * Final Price = Base Price − Verified Deductions
- *
- * @param {number} basePrice
- * @param {Object} checks (boolean flags from rider)
- */
-export const calculateFinalPrice = (
-  basePrice,
-  checks = {}
-) => {
+export const calculateFinalPrice = (basePrice, checks = {}) => {
   let deductions = [];
   let totalDeduction = 0;
 
   Object.entries(checks).forEach(([key, value]) => {
+    // ❌ Deduct ONLY when condition is NOT met
     if (value === false && PRICE_RULES[key]) {
       const { label, amount } = PRICE_RULES[key];
 
@@ -170,14 +149,10 @@ export const calculateFinalPrice = (
 
   let finalPrice = basePrice - totalDeduction;
 
-  /* ---------- PRICE FLOOR ---------- */
   if (finalPrice < MIN_FINAL_PRICE) {
     deductions.push({
       reason: "Minimum price floor applied",
-      amount:
-        finalPrice < 0
-          ? basePrice
-          : finalPrice - MIN_FINAL_PRICE,
+      amount: Math.max(basePrice - MIN_FINAL_PRICE, 0),
     });
 
     finalPrice = MIN_FINAL_PRICE;
