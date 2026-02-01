@@ -220,6 +220,15 @@ const Navbar = () => {
             </button>
             {user && (
               <Link
+                to="/orders"
+                className="block text-center py-3 rounded-xl bg-blue-100 text-blue-700 font-bold"
+              >
+                <FiPackage className="inline mr-1" />
+                Orders
+              </Link>
+            )}
+            {user && (
+              <Link
                 to="/my-sell-requests"
                 className="block text-center py-3 rounded-xl bg-purple-100 text-purple-700 font-bold"
               >
