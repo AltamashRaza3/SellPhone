@@ -4,84 +4,54 @@ import {
   createUserWithEmailAndPassword,
   GoogleAuthProvider,
   signInWithPopup,
+  sendPasswordResetEmail,
+  updateProfile,
 } from "firebase/auth";
 import { auth } from "../utils/firebase";
 import { toast } from "react-hot-toast";
 import { useDispatch } from "react-redux";
 import { mergeGuestCart } from "../redux/slices/cartSlice";
 
-/*
-  Ensure in client/.env
-  VITE_API_BASE_URL=http://localhost:5000
-*/
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+/* ================= VALIDATION ================= */
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/;
+const nameRegex = /^[A-Za-z ]{2,30}$/;
 
 const Auth = () => {
   const dispatch = useDispatch();
 
-  const [isSignup, setIsSignup] = useState(false);
+  const [isSignInForm, setIsSignInForm] = useState(true);
+  const [isForgotMode, setIsForgotMode] = useState(false);
+
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
+  const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
-  /* ================= MERGE GUEST CART ================= */
+  /* ================= CART MERGE ================= */
   const mergeCartAfterLogin = () => {
-    try {
-      const guestCart = JSON.parse(localStorage.getItem("guest_cart")) || [];
-
-      if (guestCart.length > 0) {
-        dispatch(mergeGuestCart(guestCart));
-      }
-    } catch (err) {
-      console.error("CART MERGE ERROR:", err);
-    }
+    const guestCart = JSON.parse(localStorage.getItem("guest_cart")) || [];
+    if (guestCart.length) dispatch(mergeGuestCart(guestCart));
   };
 
-  /* ================= FIREBASE → BACKEND SESSION ================= */
+  /* ================= BACKEND SESSION ================= */
   const createBackendSession = async () => {
     const user = auth.currentUser;
-    if (!user) {
-      throw new Error("User not available after Firebase login");
-    }
-
     const idToken = await user.getIdToken();
 
     const res = await fetch(`${API_BASE_URL}/api/auth/firebase-login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      credentials: "include", // 🔥 cookie auth
+      credentials: "include",
       body: JSON.stringify({ idToken }),
     });
 
-    if (!res.ok) {
-      const data = await res.json();
-      throw new Error(data.message || "Backend session creation failed");
-    }
-  };
-
-  /* ================= EMAIL / PASSWORD ================= */
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    try {
-      setLoading(true);
-
-      if (isSignup) {
-        await createUserWithEmailAndPassword(auth, email, password);
-        toast.success("Account created");
-      } else {
-        await signInWithEmailAndPassword(auth, email, password);
-        toast.success("Logged in");
-      }
-
-      await createBackendSession();
-      mergeCartAfterLogin(); // 🔥 CRITICAL
-    } catch (err) {
-      console.error(err);
-      toast.error(err.message || "Authentication failed");
-    } finally {
-      setLoading(false);
-    }
+    if (!res.ok) throw new Error("Backend session failed");
   };
 
   /* ================= GOOGLE LOGIN ================= */
@@ -91,64 +61,195 @@ const Auth = () => {
 
       const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
+
       toast.success("Logged in with Google");
+      await createBackendSession();
+      mergeCartAfterLogin();
+    } catch (err) {
+      toast.error(err.message || "Google login failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /* ================= VALIDATION ================= */
+  const validate = () => {
+    const e = {};
+
+    if (!emailRegex.test(email)) e.email = "Enter a valid email address.";
+
+    if (!isForgotMode) {
+      if (!isSignInForm && !nameRegex.test(name))
+        e.name = "Enter a valid full name.";
+
+      if (!passwordRegex.test(password))
+        e.password =
+          "Password must be at least 8 characters and include uppercase, lowercase, number, and symbol.";
+
+      if (!isSignInForm && password !== confirmPassword)
+        e.confirmPassword = "Passwords do not match.";
+    }
+
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
+
+  /* ================= SUBMIT ================= */
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!validate()) return;
+
+    try {
+      setLoading(true);
+
+      if (isForgotMode) {
+        await sendPasswordResetEmail(auth, email);
+        toast.success("Password reset email sent");
+        setIsForgotMode(false);
+        return;
+      }
+
+      if (isSignInForm) {
+        await signInWithEmailAndPassword(auth, email, password);
+        toast.success("Logged in successfully");
+      } else {
+        const cred = await createUserWithEmailAndPassword(
+          auth,
+          email,
+          password,
+        );
+        await updateProfile(cred.user, { displayName: name });
+        toast.success("Account created successfully");
+      }
 
       await createBackendSession();
-      mergeCartAfterLogin(); // 🔥 CRITICAL
+      mergeCartAfterLogin();
     } catch (err) {
-      console.error(err);
-      toast.error(err.message || "Google authentication failed");
+      toast.error(err.message || "Authentication failed");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center">
+    <div className="relative min-h-screen w-screen flex items-center justify-center bg-gradient-to-br from-black via-zinc-900 to-black px-4">
+      <div className="absolute inset-0 bg-black/60" />
+
       <form
         onSubmit={handleSubmit}
-        className="space-y-4 w-80 bg-black/30 p-6 rounded-xl"
+        className="relative z-10 w-full max-w-md bg-black/80 backdrop-blur-xl p-10 rounded-lg text-white shadow-2xl border border-white/10 space-y-4"
       >
+        <h1 className="text-3xl font-bold">
+          {isForgotMode
+            ? "Reset Password"
+            : isSignInForm
+              ? "Sign In"
+              : "Create Account"}
+        </h1>
+
+        {!isSignInForm && !isForgotMode && (
+          <>
+            <input
+              placeholder="Full name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full h-12 px-4 rounded bg-[#1A1A1A] border border-gray-700 focus:ring-2 focus:ring-orange-500"
+            />
+            {errors.name && (
+              <p className="text-sm text-red-500">{errors.name}</p>
+            )}
+          </>
+        )}
+
         <input
-          className="input w-full"
-          placeholder="Email"
+          placeholder="Email address"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          required
+          className="w-full h-12 px-4 rounded bg-[#1A1A1A] border border-gray-700 focus:ring-2 focus:ring-orange-500"
         />
+        {errors.email && <p className="text-sm text-red-500">{errors.email}</p>}
 
-        <input
-          className="input w-full"
-          placeholder="Password"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
+        {!isForgotMode && (
+          <>
+            <input
+              placeholder="Password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full h-12 px-4 rounded bg-[#1A1A1A] border border-gray-700 focus:ring-2 focus:ring-orange-500"
+            />
+            {errors.password && (
+              <p className="text-sm text-red-500">{errors.password}</p>
+            )}
 
-        <button className="btn-primary w-full" disabled={loading} type="submit">
-          {loading ? "Please wait..." : isSignup ? "Sign Up" : "Login"}
+            {!isSignInForm && (
+              <>
+                <input
+                  placeholder="Confirm password"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full h-12 px-4 rounded bg-[#1A1A1A] border border-gray-700 focus:ring-2 focus:ring-orange-500"
+                />
+                {errors.confirmPassword && (
+                  <p className="text-sm text-red-500">
+                    {errors.confirmPassword}
+                  </p>
+                )}
+              </>
+            )}
+          </>
+        )}
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full h-12 bg-orange-600 hover:bg-orange-700 transition rounded font-semibold disabled:opacity-60"
+        >
+          {loading ? "Please wait..." : "Submit"}
         </button>
+
+        {/* Divider */}
+        {!isForgotMode && (
+          <div className="flex items-center">
+            <div className="flex-1 h-px bg-gray-800" />
+            <span className="px-3 text-xs text-gray-500">OR</span>
+            <div className="flex-1 h-px bg-gray-800" />
+          </div>
+        )}
+
+        {/* Google Login */}
+        {!isForgotMode && (
+          <button
+            type="button"
+            onClick={handleGoogleAuth}
+            disabled={loading}
+            className="w-full h-12 border border-gray-700 rounded hover:border-gray-500 transition"
+          >
+            Continue with Google
+          </button>
+        )}
+
+        {!isForgotMode && (
+          <button
+            type="button"
+            onClick={() => setIsForgotMode(true)}
+            className="text-sm text-gray-400 hover:text-white transition"
+          >
+            Forgot password?
+          </button>
+        )}
 
         <button
           type="button"
-          onClick={handleGoogleAuth}
-          disabled={loading}
-          className="w-full border rounded-lg py-2"
+          onClick={() => {
+            setIsSignInForm(!isSignInForm);
+            setIsForgotMode(false);
+          }}
+          className="text-sm text-gray-400 hover:text-white transition"
         >
-          Continue with Google
+          {isSignInForm ? "Create account" : "Sign in"}
         </button>
-
-        <p className="text-center text-sm">
-          {isSignup ? "Already have an account?" : "New here?"}
-          <button
-            type="button"
-            onClick={() => setIsSignup(!isSignup)}
-            className="ml-1 text-orange-500 font-semibold"
-          >
-            {isSignup ? "Login" : "Sign up"}
-          </button>
-        </p>
       </form>
     </div>
   );
