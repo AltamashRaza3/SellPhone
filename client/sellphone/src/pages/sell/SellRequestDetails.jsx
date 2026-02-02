@@ -144,14 +144,16 @@ const SellRequestDetails = () => {
       )}
 
       {pickup?.status === "Completed" && (
-        <a
-          href={`${import.meta.env.VITE_API_BASE_URL}/api/sell-requests/${request._id}/invoice`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="h-11 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold flex items-center justify-center"
-        >
-          Download Invoice (PDF)
-        </a>
+        <div className="flex justify-center">
+          <button
+            onClick={() => {
+              window.location.href = `${import.meta.env.VITE_API_BASE_URL}/api/invoices/${request._id}`;
+            }}
+            className="w-full max-w-md h-11 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold flex items-center justify-center"
+          >
+            Download Invoice (PDF)
+          </button>
+        </div>
       )}
     </div>
   );

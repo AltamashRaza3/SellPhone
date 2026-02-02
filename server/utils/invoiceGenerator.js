@@ -20,7 +20,7 @@ if (!fs.existsSync(INVOICE_DIR)) {
 
 /* ================= GENERATOR ================= */
 export const generateInvoice = async (sellRequest) => {
-  const invoiceNumber = `INV-${sellRequest._id.toString().slice(-6)}`;
+  const invoiceNumber = `INV-${sellRequest._id.toString()}`;
   const fileName = `${invoiceNumber}.pdf`;
   const filePath = path.join(INVOICE_DIR, fileName);
 
@@ -50,7 +50,7 @@ export const generateInvoice = async (sellRequest) => {
   doc.moveDown();
 
   doc.fontSize(14).text(
-    `Final Price: ₹${sellRequest.pricing.finalPrice}`,
+    `Final Price: ₹${sellRequest.verification.finalPrice}`,
     { underline: true }
   );
 

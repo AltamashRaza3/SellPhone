@@ -3,6 +3,8 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import path from "path";
 import { fileURLToPath } from "url";
+import invoiceRoutes from "../routes/invoice.routes.js";
+
 
 /* ================= MIDDLEWARE ================= */
 import { apiLimiter } from "../middleware/rateLimiter.js";
@@ -76,7 +78,7 @@ app.use("/api/products", productRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api/sell-requests", sellRequestRoutes);
-
+app.use("/api/invoices", invoiceRoutes);
 /* ================= ADMIN ================= */
 app.use("/api/admin", adminRoutes);
 app.use("/api/admin/orders", adminOrderRoutes);

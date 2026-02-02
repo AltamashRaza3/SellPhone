@@ -9,6 +9,7 @@ import InventoryItem from "../models/InventoryItem.js";
 import riderAuth from "../middleware/riderAuth.js";
 import { sendOtp, verifyOtp } from "../controllers/riderAuth.controller.js";
 import { calculateFinalPrice } from "../utils/priceRules.js";
+import { generateInvoice } from "../utils/invoiceGenerator.js";
 
 const router = express.Router();
 
@@ -182,6 +183,8 @@ router.put("/pickups/:id/complete", riderAuth, async (req, res) => {
       message: "User acceptance required",
     });
   }
+// 🔥 GENERATE INVOICE ONCE PICKUP IS COMPLETED
+await generateInvoice(request);
 
   /* ================= INVENTORY (SCHEMA SAFE) ================= */
   await InventoryItem.findOneAndUpdate(
