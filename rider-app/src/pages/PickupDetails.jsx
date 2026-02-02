@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import riderApi from "../api/riderApi";
 import { FiCamera, FiPhoneCall, FiMapPin } from "react-icons/fi";
 import { FaWhatsapp } from "react-icons/fa";
+const API_BASE_URL = "http://localhost:5000";
 
 /* ================= VERIFICATION CHECKLIST ================= */
 const VERIFICATION_CHECKS = {
@@ -36,17 +37,23 @@ const PickupDetails = () => {
   );
 
   const [rejectReason, setRejectReason] = useState("");
-
   /* ================= LOAD PICKUP ================= */
   const loadPickup = async () => {
-    const res = await riderApi.get(`/pickups/${id}`);
-    setPickup(res.data);
+    try {
+      const res = await riderApi.get(`/pickups/${id}`);
+      setPickup((prev) =>
+        JSON.stringify(prev) === JSON.stringify(res.data) ? prev : res.data,
+      );
+    } catch (err) {
+      console.error("LOAD PICKUP ERROR:", err);
+      setPickup(null);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
-    loadPickup().finally(() => setLoading(false));
-    const interval = setInterval(loadPickup, 5000);
-    return () => clearInterval(interval);
+    loadPickup();
   }, [id]);
 
   if (loading) {
@@ -154,6 +161,21 @@ const PickupDetails = () => {
       p.address?.pincode || ""
     }`,
   );
+const resolveImageUrl = (img) => {
+  if (!img) return "";
+
+  // string path from DB
+  if (typeof img === "string") {
+    return img.startsWith("http") ? img : `${API_BASE_URL}${img}`;
+  }
+
+  // object { url }
+  if (img?.url) {
+    return img.url.startsWith("http") ? img.url : `${API_BASE_URL}${img.url}`;
+  }
+
+  return "";
+};
 
   return (
     <div className="space-y-6">
@@ -209,17 +231,51 @@ const PickupDetails = () => {
         </div>
       )}
 
-      {/* USER IMAGES */}
+      {/* USER UPLOADED IMAGES */}
       <div className="rounded-2xl bg-zinc-900 border border-white/10 p-4">
         <p className="font-medium text-white mb-2">User Uploaded Images</p>
-        {phone.images?.length ? (
+
+        {Array.isArray(phone.images) && phone.images.length ? (
           <div className="grid grid-cols-3 gap-2">
             {phone.images.map((img, i) => (
-              <img key={i} src={img} className="h-28 object-cover rounded-lg" />
+              <img
+                key={i}
+                src={resolveImageUrl(img)}
+                alt="User uploaded phone"
+                className="h-28 object-cover rounded-lg border border-white/10"
+              />
             ))}
           </div>
         ) : (
           <p className="text-sm text-zinc-500">No images from user</p>
+        )}
+      </div>
+
+      {/* RIDER VERIFICATION IMAGES */}
+      <div className="rounded-2xl bg-zinc-900 border border-emerald-500/20 p-4">
+        <p className="font-medium text-emerald-400 mb-2">
+          Rider Verification Images
+        </p>
+
+        {Array.isArray(verification?.images) && verification.images.length ? (
+          <div className="grid grid-cols-3 gap-2">
+            {verification.images.map((img, i) => (
+              <div key={i} className="space-y-1">
+                <img
+                  src={resolveImageUrl(img)}
+                  alt="Rider verification"
+                  className="h-28 object-cover rounded-lg border border-emerald-500/40"
+                />
+                <p className="text-[11px] text-zinc-500">
+                  {new Date(img.uploadedAt).toLocaleString()}
+                </p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-zinc-500">
+            Rider has not uploaded verification images yet
+          </p>
         )}
       </div>
 
@@ -328,6 +384,6 @@ const PickupDetails = () => {
       )}
     </div>
   );
-};
+};;
 
 export default PickupDetails;

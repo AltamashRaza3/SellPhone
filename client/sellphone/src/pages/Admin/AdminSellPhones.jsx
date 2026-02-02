@@ -2,51 +2,36 @@ import { useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
 import AssignRider from "../../components/Admin/AssignRider";
 
-/* ================= STATUS DERIVATION ================= */
+/* ================= STATUS BADGE ================= */
 const getDisplayStatus = (req) => {
-  const pickupStatus = req.pickup?.status;
-  const adminStatus = req.admin?.status;
+  const pickup = req.pickup?.status;
+  const admin = req.admin?.status;
 
-  if (pickupStatus === "Completed")
+  if (pickup === "Completed")
     return {
       label: "Pickup Completed",
       color: "bg-green-600/20 text-green-400",
     };
 
-  if (pickupStatus === "Picked")
+  if (pickup === "Picked")
     return {
       label: "Device Picked",
       color: "bg-indigo-500/20 text-indigo-400",
     };
 
-  if (pickupStatus === "Scheduled")
-    return {
-      label: "Pickup Scheduled",
-      color: "bg-blue-500/20 text-blue-400",
-    };
+  if (pickup === "Scheduled")
+    return { label: "Pickup Scheduled", color: "bg-blue-500/20 text-blue-400" };
 
-  if (pickupStatus === "Rejected")
-    return {
-      label: "Escalated",
-      color: "bg-red-600/20 text-red-400",
-    };
+  if (pickup === "Rejected")
+    return { label: "Escalated", color: "bg-red-600/20 text-red-400" };
 
-  if (adminStatus === "Rejected")
-    return {
-      label: "Rejected by Admin",
-      color: "bg-red-500/20 text-red-400",
-    };
+  if (admin === "Rejected")
+    return { label: "Rejected by Admin", color: "bg-red-500/20 text-red-400" };
 
-  if (adminStatus === "Approved")
-    return {
-      label: "Approved",
-      color: "bg-yellow-500/20 text-yellow-400",
-    };
+  if (admin === "Approved")
+    return { label: "Approved", color: "bg-yellow-500/20 text-yellow-400" };
 
-  return {
-    label: "Pending Review",
-    color: "bg-gray-500/20 text-gray-300",
-  };
+  return { label: "Pending Review", color: "bg-gray-500/20 text-gray-300" };
 };
 
 const AdminSellPhones = () => {
@@ -55,7 +40,7 @@ const AdminSellPhones = () => {
   const [remarks, setRemarks] = useState({});
   const [updatingId, setUpdatingId] = useState(null);
 
-  /* ================= FETCH REQUESTS ================= */
+  /* ================= FETCH ================= */
   const fetchRequests = async () => {
     try {
       setLoading(true);
@@ -63,7 +48,6 @@ const AdminSellPhones = () => {
         `${import.meta.env.VITE_API_BASE_URL}/api/admin/sell-requests`,
         { credentials: "include" },
       );
-
       if (!res.ok) throw new Error();
       setRequests(await res.json());
     } catch {
@@ -77,13 +61,12 @@ const AdminSellPhones = () => {
     fetchRequests();
   }, []);
 
-  /* ================= ADMIN APPROVE / REJECT ================= */
+  /* ================= APPROVE / REJECT ================= */
   const updateStatus = async (id, status) => {
     try {
       setUpdatingId(id);
-
       const res = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL}/api/admin/sell-requests/${id}`,
+        `${import.meta.env.VITE_API_BASE_URL}/api/admin/sell-requests/${id}/status`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -118,16 +101,17 @@ const AdminSellPhones = () => {
         const address = req.pickup?.address;
         const status = getDisplayStatus(req);
 
-        /* ================= FIXED LOGIC ================= */
+        /* ================= UI LOCKS ================= */
         const canApproveReject =
-          (!req.admin || req.admin.status === "Pending") && !req.assignedRider;
-
-        const isAdminApproved = req.admin?.status === "Approved";
+          !req.admin?.status &&
+          !req.assignedRider?.riderId &&
+          req.pickup?.status === "Pending";
 
         const canAssignRider =
-          isAdminApproved &&
-          !req.assignedRider &&
-          req.pickup?.status === "Pending";
+          req.admin?.status === "Approved" &&
+          req.pickup?.status !== "Picked" &&
+          req.pickup?.status !== "Completed" &&
+          req.verification?.finalPrice == null;
 
         const isEscalated = req.pickup?.status === "Rejected";
 
@@ -165,35 +149,52 @@ const AdminSellPhones = () => {
             </div>
 
             {/* USER IMAGES */}
-            {phone.images?.length > 0 && (
+            {Array.isArray(phone.images) && phone.images.length > 0 && (
               <div className="grid grid-cols-3 gap-3">
-                {phone.images.map((img, i) => (
-                  <img
-                    key={i}
-                    src={img}
-                    alt="Phone"
-                    className="h-28 w-full object-cover rounded-lg border border-white/10"
-                    onError={(e) => {
-                      e.currentTarget.src = "/no-image.png";
-                    }}
-                  />
-                ))}
+                {phone.images.map((img, i) => {
+                  let src = "";
+
+                  // ✅ STRING IMAGE (current schema)
+                  if (typeof img === "string") {
+                    src = img.startsWith("http")
+                      ? img
+                      : `${import.meta.env.VITE_API_BASE_URL}${img}`;
+                  }
+
+                  // ✅ OBJECT IMAGE (future / rider uploads safety)
+                  if (typeof img === "object" && img?.url) {
+                    src = img.url.startsWith("http")
+                      ? img.url
+                      : `${import.meta.env.VITE_API_BASE_URL}${img.url}`;
+                  }
+
+                  if (!src) return null;
+
+                  return (
+                    <img
+                      key={i}
+                      src={src}
+                      alt="Phone"
+                      className="h-28 w-full object-cover rounded-lg border border-white/10"
+                      onError={(e) => {
+                        e.currentTarget.src = "/no-image.png";
+                      }}
+                    />
+                  );
+                })}
               </div>
             )}
 
             {/* SELLER */}
-            <div className="p-3 rounded-lg bg-white/5 border border-white/10 space-y-1">
+            <div className="p-3 rounded-lg bg-white/5 border border-white/10">
               <p className="text-sm text-gray-400">Seller</p>
               <p className="text-white">{req.user?.email}</p>
               <p className="text-sm text-gray-300">
-                📞 Phone:{" "}
-                <span className="font-semibold">
-                  {req.contact?.phone || "N/A"}
-                </span>
+                📞 {req.contact?.phone || "N/A"}
               </p>
             </div>
 
-            {/* PICKUP ADDRESS */}
+            {/* ADDRESS */}
             <div className="p-4 rounded-xl bg-white/5 border border-white/10">
               <p className="text-sm font-semibold text-gray-400 mb-1">
                 Pickup Address
@@ -254,16 +255,16 @@ const AdminSellPhones = () => {
               </div>
             )}
 
-            {/* ASSIGN RIDER */}
+            {/* ASSIGN / REASSIGN RIDER */}
             {canAssignRider && (
               <AssignRider
                 requestId={req._id}
-                alreadyAssigned={false}
+                alreadyAssigned={Boolean(req.assignedRider)}
                 onAssigned={fetchRequests}
               />
             )}
 
-            {/* ASSIGNED RIDER */}
+            {/* ASSIGNED RIDER INFO */}
             {req.assignedRider && (
               <div className="p-4 rounded-xl bg-indigo-500/10 border border-indigo-500/20">
                 <p className="text-sm font-semibold text-indigo-400">

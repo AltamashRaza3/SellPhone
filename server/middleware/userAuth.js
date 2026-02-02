@@ -51,7 +51,7 @@ const userAuth = async (req, res, next) => {
       return res.status(401).json({ message: "Invalid or expired session" });
     }
 
-    if (!decoded?.sub || decoded.issuer !== "sellphone-api") {
+    if (!decoded?.sub || decoded.iss !== "sellphone-api") {
       return res.status(401).json({ message: "Invalid session token" });
     }
 

@@ -1,8 +1,17 @@
 import fs from "fs";
 import path from "path";
 import multer from "multer";
+import { fileURLToPath } from "url";
 
-const uploadDir = "uploads/pickups";
+/* ================= PROJECT ROOT ================= */
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// server/utils → server → project root
+const PROJECT_ROOT = path.resolve(__dirname, "..", "..");
+
+/* ================= ABSOLUTE UPLOAD DIR ================= */
+const uploadDir = path.join(PROJECT_ROOT, "uploads", "pickups");
 
 /* Ensure directory exists */
 if (!fs.existsSync(uploadDir)) {
@@ -10,10 +19,8 @@ if (!fs.existsSync(uploadDir)) {
 }
 
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
+  destination: (_, __, cb) => cb(null, uploadDir),
+  filename: (_, file, cb) => {
     const unique =
       Date.now() + "-" + Math.round(Math.random() * 1e9);
     cb(null, unique + path.extname(file.originalname));
@@ -22,5 +29,5 @@ const storage = multer.diskStorage({
 
 export const uploadPickupImages = multer({
   storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB per image
+  limits: { fileSize: 5 * 1024 * 1024 },
 });

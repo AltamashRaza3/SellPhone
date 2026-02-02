@@ -12,15 +12,68 @@ const __dirname = path.dirname(__filename);
 
 const router = express.Router();
 
-/* ================= MULTER ================= */
+/* ======================================================
+   ENSURE UPLOAD DIRECTORY EXISTS
+====================================================== */
+const SELL_UPLOAD_DIR = path.join(process.cwd(), "uploads", "sell");
+
+if (!fs.existsSync(SELL_UPLOAD_DIR)) {
+  fs.mkdirSync(SELL_UPLOAD_DIR, { recursive: true });
+}
+
+/* ======================================================
+   MULTER CONFIG (SELL IMAGES)
+====================================================== */
 const sellStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, path.join("uploads", "sell"));
+  destination: (_, __, cb) => {
+    cb(null, SELL_UPLOAD_DIR);
   },
-  filename: (_, file, cb) => cb(null, `${Date.now()}-${file.originalname}`),
+  filename: (_, file, cb) => {
+    cb(null, `${Date.now()}-${file.originalname}`);
+  },
 });
 
-const uploadSellImages = multer({ storage: sellStorage });
+const uploadSellImages = multer({
+  storage: sellStorage,
+  limits: { files: 5 },
+});
+
+/* ======================================================
+   VALIDATION (BEFORE CONTROLLER)
+====================================================== */
+const validateSellRequest = (req, res, next) => {
+  if (!req.files || req.files.length < 3) {
+    return res.status(400).json({
+      message: "At least 3 phone images are required",
+    });
+  }
+
+  const {
+    brand,
+    model,
+    phone,
+    storage,
+    ram,
+    color,
+    declaredCondition,
+  } = req.body;
+
+  if (
+    !brand ||
+    !model ||
+    !phone ||
+    !storage ||
+    !ram ||
+    !color ||
+    !declaredCondition
+  ) {
+    return res.status(400).json({
+      message: "Missing required sell request fields",
+    });
+  }
+
+  next();
+};
 
 /* ======================================================
    CREATE SELL REQUEST (USER)
@@ -29,6 +82,7 @@ router.post(
   "/",
   userAuth,
   uploadSellImages.array("images", 5),
+  validateSellRequest,
   createSellRequest
 );
 
@@ -49,7 +103,7 @@ router.get("/my", userAuth, async (req, res) => {
 });
 
 /* ======================================================
-   GET SINGLE SELL REQUEST (USER)  ✅ CRITICAL
+   GET SINGLE SELL REQUEST (USER)
 ====================================================== */
 router.get("/:id", userAuth, async (req, res) => {
   try {
@@ -83,7 +137,6 @@ router.put("/:id/cancel", userAuth, async (req, res) => {
       return res.status(404).json({ message: "Sell request not found" });
     }
 
-    /* ❌ HARD LOCKS */
     if (request.assignedRider?.riderId) {
       return res.status(409).json({
         message: "Cannot cancel after rider assignment",
@@ -102,7 +155,6 @@ router.put("/:id/cancel", userAuth, async (req, res) => {
       });
     }
 
-    /* ✅ CANCEL */
     request.pickup.status = "Rejected";
 
     request.statusHistory.push({
@@ -124,7 +176,7 @@ router.put("/:id/cancel", userAuth, async (req, res) => {
 });
 
 /* ======================================================
-   SELLER FINAL DECISION (AFTER RIDER VERIFICATION)
+   SELLER FINAL DECISION
 ====================================================== */
 router.put("/:id/decision", userAuth, async (req, res) => {
   try {
@@ -143,7 +195,6 @@ router.put("/:id/decision", userAuth, async (req, res) => {
       return res.status(404).json({ message: "Sell request not found" });
     }
 
-    /* 🔒 BUSINESS LOCKS */
     if (request.admin?.status !== "Approved") {
       return res.status(400).json({
         message: "Request not approved by admin yet",
@@ -162,7 +213,6 @@ router.put("/:id/decision", userAuth, async (req, res) => {
       });
     }
 
-    /* ✅ APPLY DECISION */
     request.verification.userAccepted = accept;
 
     if (!accept) {
@@ -190,7 +240,7 @@ router.put("/:id/decision", userAuth, async (req, res) => {
 });
 
 /* ======================================================
-   DOWNLOAD INVOICE (USER) ✅ FIXED
+   DOWNLOAD INVOICE (USER)
 ====================================================== */
 router.get("/:id/invoice", userAuth, async (req, res) => {
   try {
@@ -205,14 +255,10 @@ router.get("/:id/invoice", userAuth, async (req, res) => {
       });
     }
 
-    // 🔥 REMOVE leading slash from URL
     const relativePath = request.invoice.url.replace(/^\/+/, "");
-
-    // ✅ Resolve from project root
     const filePath = path.resolve(process.cwd(), relativePath);
 
     if (!fs.existsSync(filePath)) {
-      console.error("❌ Invoice file not found at:", filePath);
       return res.status(404).json({
         message: "Invoice file missing on server",
       });
@@ -230,6 +276,5 @@ router.get("/:id/invoice", userAuth, async (req, res) => {
     res.status(500).json({ message: "Failed to download invoice" });
   }
 });
-
 
 export default router;

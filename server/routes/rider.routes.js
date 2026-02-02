@@ -62,8 +62,15 @@ router.get("/pickups/:id", riderAuth, async (req, res) => {
   if (!pickup) {
     return res.status(404).json({ message: "Pickup not found" });
   }
+const data = pickup.toObject();
 
-  res.json(pickup);
+  // 🔥 CRITICAL FIX: expose user images to rider UI
+  data.phone.images =
+    data.phone.images?.length > 0
+      ? data.phone.images
+      : data.images || [];
+
+  res.json(data);
 });
 
 /* ================= UPLOAD VERIFICATION IMAGES ================= */

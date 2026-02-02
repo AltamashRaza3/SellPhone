@@ -51,7 +51,7 @@ import AdminOrderDetails from "./pages/Admin/AdminOrderDetails";
 import AdminProducts from "./pages/Admin/AdminProducts";
 import AdminAddProduct from "./pages/Admin/AdminAddProduct";
 import AdminEditProduct from "./pages/Admin/AdminEditProduct";
-import AdminSellPhones from "./pages/Admin/AdminSellPhone";
+import AdminSellPhones from "./pages/Admin/AdminSellPhones";
 import AdminTimeline from "./pages/Admin/AdminTimeline";
 import AdminInventory from "./pages/Admin/AdminInventory";
 

@@ -1,5 +1,3 @@
-import fs from "fs";
-import path from "path";
 import SellRequest from "../src/models/SellRequest.js";
 import Rider from "../models/Rider.js";
 import { calculateBasePrice } from "../utils/priceRules.js";
@@ -9,14 +7,14 @@ import { calculateBasePrice } from "../utils/priceRules.js";
 ====================================================== */
 export const createSellRequest = async (req, res) => {
   try {
-    /* ---------- VALIDATE IMAGES ---------- */
+    /* ================= IMAGE VALIDATION ================= */
     if (!req.files || req.files.length < 3) {
       return res.status(400).json({
         message: "At least 3 phone images are required",
       });
     }
 
-    /* ---------- EXTRACT BODY ---------- */
+    /* ================= BODY ================= */
     const {
       brand,
       model,
@@ -32,10 +30,13 @@ export const createSellRequest = async (req, res) => {
       pincode,
     } = req.body;
 
-    /* ---------- VALIDATE REQUIRED ---------- */
+    /* ================= REQUIRED FIELD CHECK ================= */
     if (
       !brand ||
       !model ||
+      !storage ||
+      !ram ||
+      !color ||
       !declaredCondition ||
       !purchaseYear ||
       !phone ||
@@ -45,7 +46,7 @@ export const createSellRequest = async (req, res) => {
       !pincode
     ) {
       return res.status(400).json({
-        message: "Missing required fields",
+        message: "Missing required sell request fields",
       });
     }
 
@@ -55,14 +56,12 @@ export const createSellRequest = async (req, res) => {
         message: "Invalid purchase year",
       });
     }
+    /* ================= IMAGE PATHS (SCHEMA SAFE) ================= */
+const images = req.files.map((file) => ({
+  url: `/uploads/sell/${file.filename}`,
+}));
 
-    /* ---------- IMAGE PATHS ---------- */
-    const baseUrl = `${req.protocol}://${req.get("host")}`;
-    const imageUrls = req.files.map(
-    (file) => `${baseUrl}/uploads/sell/${file.filename}`
-    );
-
-    /* ---------- PRICE CALC ---------- */
+    /* ================= PRICE CALC ================= */
     const catalog = {
       baseMarketPrice: 22000,
       depreciationPerYear: 0.12,
@@ -75,7 +74,7 @@ export const createSellRequest = async (req, res) => {
       declaredCondition,
     });
 
-    /* ---------- CREATE REQUEST ---------- */
+    /* ================= CREATE REQUEST ================= */
     const sellRequest = await SellRequest.create({
       user: {
         uid: req.user.uid,
@@ -95,7 +94,7 @@ export const createSellRequest = async (req, res) => {
         color,
         declaredCondition,
         purchaseYear: year,
-        images: imageUrls,
+        images, // ✅ RELATIVE PATHS ONLY
       },
 
       pricing: {
@@ -116,6 +115,7 @@ export const createSellRequest = async (req, res) => {
         {
           status: "Submitted",
           changedBy: "user",
+          changedAt: new Date(),
         },
       ],
     });
@@ -139,7 +139,6 @@ export const createSellRequest = async (req, res) => {
 export const assignRider = async (req, res) => {
   try {
     const { riderId, scheduledAt } = req.body;
-    const sellRequestId = req.params.id;
 
     if (!riderId) {
       return res.status(400).json({
@@ -147,20 +146,19 @@ export const assignRider = async (req, res) => {
       });
     }
 
-    const sellRequest = await SellRequest.findById(sellRequestId);
+    const sellRequest = await SellRequest.findById(req.params.id);
     if (!sellRequest) {
       return res.status(404).json({
         message: "Sell request not found",
       });
     }
 
-    /* ---------- STATE GUARD ---------- */
-if (["Picked", "Completed"].includes(sellRequest.pickup.status)) {
-  return res.status(409).json({
-    message: "Cannot reassign rider after pickup",
-  });
-}
-
+    /* ================= STATE GUARD ================= */
+    if (["Picked", "Completed"].includes(sellRequest.pickup.status)) {
+      return res.status(409).json({
+        message: "Cannot reassign rider after pickup",
+      });
+    }
 
     const rider = await Rider.findById(riderId);
     if (!rider) {
@@ -169,7 +167,6 @@ if (["Picked", "Completed"].includes(sellRequest.pickup.status)) {
       });
     }
 
-    /* ---------- ASSIGN ---------- */
     sellRequest.assignedRider = {
       riderId: rider._id,
       riderName: rider.name,
@@ -185,6 +182,7 @@ if (["Picked", "Completed"].includes(sellRequest.pickup.status)) {
     sellRequest.statusHistory.push({
       status: "RiderAssigned",
       changedBy: "admin",
+      changedAt: new Date(),
     });
 
     await sellRequest.save();
@@ -200,6 +198,7 @@ if (["Picked", "Completed"].includes(sellRequest.pickup.status)) {
     });
   }
 };
+
 /* ======================================================
    USER ACCEPT FINAL PRICE
 ====================================================== */
@@ -214,7 +213,7 @@ export const acceptFinalPrice = async (req, res) => {
       return res.status(404).json({ message: "Sell request not found" });
     }
 
-    if (!sellRequest.verification.finalPrice) {
+    if (!sellRequest.verification?.finalPrice) {
       return res.status(409).json({ message: "Final price not set yet" });
     }
 
@@ -227,14 +226,14 @@ export const acceptFinalPrice = async (req, res) => {
     sellRequest.statusHistory.push({
       status: "User Accepted Final Price",
       changedBy: "user",
+      changedAt: new Date(),
     });
 
     await sellRequest.save();
 
     res.json({ success: true });
   } catch (err) {
-    console.error(err);
+    console.error("ACCEPT FINAL PRICE ERROR:", err);
     res.status(500).json({ message: "Failed to accept price" });
   }
 };
-
