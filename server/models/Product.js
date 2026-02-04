@@ -13,9 +13,7 @@ const productSchema = new mongoose.Schema(
     /* ================= CORE ================= */
     brand: { type: String, required: true, trim: true },
     model: { type: String, required: true, trim: true },
-
     name: { type: String, index: true },
-
     price: { type: Number, required: true, min: 0 },
 
     /* ================= SPECS ================= */

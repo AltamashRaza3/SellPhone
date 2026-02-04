@@ -10,7 +10,7 @@ const AdminInventory = () => {
   const [imageMap, setImageMap] = useState({});
   const [actionId, setActionId] = useState(null);
 
-  /* ================= FETCH ================= */
+  /* ================= FETCH INVENTORY ================= */
   const fetchInventory = useCallback(async () => {
     try {
       setLoading(true);
@@ -81,6 +81,29 @@ const AdminInventory = () => {
     }
   };
 
+  /* ================= UPDATE PRICE ================= */
+  const updatePrice = async (item) => {
+    const price = Number(priceMap[item._id]);
+    if (!price || price <= 0) return toast.error("Enter valid price");
+
+    try {
+      setActionId(item._id);
+      const res = await fetch(`${API}/api/admin/inventory/${item._id}/price`, {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ price }),
+      });
+      if (!res.ok) throw new Error();
+      toast.success("Price updated");
+      fetchInventory();
+    } catch {
+      toast.error("Price update failed");
+    } finally {
+      setActionId(null);
+    }
+  };
+
   /* ================= LIST / UNLIST ================= */
   const toggleListing = async (item, status) => {
     try {
@@ -123,7 +146,9 @@ const AdminInventory = () => {
     }
   };
 
-  if (loading) return <p className="text-gray-400">Loading inventory…</p>;
+  if (loading) {
+    return <p className="text-gray-400">Loading inventory…</p>;
+  }
 
   return (
     <div className="space-y-6">
@@ -131,13 +156,13 @@ const AdminInventory = () => {
 
       {items.map((item) => {
         const phone = item.phone;
-        const canPublish =
-          item.status === "InStock" &&
-          phone.images?.length > 0 &&
-          priceMap[item._id] > 0;
+        const ownsProduct = Boolean(item.productId);
+        const isInStock = item.status === "InStock";
+        const isPublished = item.status === "Published";
 
         return (
           <div key={item._id} className="glass-card space-y-4">
+            {/* HEADER */}
             <div className="flex justify-between">
               <div>
                 <h3 className="text-lg font-semibold text-white">
@@ -153,6 +178,7 @@ const AdminInventory = () => {
               </span>
             </div>
 
+            {/* IMAGES */}
             <div className="grid grid-cols-4 gap-2">
               {phone.images?.map((img, i) => (
                 <img
@@ -183,31 +209,42 @@ const AdminInventory = () => {
               Update Images
             </button>
 
-            {item.status === "InStock" && (
-              <div className="flex gap-3">
-                <input
-                  type="number"
-                  placeholder="Selling price"
-                  value={priceMap[item._id] || ""}
-                  onChange={(e) =>
-                    setPriceMap((p) => ({
-                      ...p,
-                      [item._id]: e.target.value,
-                    }))
-                  }
-                  className="flex-1 h-10 bg-black/40 border px-3 rounded text-white"
-                />
+            {/* PRICE */}
+            <div className="flex gap-3">
+              <input
+                type="number"
+                placeholder="Selling price"
+                value={priceMap[item._id] || ""}
+                onChange={(e) =>
+                  setPriceMap((p) => ({
+                    ...p,
+                    [item._id]: e.target.value,
+                  }))
+                }
+                className="flex-1 h-10 bg-black/40 border px-3 rounded text-white"
+              />
+
+              {isInStock && (
                 <button
                   onClick={() => publishItem(item)}
-                  disabled={!canPublish || actionId === item._id}
                   className="bg-green-600 px-5 rounded text-white"
                 >
                   Publish
                 </button>
-              </div>
-            )}
+              )}
 
-            {item.status === "Published" && (
+              {isPublished && ownsProduct && (
+                <button
+                  onClick={() => updatePrice(item)}
+                  className="bg-orange-600 px-5 rounded text-white"
+                >
+                  Update Price
+                </button>
+              )}
+            </div>
+
+            {/* LIST / UNLIST */}
+            {isPublished && ownsProduct && (
               <>
                 <button
                   onClick={() => toggleListing(item, "Unlisted")}
@@ -215,6 +252,14 @@ const AdminInventory = () => {
                 >
                   Unlist Product
                 </button>
+
+                <button
+                  onClick={() => toggleListing(item, "Published")}
+                  className="w-full bg-green-600 h-10 rounded text-white"
+                >
+                  Relist Product
+                </button>
+
                 <button
                   onClick={() => markSold(item)}
                   className="w-full bg-red-600 h-10 rounded text-white"
@@ -222,15 +267,6 @@ const AdminInventory = () => {
                   Mark Sold
                 </button>
               </>
-            )}
-
-            {item.status === "Unlisted" && (
-              <button
-                onClick={() => toggleListing(item, "Published")}
-                className="w-full bg-green-600 h-10 rounded text-white"
-              >
-                Relist Product
-              </button>
             )}
           </div>
         );

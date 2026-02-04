@@ -25,14 +25,12 @@ const upload = multer({ storage });
    GET INVENTORY (ADMIN)
 ====================================================== */
 router.get("/", adminAuth, async (req, res) => {
-  const items = await InventoryItem.find()
-    .sort({ createdAt: -1 });
-
+  const items = await InventoryItem.find().sort({ createdAt: -1 });
   res.json(items);
 });
 
 /* ======================================================
-   UPDATE INVENTORY IMAGES
+   UPDATE INVENTORY IMAGES (SYNC PRODUCT)
 ====================================================== */
 router.put(
   "/:id/images",
@@ -59,12 +57,19 @@ router.put(
     item.phone.images = images;
     await item.save();
 
+    if (item.productId) {
+      await Product.updateOne(
+        { _id: item.productId },
+        { images }
+      );
+    }
+
     res.json({ success: true, images });
   }
 );
 
 /* ======================================================
-   PUBLISH INVENTORY → PRODUCT  ✅ MAIN FIX
+   PUBLISH INVENTORY → PRODUCT
 ====================================================== */
 router.post("/:id/publish", adminAuth, async (req, res) => {
   const { price, description } = req.body;
@@ -103,16 +108,15 @@ router.post("/:id/publish", adminAuth, async (req, res) => {
 
   item.status = "Published";
   item.productId = product._id;
+  item.sellingPrice = price;
   item.publishedAt = new Date();
   await item.save();
 
-  res.json({
-    success: true,
-    product,
-  });
+  res.json({ success: true, product });
 });
+
 /* ======================================================
-   UPDATE SELLING PRICE (ADMIN)
+   UPDATE SELLING PRICE (SYNC PRODUCT)
 ====================================================== */
 router.put("/:id/price", adminAuth, async (req, res) => {
   const { price } = req.body;
@@ -130,7 +134,9 @@ router.put("/:id/price", adminAuth, async (req, res) => {
     return res.status(409).json({ message: "Sold item locked" });
   }
 
-  // sync product price if published
+  item.sellingPrice = price;
+  await item.save();
+
   if (item.productId) {
     await Product.updateOne(
       { _id: item.productId },
@@ -161,8 +167,9 @@ router.post("/:id/sold", adminAuth, async (req, res) => {
 
   res.json({ success: true });
 });
+
 /* ======================================================
-   LIST / UNLIST INVENTORY (SYNC PRODUCT)
+   LIST / UNLIST PRODUCT (STORE VISIBILITY ONLY)
 ====================================================== */
 router.put("/:id/status", adminAuth, async (req, res) => {
   const { status } = req.body;
@@ -176,43 +183,16 @@ router.put("/:id/status", adminAuth, async (req, res) => {
     return res.status(404).json({ message: "Inventory not found" });
   }
 
-  if (!item.productId) {
-    return res.status(409).json({ message: "Product not published yet" });
+  if (item.status !== "Published") {
+    return res.status(409).json({
+      message: "Only published inventory can be listed/unlisted",
+    });
   }
-
-  item.status = status;
-  await item.save();
 
   await Product.updateOne(
     { _id: item.productId },
     { status }
   );
-
-  res.json({ success: true });
-});
-
-/* ======================================================
-   ARCHIVE INVENTORY (SOFT DELETE)
-====================================================== */
-router.delete("/:id", adminAuth, async (req, res) => {
-  const item = await InventoryItem.findById(req.params.id);
-  if (!item) {
-    return res.status(404).json({ message: "Inventory not found" });
-  }
-
-  if (item.status === "Sold") {
-    return res.status(409).json({ message: "Sold items cannot be deleted" });
-  }
-
-  item.status = "Unlisted";
-  await item.save();
-
-  if (item.productId) {
-    await Product.updateOne(
-      { _id: item.productId },
-      { status: "Draft" }
-    );
-  }
 
   res.json({ success: true });
 });

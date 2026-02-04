@@ -50,6 +50,10 @@ const inventoryItemSchema = new mongoose.Schema(
       required: true,
       min: 0,
     },
+    sellingPrice: {
+    type: Number,
+    min: 0,
+    },
 
     /* ================= INVENTORY STATE ================= */
     status: {
