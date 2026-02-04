@@ -1,8 +1,31 @@
 import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
 
-const AdminAddProduct = () => {
+const API_BASE_URL = "http://localhost:5000";
+
+/* ===== LOCKED ENUMS ===== */
+const CONDITIONS = ["Like New", "Excellent", "Good", "Fair"];
+const BRANDS = [
+  "Apple",
+  "Samsung",
+  "Xiaomi",
+  "OnePlus",
+  "Oppo",
+  "Vivo",
+  "Realme",
+  "Google",
+  "Motorola",
+  "Nothing",
+];
+const STORAGES = ["64GB", "128GB", "256GB", "512GB", "1TB"];
+
+const AdminAddProduct = ({
+  mode = "add", // "add" | "edit"
+  initialData = null,
+  onSave,
+  onDelete,
+}) => {
   const navigate = useNavigate();
 
   const [form, setForm] = useState({
@@ -11,36 +34,33 @@ const AdminAddProduct = () => {
     price: "",
     storage: "",
     condition: "",
-    color: "",
-    ram: "",
+    color: "", // ✅ REQUIRED (FREE TEXT)
+    ram: "", // ✅ REQUIRED
     description: "",
-    image: "",
+    images: "",
   });
 
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
-  /* ---------------- OPTIONS ---------------- */
-  const BRANDS = [
-    "Apple",
-    "Samsung",
-    "Xiaomi",
-    "OnePlus",
-    "Oppo",
-    "Vivo",
-    "Realme",
-    "Google",
-    "Motorola",
-    "Nothing",
-  ];
+  /* ================= PREFILL (EDIT MODE) ================= */
+  useEffect(() => {
+    if (mode === "edit" && initialData) {
+      setForm({
+        brand: initialData.brand || "",
+        model: initialData.model || "",
+        price: initialData.price || "",
+        storage: initialData.storage || "",
+        condition: initialData.condition || "",
+        color: initialData.color || "",
+        ram: initialData.ram || "",
+        description: initialData.description || "",
+        images: (initialData.images || []).join(", "),
+      });
+    }
+  }, [mode, initialData]);
 
-  const STORAGES = ["64GB", "128GB", "256GB", "512GB", "1TB"];
-
-  const CONDITIONS = ["Like New", "Excellent", "Good", "Fair"];
-
-  const COLORS = ["Black", "White", "Blue", "Green", "Red", "Silver", "Gold"];
-
-  /* ---------------- VALIDATION ---------------- */
+  /* ================= VALIDATION ================= */
   const validateForm = () => {
     const e = {};
 
@@ -49,22 +69,29 @@ const AdminAddProduct = () => {
     if (!form.price || Number(form.price) <= 0)
       e.price = "Valid price required";
     if (!form.storage) e.storage = "Storage required";
-    if (!form.condition) e.condition = "Condition required";
+    if (!CONDITIONS.includes(form.condition))
+      e.condition = "Select valid condition";
+    if (!form.color.trim()) e.color = "Color is required";
+    if (!form.ram.trim()) e.ram = "RAM is required";
+
+    const imgs = form.images
+      .split(",")
+      .map((i) => i.trim())
+      .filter(Boolean);
+
+    if (imgs.length === 0) e.images = "At least one image URL is required";
 
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
-  /* ---------------- SUBMIT ---------------- */
+  /* ================= SUBMIT ================= */
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     if (!validateForm()) {
-      toast.error("Please fix the highlighted errors");
+      toast.error("Please fix the form errors");
       return;
     }
-
-    setLoading(true);
 
     const payload = {
       brand: form.brand,
@@ -72,52 +99,57 @@ const AdminAddProduct = () => {
       price: Number(form.price),
       storage: form.storage,
       condition: form.condition,
-      isActive: true,
+      color: form.color.trim(),
+      ram: form.ram.trim(),
+      description: form.description || undefined,
+      images: form.images
+        .split(",")
+        .map((i) => i.trim())
+        .filter(Boolean),
     };
 
-    if (form.color) payload.color = form.color;
-    if (form.ram) payload.ram = form.ram.trim();
-    if (form.description) payload.description = form.description.trim();
-    if (form.image) payload.image = form.image.trim();
+    setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:5000/api/products", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      if (mode === "edit") {
+        await onSave(payload);
+      } else {
+        const res = await fetch(`${API_BASE_URL}/api/products`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ ...payload, status: "Published" }),
+        });
 
-      const data = await res.json();
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message);
 
-      if (!res.ok) {
-        throw new Error(data.message || "Product creation failed");
+        toast.success("Product created successfully");
+        navigate("/admin/products");
       }
-
-      toast.success("✅ Product created successfully");
-      navigate("/admin/products");
     } catch (err) {
-      toast.error(err.message);
+      toast.error(err.message || "Action failed");
     } finally {
       setLoading(false);
     }
   };
 
-  /* ---------------- UI ---------------- */
+  /* ================= UI ================= */
   return (
-    <div className="max-w-2xl mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-6 text-white">Add New Product</h1>
+    <div className="max-w-2xl mx-auto p-6 text-white">
+      <h1 className="text-2xl font-bold mb-6">
+        {mode === "edit" ? "Edit Product" : "Add New Product"}
+      </h1>
 
       <form
         onSubmit={handleSubmit}
-        className="bg-black/60 p-6 rounded-xl space-y-4"
+        className="space-y-4 bg-black/60 p-6 rounded-xl"
       >
         {/* BRAND */}
         <select
           value={form.brand}
           onChange={(e) => setForm({ ...form, brand: e.target.value })}
-          className={`w-full px-4 py-3 rounded bg-black border text-white ${
-            errors.brand ? "border-red-500" : "border-white/20"
-          }`}
+          className="w-full p-3 bg-black border border-white/20 rounded"
         >
           <option value="">Select Brand</option>
           {BRANDS.map((b) => (
@@ -126,37 +158,27 @@ const AdminAddProduct = () => {
             </option>
           ))}
         </select>
-        {errors.brand && <p className="text-red-400 text-sm">{errors.brand}</p>}
+        {errors.brand && <p className="text-red-400">{errors.brand}</p>}
 
-        {/* MODEL */}
         <input
-          type="text"
-          placeholder="MODEL"
+          placeholder="Model"
           value={form.model}
           onChange={(e) => setForm({ ...form, model: e.target.value })}
-          className={`w-full px-4 py-3 rounded bg-black border text-white ${
-            errors.model ? "border-red-500" : "border-white/20"
-          }`}
+          className="w-full p-3 bg-black border border-white/20 rounded"
         />
 
-        {/* PRICE */}
         <input
           type="number"
-          placeholder="PRICE"
+          placeholder="Price"
           value={form.price}
           onChange={(e) => setForm({ ...form, price: e.target.value })}
-          className={`w-full px-4 py-3 rounded bg-black border text-white ${
-            errors.price ? "border-red-500" : "border-white/20"
-          }`}
+          className="w-full p-3 bg-black border border-white/20 rounded"
         />
 
-        {/* STORAGE */}
         <select
           value={form.storage}
           onChange={(e) => setForm({ ...form, storage: e.target.value })}
-          className={`w-full px-4 py-3 rounded bg-black border text-white ${
-            errors.storage ? "border-red-500" : "border-white/20"
-          }`}
+          className="w-full p-3 bg-black border border-white/20 rounded"
         >
           <option value="">Select Storage</option>
           {STORAGES.map((s) => (
@@ -166,13 +188,10 @@ const AdminAddProduct = () => {
           ))}
         </select>
 
-        {/* CONDITION */}
         <select
           value={form.condition}
           onChange={(e) => setForm({ ...form, condition: e.target.value })}
-          className={`w-full px-4 py-3 rounded bg-black border text-white ${
-            errors.condition ? "border-red-500" : "border-white/20"
-          }`}
+          className="w-full p-3 bg-black border border-white/20 rounded"
         >
           <option value="">Select Condition</option>
           {CONDITIONS.map((c) => (
@@ -181,51 +200,61 @@ const AdminAddProduct = () => {
             </option>
           ))}
         </select>
+        {errors.condition && <p className="text-red-400">{errors.condition}</p>}
 
-        {/* OPTIONAL */}
-        <select
+        {/* COLOR (FREE TEXT REQUIRED) */}
+        <input
+          placeholder="Color (e.g. Jungle Green)"
           value={form.color}
           onChange={(e) => setForm({ ...form, color: e.target.value })}
-          className="w-full px-4 py-3 rounded bg-black border border-white/20 text-white"
-        >
-          <option value="">Select Color (optional)</option>
-          {COLORS.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
+          className="w-full p-3 bg-black border border-white/20 rounded"
+        />
+        {errors.color && <p className="text-red-400">{errors.color}</p>}
 
+        {/* RAM REQUIRED */}
         <input
-          type="text"
-          placeholder="RAM (optional)"
+          placeholder="RAM (e.g. 8GB, 12GB)"
           value={form.ram}
           onChange={(e) => setForm({ ...form, ram: e.target.value })}
-          className="w-full px-4 py-3 rounded bg-black border border-white/20 text-white"
+          className="w-full p-3 bg-black border border-white/20 rounded"
         />
+        {errors.ram && <p className="text-red-400">{errors.ram}</p>}
 
         <input
-          type="text"
-          placeholder="IMAGE URL (optional)"
-          value={form.image}
-          onChange={(e) => setForm({ ...form, image: e.target.value })}
-          className="w-full px-4 py-3 rounded bg-black border border-white/20 text-white"
+          placeholder="Image URLs (comma separated)"
+          value={form.images}
+          onChange={(e) => setForm({ ...form, images: e.target.value })}
+          className="w-full p-3 bg-black border border-white/20 rounded"
         />
+        {errors.images && <p className="text-red-400">{errors.images}</p>}
 
         <textarea
-          placeholder="DESCRIPTION (optional)"
+          placeholder="Description (optional)"
           value={form.description}
           onChange={(e) => setForm({ ...form, description: e.target.value })}
-          rows={3}
-          className="w-full px-4 py-3 rounded bg-black border border-white/20 text-white"
+          className="w-full p-3 bg-black border border-white/20 rounded"
         />
 
         <button
           disabled={loading}
-          className="w-full bg-orange-500 hover:bg-orange-600 py-3 rounded text-white font-semibold transition disabled:opacity-50"
+          className="w-full bg-orange-500 py-3 rounded font-semibold"
         >
-          {loading ? "Saving..." : "Save Product"}
+          {loading
+            ? "Saving..."
+            : mode === "edit"
+              ? "Update Product"
+              : "Create Product"}
         </button>
+
+        {mode === "edit" && (
+          <button
+            type="button"
+            onClick={onDelete}
+            className="w-full bg-red-500 py-2 rounded"
+          >
+            Delete Product
+          </button>
+        )}
       </form>
     </div>
   );

@@ -1,13 +1,26 @@
-import { useSelector } from "react-redux";
+import { useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { Link } from "react-router-dom";
 import { FiEdit, FiPlus } from "react-icons/fi";
+import { fetchAdminProducts } from "../../redux/slices/adminProductsSlice";
 
 const AdminProducts = () => {
-  const phones = useSelector((state) => state.phones?.items || []);
-  const loading = useSelector((state) => state.phones?.loading);
+  const dispatch = useDispatch();
+
+  const { products, loading, error } = useSelector(
+    (state) => state.adminProducts,
+  );
+
+  useEffect(() => {
+    dispatch(fetchAdminProducts());
+  }, [dispatch]);
 
   if (loading) {
     return <div className="p-6 text-white text-lg">Loading products…</div>;
+  }
+
+  if (error) {
+    return <div className="p-6 text-red-400">{error}</div>;
   }
 
   return (
@@ -26,7 +39,7 @@ const AdminProducts = () => {
       </div>
 
       {/* Empty State */}
-      {phones.length === 0 ? (
+      {products.length === 0 ? (
         <div className="text-gray-400">
           No products found. Add your first product.
         </div>
@@ -43,18 +56,18 @@ const AdminProducts = () => {
               </tr>
             </thead>
             <tbody>
-              {phones.map((phone) => (
+              {products.map((product) => (
                 <tr
-                  key={phone._id}
+                  key={product._id}
                   className="border-t border-white/10 hover:bg-white/5"
                 >
-                  <td className="p-3">{phone.model || "—"}</td>
-                  <td className="p-3 capitalize">{phone.brand || "—"}</td>
-                  <td className="p-3">₹{phone.price ?? "—"}</td>
-                  <td className="p-3">{phone.condition || "—"}</td>
+                  <td className="p-3">{product.model}</td>
+                  <td className="p-3">{product.brand}</td>
+                  <td className="p-3">₹{product.price}</td>
+                  <td className="p-3">{product.condition}</td>
                   <td className="p-3">
                     <Link
-                      to={`/admin/products/edit/${phone._id}`}
+                      to={`/admin/products/edit/${product._id}`}
                       className="inline-flex items-center gap-1 text-indigo-400 hover:text-indigo-300"
                     >
                       <FiEdit />

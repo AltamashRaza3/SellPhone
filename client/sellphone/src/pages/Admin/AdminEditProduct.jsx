@@ -1,36 +1,80 @@
+import { useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useSelector, useDispatch } from "react-redux";
-import AdminAddProduct from "./AdminAddProduct";
-import {
-  updateProductAndPublish,
-  deleteProductAndPublish,
-} from "../../redux/slices/adminProductsSlice";
+import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-hot-toast";
+import AdminAddProduct from "./AdminAddProduct";
+import { fetchAdminProducts } from "../../redux/slices/adminProductsSlice";
+import { API_BASE_URL } from "../../config/api";
 
 const AdminEditProduct = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
-  const product = useSelector((state) =>
-    state.adminProducts.products.find((p) => p._id === id)
-  );
+  const { products, loading } = useSelector((state) => state.adminProducts);
 
-  if (!product) {
-    return <div className="p-6 text-white">Product not found</div>;
+  useEffect(() => {
+    if (!products.length) {
+      dispatch(fetchAdminProducts());
+    }
+  }, [dispatch, products.length]);
+
+  const product = products.find((p) => p._id === id);
+
+  if (loading) {
+    return <div className="p-6 text-white">Loading...</div>;
   }
 
-  const onSave = (data) => {
-    dispatch(updateProductAndPublish({ ...product, ...data }));
-    toast.success("Product updated");
-    navigate("/admin/products");
+  if (!product) {
+    return <div className="p-6 text-red-400">Product not found</div>;
+  }
+
+  /* ================= SAVE ================= */
+  const onSave = async (data) => {
+    try {
+      const res = await fetch(
+        `${API_BASE_URL}/api/products/${product._id}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify(data),
+        },
+      );
+
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message);
+
+      toast.success("Product updated");
+      dispatch(fetchAdminProducts());
+      navigate("/admin/products");
+    } catch (err) {
+      toast.error(err.message || "Update failed");
+    }
   };
 
-  const onDelete = () => {
+  /* ================= DELETE ================= */
+  const onDelete = async () => {
     if (!window.confirm("Delete this product permanently?")) return;
-    dispatch(deleteProductAndPublish(product._id));
-    toast.success("Product deleted");
-    navigate("/admin/products");
+
+    try {
+      const res = await fetch(
+        `${API_BASE_URL}/api/products/${product._id}`,
+        {
+          method: "DELETE",
+          credentials: "include",
+        },
+      );
+
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message);
+
+      toast.success("Product deleted");
+      dispatch(fetchAdminProducts());
+      navigate("/admin/products");
+    } catch (err) {
+      toast.error(err.message || "Delete failed");
+    }
   };
 
   return (

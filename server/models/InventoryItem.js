@@ -11,7 +11,7 @@ const inventoryItemSchema = new mongoose.Schema(
       index: true,
     },
 
-    /* ================= PHONE ================= */
+    /* ================= PHONE SNAPSHOT ================= */
     phone: {
       brand: { type: String, required: true },
       model: { type: String, required: true },
@@ -27,34 +27,35 @@ const inventoryItemSchema = new mongoose.Schema(
 
       images: {
         type: [String],
-        default:[],
+        default: [],
       },
     },
 
-    /* ================= PRICING ================= */
+    /* ================= PROCUREMENT ================= */
     purchasePrice: {
       type: Number,
       required: true,
     },
 
-    sellingPrice: {
-      type: Number,
-    },
-
-    /* ================= STATUS ================= */
+    /* ================= INVENTORY STATE ================= */
     status: {
       type: String,
-      enum: ["Draft", "Available", "Unlisted", "Sold"],
-      default: "Draft",
+      enum: ["InStock", "Published", "Sold"],
+      default: "InStock",
       index: true,
     },
 
+    /* ================= LINKS ================= */
+    productId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Product",
+    },
+
     /* ================= METADATA ================= */
-    listedAt: Date,
+    publishedAt: Date,
     soldAt: Date,
   },
   { timestamps: true }
 );
 
-export default mongoose.models.InventoryItem ||
-  mongoose.model("InventoryItem", inventoryItemSchema);
+export default mongoose.model("InventoryItem", inventoryItemSchema);

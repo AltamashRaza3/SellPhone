@@ -15,12 +15,10 @@ const PhoneCard = ({ phone }) => {
   /* ================= IMAGE RESOLUTION ================= */
   let imageSrc = noImage;
 
-  // Inventory / New products
   if (Array.isArray(phone.images) && phone.images.length > 0) {
-    imageSrc = `${API_BASE_URL}${phone.images[0]}`;
-  }
-  // Legacy products (single image field)
-  else if (typeof phone.image === "string" && phone.image.startsWith("http")) {
+    const img = phone.images[0];
+    imageSrc = img.startsWith("http") ? img : `${API_BASE_URL}${img}`;
+  } else if (typeof phone.image === "string") {
     imageSrc = phone.image;
   }
 
@@ -43,7 +41,7 @@ const PhoneCard = ({ phone }) => {
   return (
     <Link to={`/phone/${phone._id}`} className="block h-full">
       <div className="glass-card h-full flex flex-col hover:shadow-xl transition">
-        {/* ================= IMAGE ================= */}
+        {/* IMAGE */}
         <div className="h-40 flex items-center justify-center mb-4 overflow-hidden">
           <img
             src={imageSrc}
@@ -56,7 +54,7 @@ const PhoneCard = ({ phone }) => {
           />
         </div>
 
-        {/* ================= INFO ================= */}
+        {/* INFO */}
         <div className="flex-1 text-center">
           <h3 className="font-semibold leading-snug">
             {phone.brand} {phone.model}
@@ -71,7 +69,7 @@ const PhoneCard = ({ phone }) => {
           </p>
         </div>
 
-        {/* ================= CTA ================= */}
+        {/* CTA */}
         <button
           onClick={handleAddToCart}
           className="mt-4 w-full py-2 rounded-lg font-medium bg-orange-500 hover:bg-orange-600 text-white transition"

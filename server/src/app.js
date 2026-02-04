@@ -4,7 +4,7 @@ import cookieParser from "cookie-parser";
 import path from "path";
 import { fileURLToPath } from "url";
 import invoiceRoutes from "../routes/invoice.routes.js";
-
+import adminProductsRoutes from "../routes/adminProducts.routes.js";
 
 /* ================= MIDDLEWARE ================= */
 import { apiLimiter } from "../middleware/rateLimiter.js";
@@ -59,6 +59,13 @@ app.use(
   express.static(path.join(__dirname, "..", "uploads"))
 );
 
+
+// 🔹 Serve invoices (PDFs)
+app.use(
+  "/invoices",
+  express.static(path.join(__dirname, "..", "uploads", "invoices"))
+);
+
 /* ================= HEALTH CHECK ================= */
 app.get("/api/health", (req, res) => {
   res.json({
@@ -85,7 +92,7 @@ app.use("/api/admin/orders", adminOrderRoutes);
 app.use("/api/admin/sell-requests", adminSellRequestRoutes);
 app.use("/api/admin/riders", adminRiderRoutes);
 app.use("/api/admin/inventory", adminInventoryRoutes);
-
+app.use("/api/admin", adminProductsRoutes);
 /* ================= RIDER ================= */
 app.use("/api/rider", riderRoutes);
 

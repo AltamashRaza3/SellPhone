@@ -2,72 +2,64 @@ import mongoose from "mongoose";
 
 const productSchema = new mongoose.Schema(
   {
-    brand: {
-      type: String,
-      required: true,
-      trim: true,
+    /* ================= SOURCE ================= */
+    inventoryItemId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "InventoryItem",
+      unique: true,
+      sparse: true,
     },
 
-    model: {
-      type: String,
-      required: true,
-      trim: true,
-    },
+    /* ================= CORE ================= */
+    brand: { type: String, required: true, trim: true },
+    model: { type: String, required: true, trim: true },
 
-    price: {
-      type: Number,
-      required: true,
-      min: 0,
-    },
+    name: { type: String, index: true },
 
-    storage: {
-      type: String,
-      required: true,
-    },
+    price: { type: Number, required: true, min: 0 },
+
+    /* ================= SPECS ================= */
+    storage: { type: String, required: true },
+    ram: { type: String, required: true },     // ✅ compulsory
+    color: { type: String, required: true },   // ✅ compulsory (free text)
 
     condition: {
       type: String,
-      required: true,
       enum: ["Like New", "Excellent", "Good", "Fair"],
+      required: true,
     },
 
-    color: {
+    description: { type: String, default: "" },
+
+    /* ================= MEDIA ================= */
+    images: {
+      type: [String],
+      required: true,
+      validate: [(v) => v.length > 0, "At least one image is required"],
+    },
+
+    /* ================= STORE STATE ================= */
+    status: {
       type: String,
-      default: "",
+      enum: ["Draft", "Published", "Sold"],
+      default: "Draft",
+      index: true,
     },
 
-    ram: {
-      type: String,
-      default: "",
-    },
+    stock: { type: Number, default: 1 },
 
-    description: {
-      type: String,
-      default: "",
-    },
-
-    image: {
-      type: String,
-      default: "https://via.placeholder.com/300x400?text=No+Image",
-    },
-
-    isActive: {
-      type: Boolean,
-      default: true,
-    },
-    inventoryItemId: {
-     type: mongoose.Schema.Types.ObjectId,
-     ref: "InventoryItem",
-     unique: true,
-     sparse: true, // allows old products without inventory
-},
-
+    publishedAt: Date,
+    soldAt: Date,
   },
-  {
-    timestamps: true, // adds createdAt & updatedAt
-  }
+  { timestamps: true }
 );
 
-const Product = mongoose.model("Product", productSchema);
+/* ================= AUTO NAME ================= */
+productSchema.pre("save", function () {
+  if (!this.name) {
+    this.name = `${this.brand} ${this.model}`;
+  }
+});
 
-export default Product;
+export default mongoose.models.Product ||
+  mongoose.model("Product", productSchema);

@@ -8,8 +8,7 @@ import Product from "../models/Product.js";
 export const getInventory = async (req, res) => {
   try {
     const items = await InventoryItem.find()
-      .sort({ createdAt: -1 })
-      .lean();
+      .sort({ createdAt: -1 });
 
     res.json(items);
   } catch (err) {
@@ -23,7 +22,7 @@ export const getInventory = async (req, res) => {
 ====================================================== */
 export const createInventoryFromSellRequest = async (sellRequestId) => {
   try {
-    const sell = await SellRequest.findById(sellRequestId).lean();
+    const sell = await SellRequest.findById(sellRequestId);
     if (!sell) return;
 
     const exists = await InventoryItem.findOne({
@@ -32,147 +31,23 @@ export const createInventoryFromSellRequest = async (sellRequestId) => {
     if (exists) return;
 
     await InventoryItem.create({
-  sellRequestId: sell._id,
+      sellRequestId: sell._id,
 
-  phone: {
-    brand: sell.phone.brand,
-    model: sell.phone.model,
-    storage: sell.phone.storage,
-    ram: sell.phone.ram,
-    color: sell.phone.color,
+      phone: {
+        brand: sell.phone.brand,
+        model: sell.phone.model,
+        storage: sell.phone.storage,
+        ram: sell.phone.ram,
+        color: sell.phone.color,
+        condition: sell.phone.declaredCondition,
+        images: [],
+      },
 
-    
-    condition: sell.phone.declaredCondition,
-
-    images: [],
-  },
-
-  purchasePrice: sell.verification.finalPrice,
-  status: "Draft",
-});
-
+      purchasePrice: sell.verification.finalPrice,
+      status: "InStock",
+    });
   } catch (err) {
     console.error("CREATE INVENTORY ERROR:", err);
-  }
-};
-
-/* ======================================================
-   UPDATE SELLING PRICE (ADMIN)
-====================================================== */
-export const updateInventoryPrice = async (req, res) => {
-  try {
-    const { sellingPrice } = req.body;
-
-    if (!sellingPrice || sellingPrice <= 0) {
-      return res.status(400).json({ message: "Invalid selling price" });
-    }
-
-    const item = await InventoryItem.findById(req.params.id);
-    if (!item) {
-      return res.status(404).json({ message: "Inventory item not found" });
-    }
-
-    if (item.status === "Sold") {
-      return res.status(409).json({
-        message: "Sold items cannot be modified",
-      });
-    }
-
-    if (!item.phone.images || item.phone.images.length === 0) {
-      return res.status(400).json({
-        message: "Upload product images before setting price",
-      });
-    }
-
-    item.sellingPrice = sellingPrice;
-    item.status = "Available";
-    item.listedAt = new Date();
-    await item.save();
-
-    /* 🔄 Sync Product */
-    let product = await Product.findOne({
-      inventoryItemId: item._id,
-    });
-
-    if (product) {
-      product.price = sellingPrice;
-      product.images = item.phone.images;
-      product.isActive = true;
-      await product.save();
-    } else {
-      await Product.create({
-        inventoryItemId: item._id,
-        brand: item.phone.brand,
-        model: item.phone.model,
-        storage: item.phone.storage,
-        ram: item.phone.ram,
-        color: item.phone.color,
-        condition: item.phone.condition,
-        price: sellingPrice,
-        stock: 1,
-        isActive: true,
-        images: item.phone.images,
-        description: "Verified refurbished phone",
-      });
-    }
-
-    res.json({ success: true });
-  } catch (err) {
-    console.error("UPDATE PRICE ERROR:", err);
-    res.status(500).json({ message: "Failed to update price" });
-  }
-};
-
-/* ======================================================
-   UPDATE INVENTORY STATUS (ADMIN)
-====================================================== */
-export const updateInventoryStatus = async (req, res) => {
-  try {
-    const { status } = req.body;
-
-    if (!["Available", "Unlisted", "Sold"].includes(status)) {
-      return res.status(400).json({ message: "Invalid status" });
-    }
-
-    const item = await InventoryItem.findById(req.params.id);
-    if (!item) {
-      return res.status(404).json({ message: "Inventory item not found" });
-    }
-
-    if (item.status === "Sold") {
-      return res.status(409).json({
-        message: "Sold items cannot be modified",
-      });
-    }
-
-    if (status === "Available" && (!item.phone.images || item.phone.images.length === 0)) {
-      return res.status(400).json({
-        message: "Cannot make item available without images",
-      });
-    }
-
-    item.status = status;
-
-    if (status === "Available") {
-      item.listedAt = new Date();
-    }
-
-    if (status === "Sold") {
-      item.soldAt = new Date();
-    }
-
-    await item.save();
-
-    /* 🔄 Sync Product Active State */
-    await Product.updateOne(
-      { inventoryItemId: item._id },
-      { isActive: status === "Available" }
-    );
-
-    res.json({ success: true });
-  } catch (err) {
-    console.error("UPDATE STATUS ERROR:", err);
-    res.status(500).json({ message: "Failed to update status" });
   }
 };
 
@@ -187,35 +62,96 @@ export const updateInventoryImages = async (req, res) => {
     }
 
     if (item.status === "Sold") {
-      return res.status(409).json({
-        message: "Sold items cannot be modified",
-      });
+      return res.status(409).json({ message: "Sold items locked" });
     }
 
-    if (!req.files || req.files.length === 0) {
-      return res.status(400).json({
-        message: "At least one image is required",
-      });
+    if (!req.files?.length) {
+      return res.status(400).json({ message: "Images required" });
     }
 
-    const imagePaths = req.files.map(
+    const images = req.files.map(
       (file) => `/uploads/inventory/${file.filename}`
     );
 
-    item.phone.images = imagePaths;
+    item.phone.images = images;
+    await item.save();
+
+    res.json({ success: true, images });
+  } catch (err) {
+    console.error("UPDATE IMAGES ERROR:", err);
+    res.status(500).json({ message: "Failed to update images" });
+  }
+};
+
+/* ======================================================
+   PUBLISH INVENTORY → PRODUCT (ADMIN)
+====================================================== */
+export const publishInventoryItem = async (req, res) => {
+  try {
+    const { price, description } = req.body;
+
+    if (!price || price <= 0) {
+      return res.status(400).json({ message: "Valid price required" });
+    }
+
+    const item = await InventoryItem.findById(req.params.id);
+    if (!item) {
+      return res.status(404).json({ message: "Inventory item not found" });
+    }
+
+    if (!item.phone.images || item.phone.images.length === 0) {
+      return res.status(400).json({ message: "Inventory has no images" });
+    }
+
+    const product = await Product.create({
+      inventoryItemId: item._id,
+      brand: item.phone.brand,
+      model: item.phone.model,
+      storage: item.phone.storage,
+      ram: item.phone.ram,
+      color: item.phone.color,
+      condition: item.phone.condition,
+      price,
+      images: item.phone.images,   // 🔥 THIS WAS MISSING
+      description,
+      status: "Published",
+      publishedAt: new Date(),
+    });
+
+    item.status = "Published";
+    item.productId = product._id;
+    item.publishedAt = new Date();
+    await item.save();
+
+    res.json({ success: true, product });
+  } catch (err) {
+    console.error("PUBLISH INVENTORY ERROR:", err);
+    res.status(500).json({ message: "Failed to publish inventory item" });
+  }
+};
+
+/* ======================================================
+   MARK INVENTORY AS SOLD (SYNC)
+====================================================== */
+export const markInventorySold = async (req, res) => {
+  try {
+    const item = await InventoryItem.findById(req.params.id);
+    if (!item) {
+      return res.status(404).json({ message: "Inventory item not found" });
+    }
+
+    item.status = "Sold";
+    item.soldAt = new Date();
     await item.save();
 
     await Product.updateOne(
       { inventoryItemId: item._id },
-      { images: imagePaths }
+      { status: "Sold", soldAt: new Date() }
     );
 
-    res.json({
-      success: true,
-      images: imagePaths,
-    });
+    res.json({ success: true });
   } catch (err) {
-    console.error("UPDATE IMAGES ERROR:", err);
-    res.status(500).json({ message: "Failed to update images" });
+    console.error("MARK SOLD ERROR:", err);
+    res.status(500).json({ message: "Failed to mark item sold" });
   }
 };

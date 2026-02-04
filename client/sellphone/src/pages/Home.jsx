@@ -64,6 +64,7 @@ const Home = () => {
     setPrice("All");
     closeFilters();
   };
+console.log("PHONES FROM REDUX:", phones);
 
   return (
     
