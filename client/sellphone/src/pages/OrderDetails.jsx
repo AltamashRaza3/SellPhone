@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import axios from "../utils/axios";
-import { jsPDF } from "jspdf";
 import { toast } from "react-hot-toast";
 import OrderTimeline from "../components/OrderTimeline";
 import OrderStatusBadge from "../components/OrderStatusBadge";
@@ -28,6 +27,7 @@ const OrderDetails = () => {
     fetchOrder();
   }, [id]);
 
+  /* ================= LOADING ================= */
   if (loading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center text-gray-400">
@@ -36,6 +36,7 @@ const OrderDetails = () => {
     );
   }
 
+  /* ================= NOT FOUND ================= */
   if (!order) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center text-gray-400">
@@ -43,34 +44,6 @@ const OrderDetails = () => {
       </div>
     );
   }
-
-  /* ================= DOWNLOAD INVOICE ================= */
-  const downloadInvoice = () => {
-    const doc = new jsPDF();
-
-    doc.setFontSize(16);
-    doc.text("Order Invoice", 20, 20);
-
-    doc.setFontSize(10);
-    doc.text(`Order ID: ${order._id}`, 20, 30);
-    doc.text(`Status: ${order.status}`, 20, 36);
-    doc.text(`Total Amount: ₹${order.totalAmount}`, 20, 42);
-
-    let y = 55;
-    order.items.forEach((item, idx) => {
-      const phone = item.phone;
-      doc.text(
-        `${idx + 1}. ${phone.brand} ${phone.model} (${phone.color || "N/A"}, ${
-          phone.storage || "N/A"
-        }) x${item.quantity}`,
-        20,
-        y
-      );
-      y += 7;
-    });
-
-    doc.save(`invoice-${order._id}.pdf`);
-  };
 
   /* ================= CANCEL ORDER ================= */
   const handleCancelOrder = async () => {
@@ -87,8 +60,8 @@ const OrderDetails = () => {
 
   return (
     <div className="flex justify-center px-4 py-10 bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 min-h-screen">
-      {/* MAIN CONTAINER – 70% WIDTH ON LARGE SCREENS */}
       <div className="w-full lg:w-[70%] max-w-6xl space-y-8">
+        {/* BACK */}
         <Link to="/orders" className="text-sm text-orange-400 hover:underline">
           ← Back to My Orders
         </Link>
@@ -96,9 +69,9 @@ const OrderDetails = () => {
         <h1 className="text-3xl font-semibold text-white">Order Details</h1>
 
         {/* ================= ORDER INFO ================= */}
-        <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur p-6 space-y-3">
+        <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur p-6 space-y-4">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-            <div className="space-y-1 text-sm text-gray-300">
+            <div className="text-sm text-gray-300 space-y-1">
               <p>
                 <span className="text-gray-400">Order ID:</span> {order._id}
               </p>
@@ -108,12 +81,9 @@ const OrderDetails = () => {
               </p>
             </div>
 
-            <div className="text-sm">
-              <span className="text-gray-400">Status:</span>{" "}
-              <div className="flex items-center gap-3">
-                <span className="text-gray-400 text-sm">Status:</span>
-                <OrderStatusBadge status={order.status} />
-              </div>
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-gray-400">Status:</span>
+              <OrderStatusBadge status={order.status} />
             </div>
           </div>
 
@@ -181,12 +151,18 @@ const OrderDetails = () => {
 
         {/* ================= INVOICE ================= */}
         <div className="flex justify-end">
-          <button
-            onClick={downloadInvoice}
-            className="px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-sm font-medium"
-          >
-            Download Invoice (PDF)
-          </button>
+          {order.status === "Delivered" ? (
+            <a
+              href={`${import.meta.env.VITE_API_BASE_URL}/api/invoices/order/${order._id}`}
+              className="px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-sm font-medium"
+            >
+              Download Invoice
+            </a>
+          ) : (
+            <p className="text-sm text-gray-400">
+              Invoice will be available after delivery
+            </p>
+          )}
         </div>
       </div>
     </div>

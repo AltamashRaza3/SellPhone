@@ -1,5 +1,6 @@
 import Order from "../models/Order.js";
 import InventoryItem from "../models/InventoryItem.js";
+import { generateOrderInvoice } from "../utils/generateOrderInvoice.js";
 
 /* ======================================================
    STATUS TRANSITIONS (BACKEND AUTHORITY)
@@ -24,6 +25,8 @@ export const createOrder = async (req, res) => {
     if (!items?.length || !totalAmount || !shippingAddress) {
       return res.status(400).json({ message: "Invalid order data" });
     }
+
+    // Optional inventory validation
     for (const item of items) {
       if (item.inventoryId) {
         const inventory = await InventoryItem.findById(item.inventoryId);
@@ -61,7 +64,7 @@ export const createOrder = async (req, res) => {
 };
 
 /* ======================================================
-   GET USER ORDERS
+   GET USER ORDERS (SAFE)
    GET /api/orders/my
 ====================================================== */
 export const getUserOrders = async (req, res) => {
@@ -70,7 +73,16 @@ export const getUserOrders = async (req, res) => {
       .sort({ createdAt: -1 })
       .lean();
 
-    return res.status(200).json(orders);
+    const safeOrders = orders.map((order) => {
+      if (order.status !== "Delivered") {
+        delete order.invoiceUrl;
+        delete order.invoiceNumber;
+        delete order.invoiceGenerated;
+      }
+      return order;
+    });
+
+    return res.status(200).json(safeOrders);
   } catch (error) {
     console.error("❌ GET USER ORDERS ERROR:", error);
     return res.status(500).json([]);
@@ -78,7 +90,7 @@ export const getUserOrders = async (req, res) => {
 };
 
 /* ======================================================
-   GET SINGLE ORDER (USER SAFE + ADMIN)
+   GET SINGLE ORDER (USER + ADMIN SAFE)
    GET /api/orders/:id
 ====================================================== */
 export const getOrderById = async (req, res) => {
@@ -89,11 +101,15 @@ export const getOrderById = async (req, res) => {
       return res.status(404).json({ message: "Order not found" });
     }
 
-    if (
-      req.user.role !== "admin" &&
-      order.user.uid !== req.user.uid
-    ) {
+    if (req.user.role !== "admin" && order.user.uid !== req.user.uid) {
       return res.status(403).json({ message: "Access denied" });
+    }
+
+    // 🔒 Hide invoice until delivered
+    if (order.status !== "Delivered") {
+      delete order.invoiceUrl;
+      delete order.invoiceNumber;
+      delete order.invoiceGenerated;
     }
 
     return res.status(200).json(order);
@@ -146,9 +162,8 @@ export const cancelOrder = async (req, res) => {
   }
 };
 
-
 /* ======================================================
-   ADMIN – GET ALL ORDERS
+   ADMIN – GET ALL ORDERS (SAFE)
    GET /api/admin/orders
 ====================================================== */
 export const getAllOrders = async (req, res) => {
@@ -157,7 +172,16 @@ export const getAllOrders = async (req, res) => {
       .sort({ createdAt: -1 })
       .lean();
 
-    return res.status(200).json(orders);
+    const safeOrders = orders.map((order) => {
+      if (order.status !== "Delivered") {
+        delete order.invoiceUrl;
+        delete order.invoiceNumber;
+        delete order.invoiceGenerated;
+      }
+      return order;
+    });
+
+    return res.status(200).json(safeOrders);
   } catch (error) {
     console.error("❌ ADMIN GET ORDERS ERROR:", error);
     return res.status(500).json([]);
@@ -196,10 +220,11 @@ export const updateOrderStatus = async (req, res) => {
     if (status === "Processing") order.processedAt = new Date();
     if (status === "Shipped") order.shippedAt = new Date();
 
-    /* 🔥 INVENTORY AUTO-SYNC ON DELIVERY */
+    /* ================= DELIVERY ================= */
     if (status === "Delivered") {
       order.deliveredAt = new Date();
 
+      // Inventory sync
       for (const item of order.items) {
         if (item.inventoryId) {
           await InventoryItem.findByIdAndUpdate(item.inventoryId, {
@@ -208,15 +233,20 @@ export const updateOrderStatus = async (req, res) => {
           });
         }
       }
+
+      // Invoice generation (ONLY HERE)
+      if (!order.invoiceGenerated) {
+        const invoice = await generateOrderInvoice(order);
+        order.invoiceGenerated = true;
+        order.invoiceNumber = invoice.number;
+        order.invoiceUrl = invoice.url;
+      }
     }
-    if (order.status === "Cancelled") {
-  return res.status(400).json({
-    message: "Cancelled orders cannot be updated",
-  });
-}
+
     order.statusHistory.push({
       status,
       changedBy: "admin",
+      changedAt: new Date(),
     });
 
     await order.save();

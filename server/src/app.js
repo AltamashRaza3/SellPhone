@@ -33,7 +33,7 @@ const app = express();
 
 /* ================= CORE ================= */
 app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true })); // ✅ ADD THIS
+app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 /* ================= SECURITY ================= */
@@ -58,18 +58,23 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 /* ================= STATIC FILES ================= */
-/* uploads folder is at project root */
+
+const PROJECT_ROOT = path.resolve(__dirname, ".."); 
+
+
+// Serve inventory, pickups, sell images
 app.use(
   "/uploads",
-  express.static(path.join(__dirname, "..", "uploads"))
+  express.static(path.join(PROJECT_ROOT, "uploads"))
 );
 
-
-// 🔹 Serve invoices (PDFs)
+// Serve order & sell invoices (outside server folder)
 app.use(
-  "/invoices",
-  express.static(path.join(__dirname, "..", "uploads", "invoices"))
+  "/uploads/invoices",
+  express.static(path.resolve(PROJECT_ROOT, "..", "uploads", "invoices"))
 );
+
+
 
 /* ================= HEALTH CHECK ================= */
 app.get("/api/health", (req, res) => {

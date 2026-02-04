@@ -85,6 +85,20 @@ const orderSchema = new mongoose.Schema(
         },
       },
     ],
+
+    /* ================= INVOICE ================= */
+    invoiceGenerated: {
+      type: Boolean,
+      default: false,
+    },
+
+    invoiceNumber: {
+      type: String,
+    },
+
+    invoiceUrl: {
+      type: String,
+    },
   },
   { timestamps: true }
 );

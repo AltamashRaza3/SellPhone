@@ -9,7 +9,7 @@ import InventoryItem from "../models/InventoryItem.js";
 import riderAuth from "../middleware/riderAuth.js";
 import { sendOtp, verifyOtp } from "../controllers/riderAuth.controller.js";
 import { calculateFinalPrice } from "../utils/priceRules.js";
-import { generateInvoice } from "../utils/invoiceGenerator.js";
+import { generateInvoice } from "../utils/generateSellInvoice.js";
 
 const router = express.Router();
 
