@@ -10,7 +10,7 @@ const AdminInventory = () => {
   const [imageMap, setImageMap] = useState({});
   const [actionId, setActionId] = useState(null);
 
-  /* ================= FETCH INVENTORY ================= */
+  /* ================= FETCH ================= */
   const fetchInventory = useCallback(async () => {
     try {
       setLoading(true);
@@ -30,7 +30,9 @@ const AdminInventory = () => {
     fetchInventory();
   }, [fetchInventory]);
 
-  /* ================= UPDATE IMAGES ================= */
+  const busy = (id) => actionId === id;
+
+  /* ================= IMAGES ================= */
   const updateImages = async (item) => {
     const files = imageMap[item._id];
     if (!files?.length) return toast.error("Select images first");
@@ -81,7 +83,7 @@ const AdminInventory = () => {
     }
   };
 
-  /* ================= UPDATE PRICE ================= */
+  /* ================= PRICE ================= */
   const updatePrice = async (item) => {
     const price = Number(priceMap[item._id]);
     if (!price || price <= 0) return toast.error("Enter valid price");
@@ -104,8 +106,8 @@ const AdminInventory = () => {
     }
   };
 
-  /* ================= LIST / UNLIST ================= */
-  const toggleListing = async (item, status) => {
+  /* ================= STATUS ================= */
+  const setStatus = async (item, status) => {
     try {
       setActionId(item._id);
       const res = await fetch(`${API}/api/admin/inventory/${item._id}/status`, {
@@ -115,9 +117,7 @@ const AdminInventory = () => {
         body: JSON.stringify({ status }),
       });
       if (!res.ok) throw new Error();
-      toast.success(
-        status === "Published" ? "Product listed" : "Product unlisted",
-      );
+      toast.success(status === "Published" ? "Listed" : "Unlisted");
       fetchInventory();
     } catch {
       toast.error("Status update failed");
@@ -129,7 +129,6 @@ const AdminInventory = () => {
   /* ================= SOLD ================= */
   const markSold = async (item) => {
     if (!window.confirm("Mark item as sold?")) return;
-
     try {
       setActionId(item._id);
       const res = await fetch(`${API}/api/admin/inventory/${item._id}/sold`, {
@@ -146,9 +145,7 @@ const AdminInventory = () => {
     }
   };
 
-  if (loading) {
-    return <p className="text-gray-400">Loading inventory…</p>;
-  }
+  if (loading) return <p className="text-gray-400">Loading inventory…</p>;
 
   return (
     <div className="space-y-6">
@@ -156,9 +153,13 @@ const AdminInventory = () => {
 
       {items.map((item) => {
         const phone = item.phone;
-        const ownsProduct = Boolean(item.productId);
-        const isInStock = item.status === "InStock";
-        const isPublished = item.status === "Published";
+        const hasProduct = Boolean(item.productId);
+        const isSold = item.status === "Sold";
+
+        const canPublish = !hasProduct && !isSold;
+        const canUpdatePrice = hasProduct && item.status === "Published";
+        const canUnlist = hasProduct && item.status === "Published";
+        const canRelist = hasProduct && item.status === "Unlisted";
 
         return (
           <div key={item._id} className="glass-card space-y-4">
@@ -190,83 +191,103 @@ const AdminInventory = () => {
               ))}
             </div>
 
-            <input
-              type="file"
-              multiple
-              onChange={(e) =>
-                setImageMap((p) => ({
-                  ...p,
-                  [item._id]: Array.from(e.target.files),
-                }))
-              }
-            />
+            {/* FILE PICKER */}
+            <label className="block">
+              <input
+                type="file"
+                multiple
+                className="hidden"
+                onChange={(e) =>
+                  setImageMap((p) => ({
+                    ...p,
+                    [item._id]: Array.from(e.target.files),
+                  }))
+                }
+              />
+              <div className="w-full bg-zinc-900 border border-zinc-600 rounded h-10 flex items-center justify-center text-sm text-white cursor-pointer hover:bg-zinc-800">
+                {imageMap[item._id]?.length
+                  ? `${imageMap[item._id].length} image(s) selected`
+                  : "Select Images"}
+              </div>
+            </label>
 
             <button
               onClick={() => updateImages(item)}
-              disabled={actionId === item._id}
-              className="w-full bg-indigo-600 h-10 rounded text-white"
+              disabled={busy(item._id)}
+              className="w-full bg-indigo-600 h-10 rounded text-white disabled:opacity-50"
             >
               Update Images
             </button>
 
             {/* PRICE */}
-            <div className="flex gap-3">
-              <input
-                type="number"
-                placeholder="Selling price"
-                value={priceMap[item._id] || ""}
-                onChange={(e) =>
-                  setPriceMap((p) => ({
-                    ...p,
-                    [item._id]: e.target.value,
-                  }))
-                }
-                className="flex-1 h-10 bg-black/40 border px-3 rounded text-white"
-              />
+            {!isSold && (
+              <div className="flex gap-3">
+                <input
+                  type="number"
+                  placeholder="Selling price"
+                  value={priceMap[item._id] || ""}
+                  onChange={(e) =>
+                    setPriceMap((p) => ({
+                      ...p,
+                      [item._id]: e.target.value,
+                    }))
+                  }
+                  className="flex-1 h-10 bg-black/40 border px-3 rounded text-white"
+                />
 
-              {isInStock && (
-                <button
-                  onClick={() => publishItem(item)}
-                  className="bg-green-600 px-5 rounded text-white"
-                >
-                  Publish
-                </button>
-              )}
+                {canPublish && (
+                  <button
+                    onClick={() => publishItem(item)}
+                    className="bg-green-600 px-5 rounded text-white"
+                  >
+                    Publish
+                  </button>
+                )}
 
-              {isPublished && ownsProduct && (
-                <button
-                  onClick={() => updatePrice(item)}
-                  className="bg-orange-600 px-5 rounded text-white"
-                >
-                  Update Price
-                </button>
-              )}
-            </div>
+                {canUpdatePrice && (
+                  <button
+                    onClick={() => updatePrice(item)}
+                    className="bg-orange-600 px-5 rounded text-white"
+                  >
+                    Update Price
+                  </button>
+                )}
+              </div>
+            )}
 
-            {/* LIST / UNLIST */}
-            {isPublished && ownsProduct && (
-              <>
-                <button
-                  onClick={() => toggleListing(item, "Unlisted")}
-                  className="w-full bg-yellow-600 h-10 rounded text-white"
-                >
-                  Unlist Product
-                </button>
+            {/* STATUS */}
+            {canUnlist && (
+              <button
+                onClick={() => setStatus(item, "Unlisted")}
+                className="w-full bg-yellow-600 h-10 rounded text-white"
+              >
+                Unlist Product
+              </button>
+            )}
 
-                <button
-                  onClick={() => toggleListing(item, "Published")}
-                  className="w-full bg-green-600 h-10 rounded text-white"
-                >
-                  Relist Product
-                </button>
+            {canRelist && (
+              <button
+                onClick={() => setStatus(item, "Published")}
+                className="w-full bg-green-600 h-10 rounded text-white"
+              >
+                Relist Product
+              </button>
+            )}
 
-                <button
-                  onClick={() => markSold(item)}
-                  className="w-full bg-red-600 h-10 rounded text-white"
-                >
-                  Mark Sold
-                </button>
-              </>
+            {canUnlist && (
+              <button
+                onClick={() => markSold(item)}
+                className="w-full bg-red-600 h-10 rounded text-white"
+              >
+                Mark Sold
+              </button>
+            )}
+
+            {/* RECOVERY NOTICE */}
+            {item.status === "Published" && !hasProduct && (
+              <p className="text-xs text-yellow-400">
+                ⚠ Product missing. Enter price and Publish to recover.
+              </p>
             )}
           </div>
         );
