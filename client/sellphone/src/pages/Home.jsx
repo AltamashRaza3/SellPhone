@@ -3,7 +3,7 @@ import { useSelector } from "react-redux";
 import { useState, useEffect, useMemo } from "react";
 import PhoneCard from "../components/PhoneCard";
 import { FiFilter, FiX, FiTrash2, FiSmartphone } from "react-icons/fi";
-import AppContainer from "../components/AppContainer";
+
 
 const Home = () => {
   const phones = useSelector((state) =>
@@ -64,7 +64,6 @@ const Home = () => {
     setPrice("All");
     closeFilters();
   };
-console.log("PHONES FROM REDUX:", phones);
 
   return (
     
@@ -80,10 +79,10 @@ console.log("PHONES FROM REDUX:", phones);
             </h1>
           </div>
 
-          <p className="text-gray-400 text-lg max-w-2xl mx-auto">
+          {/* <p className="text-gray-400 text-lg max-w-2xl mx-auto">
             Buy refurbished smartphones with confidence. Every device is tested
             and ready to ship.
-          </p>
+          </p> */}
         </section>
 
         {/* ================= MOBILE FILTER ================= */}

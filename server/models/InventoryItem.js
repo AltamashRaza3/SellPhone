@@ -15,13 +15,26 @@ const inventoryItemSchema = new mongoose.Schema(
     phone: {
       brand: { type: String, required: true },
       model: { type: String, required: true },
-      storage: String,
-      ram: String,
-      color: String,
+
+      storage: {
+        type: String,
+        required: true,
+      },
+
+      ram: {
+        type: String,
+        required: true,
+      },
+
+      color: {
+        type: String,
+        required: true, 
+        trim: true,
+      },
 
       condition: {
         type: String,
-        enum: ["Excellent", "Good", "Fair"],
+        enum: ["Like New", "Excellent", "Good", "Fair"],
         required: true,
       },
 
@@ -35,12 +48,13 @@ const inventoryItemSchema = new mongoose.Schema(
     purchasePrice: {
       type: Number,
       required: true,
+      min: 0,
     },
 
     /* ================= INVENTORY STATE ================= */
     status: {
       type: String,
-      enum: ["InStock", "Published", "Sold"],
+      enum: ["InStock", "Published","Unlisted", "Sold"],
       default: "InStock",
       index: true,
     },

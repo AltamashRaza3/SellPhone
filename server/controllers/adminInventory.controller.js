@@ -112,7 +112,7 @@ export const publishInventoryItem = async (req, res) => {
       color: item.phone.color,
       condition: item.phone.condition,
       price,
-      images: item.phone.images,   // 🔥 THIS WAS MISSING
+      images: item.phone.images,
       description,
       status: "Published",
       publishedAt: new Date(),

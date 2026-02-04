@@ -20,8 +20,8 @@ const productSchema = new mongoose.Schema(
 
     /* ================= SPECS ================= */
     storage: { type: String, required: true },
-    ram: { type: String, required: true },     // ✅ compulsory
-    color: { type: String, required: true },   // ✅ compulsory (free text)
+    ram: { type: String, required: true }, 
+    color: { type: String, required: true },
 
     condition: {
       type: String,
@@ -41,7 +41,7 @@ const productSchema = new mongoose.Schema(
     /* ================= STORE STATE ================= */
     status: {
       type: String,
-      enum: ["Draft", "Published", "Sold"],
+      enum: ["Draft", "Published","Unlisted", "Sold"],
       default: "Draft",
       index: true,
     },

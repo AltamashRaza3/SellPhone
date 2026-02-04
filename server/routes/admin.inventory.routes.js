@@ -111,6 +111,35 @@ router.post("/:id/publish", adminAuth, async (req, res) => {
     product,
   });
 });
+/* ======================================================
+   UPDATE SELLING PRICE (ADMIN)
+====================================================== */
+router.put("/:id/price", adminAuth, async (req, res) => {
+  const { price } = req.body;
+
+  if (!price || price <= 0) {
+    return res.status(400).json({ message: "Valid price required" });
+  }
+
+  const item = await InventoryItem.findById(req.params.id);
+  if (!item) {
+    return res.status(404).json({ message: "Inventory not found" });
+  }
+
+  if (item.status === "Sold") {
+    return res.status(409).json({ message: "Sold item locked" });
+  }
+
+  // sync product price if published
+  if (item.productId) {
+    await Product.updateOne(
+      { _id: item.productId },
+      { price }
+    );
+  }
+
+  res.json({ success: true });
+});
 
 /* ======================================================
    MARK SOLD (SYNC)
@@ -129,6 +158,61 @@ router.post("/:id/sold", adminAuth, async (req, res) => {
     { inventoryItemId: item._id },
     { status: "Sold", soldAt: new Date() }
   );
+
+  res.json({ success: true });
+});
+/* ======================================================
+   LIST / UNLIST INVENTORY (SYNC PRODUCT)
+====================================================== */
+router.put("/:id/status", adminAuth, async (req, res) => {
+  const { status } = req.body;
+
+  if (!["Published", "Unlisted"].includes(status)) {
+    return res.status(400).json({ message: "Invalid status" });
+  }
+
+  const item = await InventoryItem.findById(req.params.id);
+  if (!item) {
+    return res.status(404).json({ message: "Inventory not found" });
+  }
+
+  if (!item.productId) {
+    return res.status(409).json({ message: "Product not published yet" });
+  }
+
+  item.status = status;
+  await item.save();
+
+  await Product.updateOne(
+    { _id: item.productId },
+    { status }
+  );
+
+  res.json({ success: true });
+});
+
+/* ======================================================
+   ARCHIVE INVENTORY (SOFT DELETE)
+====================================================== */
+router.delete("/:id", adminAuth, async (req, res) => {
+  const item = await InventoryItem.findById(req.params.id);
+  if (!item) {
+    return res.status(404).json({ message: "Inventory not found" });
+  }
+
+  if (item.status === "Sold") {
+    return res.status(409).json({ message: "Sold items cannot be deleted" });
+  }
+
+  item.status = "Unlisted";
+  await item.save();
+
+  if (item.productId) {
+    await Product.updateOne(
+      { _id: item.productId },
+      { status: "Draft" }
+    );
+  }
 
   res.json({ success: true });
 });

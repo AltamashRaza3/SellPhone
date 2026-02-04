@@ -1,26 +1,26 @@
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "react-hot-toast";
 
+const API = "http://localhost:5000";
+
 const AdminInventory = () => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-
   const [priceMap, setPriceMap] = useState({});
   const [imageMap, setImageMap] = useState({});
-  const [updatingId, setUpdatingId] = useState(null);
+  const [actionId, setActionId] = useState(null);
 
-  /* ================= FETCH INVENTORY ================= */
+  /* ================= FETCH ================= */
   const fetchInventory = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch("http://localhost:5000/api/admin/inventory", {
+      const res = await fetch(`${API}/api/admin/inventory`, {
         credentials: "include",
       });
       if (!res.ok) throw new Error();
       setItems(await res.json());
     } catch {
       toast.error("Failed to load inventory");
-      setItems([]);
     } finally {
       setLoading(false);
     }
@@ -30,96 +30,96 @@ const AdminInventory = () => {
     fetchInventory();
   }, [fetchInventory]);
 
-  /* ================= UPDATE PRICE ================= */
-  const updatePrice = async (item) => {
-    const sellingPrice = Number(priceMap[item._id]);
-
-    if (!sellingPrice || sellingPrice <= 0) {
-      toast.error("Enter a valid selling price");
-      return;
-    }
-
-    try {
-      setUpdatingId(item._id);
-
-      const res = await fetch(
-        `http://localhost:5000/api/admin/inventory/${item._id}/price`,
-        {
-          method: "PUT",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sellingPrice }),
-        },
-      );
-
-      if (!res.ok) throw new Error();
-      toast.success("Selling price updated");
-      fetchInventory();
-    } catch {
-      toast.error("Price update failed");
-    } finally {
-      setUpdatingId(null);
-    }
-  };
-
   /* ================= UPDATE IMAGES ================= */
   const updateImages = async (item) => {
     const files = imageMap[item._id];
-    if (!files || files.length === 0) {
-      toast.error("Select at least one image");
-      return;
-    }
+    if (!files?.length) return toast.error("Select images first");
 
-    const formData = new FormData();
-    files.forEach((f) => formData.append("images", f));
+    const fd = new FormData();
+    files.forEach((f) => fd.append("images", f));
 
     try {
-      setUpdatingId(item._id);
-
-      const res = await fetch(
-        `http://localhost:5000/api/admin/inventory/${item._id}/images`,
-        {
-          method: "PUT",
-          credentials: "include",
-          body: formData,
-        },
-      );
-
+      setActionId(item._id);
+      const res = await fetch(`${API}/api/admin/inventory/${item._id}/images`, {
+        method: "PUT",
+        credentials: "include",
+        body: fd,
+      });
       if (!res.ok) throw new Error();
       toast.success("Images updated");
-      setImageMap((p) => ({ ...p, [item._id]: [] }));
       fetchInventory();
     } catch {
-      toast.error("Image upload failed");
+      toast.error("Image update failed");
     } finally {
-      setUpdatingId(null);
+      setActionId(null);
     }
   };
 
-  /* ================= UPDATE STATUS ================= */
-  const updateStatus = async (item, status) => {
-    try {
-      setUpdatingId(item._id);
+  /* ================= PUBLISH ================= */
+  const publishItem = async (item) => {
+    const price = Number(priceMap[item._id]);
+    if (!price || price <= 0) return toast.error("Enter valid price");
 
+    try {
+      setActionId(item._id);
       const res = await fetch(
-        `http://localhost:5000/api/admin/inventory/${item._id}/status`,
+        `${API}/api/admin/inventory/${item._id}/publish`,
         {
-          method: "PUT",
+          method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status }),
+          body: JSON.stringify({ price }),
         },
       );
+      if (!res.ok) throw new Error();
+      toast.success("Product published");
+      fetchInventory();
+    } catch {
+      toast.error("Publish failed");
+    } finally {
+      setActionId(null);
+    }
+  };
 
+  /* ================= LIST / UNLIST ================= */
+  const toggleListing = async (item, status) => {
+    try {
+      setActionId(item._id);
+      const res = await fetch(`${API}/api/admin/inventory/${item._id}/status`, {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
       if (!res.ok) throw new Error();
       toast.success(
-        status === "Available" ? "Product listed" : "Product unlisted",
+        status === "Published" ? "Product listed" : "Product unlisted",
       );
       fetchInventory();
     } catch {
       toast.error("Status update failed");
     } finally {
-      setUpdatingId(null);
+      setActionId(null);
+    }
+  };
+
+  /* ================= SOLD ================= */
+  const markSold = async (item) => {
+    if (!window.confirm("Mark item as sold?")) return;
+
+    try {
+      setActionId(item._id);
+      const res = await fetch(`${API}/api/admin/inventory/${item._id}/sold`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error();
+      toast.success("Marked as sold");
+      fetchInventory();
+    } catch {
+      toast.error("Failed to mark sold");
+    } finally {
+      setActionId(null);
     }
   };
 
@@ -131,39 +131,35 @@ const AdminInventory = () => {
 
       {items.map((item) => {
         const phone = item.phone;
-        const margin =
-          item.sellingPrice != null
-            ? item.sellingPrice - item.purchasePrice
-            : null;
-
-        const canList = phone.images?.length > 0 && item.sellingPrice > 0;
+        const canPublish =
+          item.status === "InStock" &&
+          phone.images?.length > 0 &&
+          priceMap[item._id] > 0;
 
         return (
           <div key={item._id} className="glass-card space-y-4">
-            {/* HEADER */}
             <div className="flex justify-between">
               <div>
                 <h3 className="text-lg font-semibold text-white">
                   {phone.brand} {phone.model}
                 </h3>
                 <p className="text-sm text-gray-400">
-                  {phone.storage} • {phone.color} • {phone.condition}
+                  {phone.storage} • {phone.ram} • {phone.color} •{" "}
+                  {phone.condition}
                 </p>
               </div>
-
-              <span className="px-3 py-1 rounded-full text-xs bg-zinc-700 text-white">
+              <span className="px-3 py-1 rounded-full text-xs bg-zinc-700">
                 {item.status}
               </span>
             </div>
 
-            {/* IMAGES */}
             <div className="grid grid-cols-4 gap-2">
               {phone.images?.map((img, i) => (
                 <img
                   key={i}
-                  src={`http://localhost:5000${img}`}
+                  src={`${API}${img}`}
                   className="h-20 w-full object-cover rounded"
-                  alt="Product"
+                  alt=""
                 />
               ))}
             </div>
@@ -171,7 +167,6 @@ const AdminInventory = () => {
             <input
               type="file"
               multiple
-              accept="image/*"
               onChange={(e) =>
                 setImageMap((p) => ({
                   ...p,
@@ -182,88 +177,57 @@ const AdminInventory = () => {
 
             <button
               onClick={() => updateImages(item)}
-              disabled={updatingId === item._id}
-              className="h-10 w-full bg-indigo-600 text-white rounded"
+              disabled={actionId === item._id}
+              className="w-full bg-indigo-600 h-10 rounded text-white"
             >
               Update Images
             </button>
 
-            {/* PRICING */}
-            <div className="grid grid-cols-3 gap-3 text-sm">
-              <div>
-                <p className="text-gray-400">Purchase</p>
-                <p className="text-white">₹{item.purchasePrice}</p>
+            {item.status === "InStock" && (
+              <div className="flex gap-3">
+                <input
+                  type="number"
+                  placeholder="Selling price"
+                  value={priceMap[item._id] || ""}
+                  onChange={(e) =>
+                    setPriceMap((p) => ({
+                      ...p,
+                      [item._id]: e.target.value,
+                    }))
+                  }
+                  className="flex-1 h-10 bg-black/40 border px-3 rounded text-white"
+                />
+                <button
+                  onClick={() => publishItem(item)}
+                  disabled={!canPublish || actionId === item._id}
+                  className="bg-green-600 px-5 rounded text-white"
+                >
+                  Publish
+                </button>
               </div>
-
-              <div>
-                <p className="text-gray-400">Selling</p>
-                <p className="text-white">
-                  {item.sellingPrice ? `₹${item.sellingPrice}` : "—"}
-                </p>
-              </div>
-
-              {margin !== null && (
-                <div>
-                  <p className="text-gray-400">Margin</p>
-                  <p
-                    className={`font-semibold ${
-                      margin >= 0 ? "text-green-400" : "text-red-400"
-                    }`}
-                  >
-                    ₹{margin}
-                  </p>
-                </div>
-              )}
-            </div>
-
-            <div className="flex gap-3">
-              <input
-                type="number"
-                placeholder="Selling price"
-                value={priceMap[item._id] || ""}
-                onChange={(e) =>
-                  setPriceMap((p) => ({
-                    ...p,
-                    [item._id]: e.target.value,
-                  }))
-                }
-                className="flex-1 h-10 bg-black/40 border border-white/10 px-3 rounded text-white"
-              />
-
-              <button
-                onClick={() => updatePrice(item)}
-                disabled={updatingId === item._id}
-                className="h-10 px-5 bg-orange-600 text-white rounded"
-              >
-                Save Price
-              </button>
-            </div>
-
-            {/* STATUS ACTIONS */}
-            {item.status === "Draft" && (
-              <button
-                disabled={!canList}
-                onClick={() => updateStatus(item, "Available")}
-                className="h-10 w-full bg-green-600 text-white rounded disabled:opacity-50"
-              >
-                List Product
-              </button>
             )}
 
-            {item.status === "Available" && (
-              <button
-                onClick={() => updateStatus(item, "Unlisted")}
-                className="h-10 w-full bg-red-600 text-white rounded"
-              >
-                Unlist Product
-              </button>
+            {item.status === "Published" && (
+              <>
+                <button
+                  onClick={() => toggleListing(item, "Unlisted")}
+                  className="w-full bg-yellow-600 h-10 rounded text-white"
+                >
+                  Unlist Product
+                </button>
+                <button
+                  onClick={() => markSold(item)}
+                  className="w-full bg-red-600 h-10 rounded text-white"
+                >
+                  Mark Sold
+                </button>
+              </>
             )}
 
             {item.status === "Unlisted" && (
               <button
-                disabled={!canList}
-                onClick={() => updateStatus(item, "Available")}
-                className="h-10 w-full bg-green-600 text-white rounded disabled:opacity-50"
+                onClick={() => toggleListing(item, "Published")}
+                className="w-full bg-green-600 h-10 rounded text-white"
               >
                 Relist Product
               </button>
