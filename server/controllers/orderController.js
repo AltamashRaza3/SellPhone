@@ -24,8 +24,6 @@ export const createOrder = async (req, res) => {
     if (!items?.length || !totalAmount || !shippingAddress) {
       return res.status(400).json({ message: "Invalid order data" });
     }
-
-    /* 🔒 OPTIONAL SAFETY CHECK (recommended) */
     for (const item of items) {
       if (item.inventoryId) {
         const inventory = await InventoryItem.findById(item.inventoryId);
@@ -127,20 +125,27 @@ export const cancelOrder = async (req, res) => {
         .json({ message: "Only pending orders can be cancelled" });
     }
 
-    order.status = "Cancelled";
-    order.statusHistory.push({
-      status: "Cancelled",
-      changedBy: "user",
-    });
+    await Order.updateOne(
+      { _id: order._id },
+      {
+        $set: { status: "Cancelled" },
+        $push: {
+          statusHistory: {
+            status: "Cancelled",
+            changedBy: "user",
+            changedAt: new Date(),
+          },
+        },
+      }
+    );
 
-    await order.save();
-
-    return res.json({ message: "Order cancelled", order });
+    return res.json({ message: "Order cancelled successfully" });
   } catch (error) {
     console.error("❌ CANCEL ORDER ERROR:", error);
     return res.status(500).json({ message: "Failed to cancel order" });
   }
 };
+
 
 /* ======================================================
    ADMIN – GET ALL ORDERS
@@ -204,7 +209,11 @@ export const updateOrderStatus = async (req, res) => {
         }
       }
     }
-
+    if (order.status === "Cancelled") {
+  return res.status(400).json({
+    message: "Cancelled orders cannot be updated",
+  });
+}
     order.statusHistory.push({
       status,
       changedBy: "admin",

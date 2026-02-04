@@ -21,11 +21,11 @@ const orderSchema = new mongoose.Schema(
         inventoryId: {
           type: mongoose.Schema.Types.ObjectId,
           ref: "InventoryItem",
-          required: true,
+          required: false,
         },
 
         phone: {
-          type: Object, // snapshot at purchase time
+          type: Object,
           required: true,
         },
 
