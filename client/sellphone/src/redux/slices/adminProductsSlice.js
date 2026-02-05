@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import API_BASE_URL from "../utils/api";
+import API_BASE_URL from "../../utils/api";
 
 /* ================= FETCH ADMIN PRODUCTS ================= */
 export const fetchAdminProducts = createAsyncThunk(

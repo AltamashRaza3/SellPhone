@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-hot-toast";
 import AdminAddProduct from "./AdminAddProduct";
 import { fetchAdminProducts } from "../../redux/slices/adminProductsSlice";
-import { API_BASE_URL } from "../../config/api";
+import API_BASE_URL  from "../../config/api";
 
 const AdminEditProduct = () => {
   const { id } = useParams();

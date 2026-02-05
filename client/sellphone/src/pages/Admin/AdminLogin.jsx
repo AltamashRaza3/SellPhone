@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
-import API_BASE_URL from "../utils/api";
 
 const AdminLogin = () => {
   const navigate = useNavigate();

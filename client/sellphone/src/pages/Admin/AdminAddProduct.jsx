@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
-import API_BASE_URL from "../utils/api";
+import API_BASE_URL from "../../utils/api";
 
 
 /* ===== LOCKED ENUMS ===== */

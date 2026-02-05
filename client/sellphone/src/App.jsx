@@ -9,7 +9,7 @@ import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "./utils/firebase";
-import API_BASE_URL from "../utils/api";
+import API_BASE_URL from "./utils/api";
 
 /* ================= REDUX ================= */
 import { setUser, clearUser } from "./redux/slices/userSlice";
@@ -118,7 +118,7 @@ const App = () => {
     const fetchProducts = async () => {
       dispatch(setPhonesLoading());
       try {
-        const res = await fetch("${API_BASE_URL}/api/products");
+        const res = await fetch(`${API_BASE_URL}/api/products`);
         const data = await res.json();
         if (!res.ok) throw new Error("Failed to load products");
         dispatch(setPhones(data));
@@ -150,7 +150,7 @@ const App = () => {
   useEffect(() => {
     if (!authLoaded || !user || !cartLoaded) return;
 
-    fetch("${API_BASE_URL}/api/cart", {
+    fetch(`${API_BASE_URL}/api/cart`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

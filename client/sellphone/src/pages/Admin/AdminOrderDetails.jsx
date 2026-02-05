@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { jsPDF } from "jspdf";
-import API_BASE_URL from "../utils/api";
+import API_BASE_URL from "../../utils/api";
 
 import AdminOrderTimeline from "../../components/AdminOrderTimeline";
 import AdminOrderStatusHistory from "../../components/AdminOrderStatusHistory.jsx";
