@@ -75,25 +75,24 @@ const Checkout = () => {
       const payload = {
         items: cartItems.map((item) => ({
           inventoryId: item.phone.inventoryId || null,
-          phoneId: item.phone._id,
+          phone: item.phone, // 🔥 REQUIRED
           quantity: item.quantity,
-          price: item.phone.price,
         })),
+
         totalAmount,
-        shippingAddress: {
-          name: address.fullName,
-          phone: address.phone,
-          line1: address.line1,
-          line2: address.line2,
-          city: address.city,
-          state: address.state,
-          pincode: address.pincode,
-        },
+
+        // 🔥 MUST BE STRING (backend + schema)
+        shippingAddress: `
+${address.fullName}, ${address.phone}
+${address.line1}${address.line2 ? ", " + address.line2 : ""}
+${address.city}, ${address.state} - ${address.pincode}
+      `.trim(),
+
         paymentMethod: "COD",
       };
 
       await axios.post("/orders", payload, {
-        withCredentials: true, // 🔥 REQUIRED (userAuth)
+        withCredentials: true, // userAuth cookie
       });
 
       dispatch(clearCart());
@@ -113,6 +112,7 @@ const Checkout = () => {
       setLoading(false);
     }
   };
+
 
   return (
     <AppContainer>
