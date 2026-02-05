@@ -59,18 +59,15 @@ app.use(cors(corsOptions));
 
 /* ================= STATIC FILES ================= */
 
-const PROJECT_ROOT = path.resolve(__dirname, ".."); 
-// Serve inventory, pickups, sell images
+// project root (/sellphone)
+const PROJECT_ROOT = path.resolve(__dirname, "..");
 app.use(
   "/uploads",
-  express.static(path.join(PROJECT_ROOT, "uploads"))
+  express.static(path.join(PROJECT_ROOT, "uploads"), {
+    index: false,
+    maxAge: "7d",
+  })
 );
-
-// // Serve order & sell invoices (outside server folder)
-// app.use(
-//   "/uploads/invoices",
-//   express.static(path.resolve(PROJECT_ROOT, "..", "uploads", "invoices"))
-// );
 
 
 /* ================= HEALTH CHECK ================= */

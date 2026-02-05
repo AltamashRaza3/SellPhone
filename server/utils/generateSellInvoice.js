@@ -67,6 +67,6 @@ export const generateInvoice = async (sellRequest) => {
 
   return {
     number: invoiceNumber,
-    url: `/uploads/invoices/${fileName}`,
+    url: `uploads/invoices/${fileName}`,
   };
 };
