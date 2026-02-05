@@ -74,21 +74,34 @@ const Checkout = () => {
     try {
       const payload = {
         items: cartItems.map((item) => ({
-          productId: item.phone._id,
+          inventoryId: item.phone.inventoryId || null, // if exists
+          phoneId: item.phone._id,
           quantity: item.quantity,
+          price: item.phone.price,
         })),
-        shippingAddress: address,
+        totalAmount, // ✅ REQUIRED
+        shippingAddress: {
+          name: address.fullName,
+          phone: address.phone,
+          line1: address.line1,
+          line2: address.line2,
+          city: address.city,
+          state: address.state,
+          pincode: address.pincode,
+        },
         paymentMethod: "COD",
       };
 
-      await axios.post("/orders", payload);
+      await axios.post("/orders", payload, {
+        withCredentials: true, // 🔥 REQUIRED (userAuth)
+      });
 
-      // clear frontend cart
       dispatch(clearCart());
 
-      // clear backend cart only if logged in
       if (auth.currentUser?.uid) {
-        await axios.delete(`/cart/${auth.currentUser.uid}`);
+        await axios.delete(`/cart/${auth.currentUser.uid}`, {
+          withCredentials: true,
+        });
       }
 
       toast.success("Order placed successfully");
