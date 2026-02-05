@@ -60,7 +60,7 @@ router.get("/sell/:id", userAuth, async (req, res) => {
 ====================================================== */
 router.get("/order/:id", userAuth, async (req, res) => {
   try {
-    const order = await Order.findById(req.params.id);
+    const order = await Order.findById(req.params.id).lean();
 
     if (!order) {
       return res.status(404).json({ message: "Order not found" });
@@ -68,6 +68,48 @@ router.get("/order/:id", userAuth, async (req, res) => {
 
     if (order.user.uid !== req.user.uid) {
       return res.status(403).json({ message: "Access denied" });
+    }
+
+    if (order.status !== "Delivered") {
+      return res
+        .status(400)
+        .json({ message: "Invoice available only after delivery" });
+    }
+
+    // 🔥 STREAM PDF DIRECTLY (NO FS, NO URL)
+    const doc = await generateOrderInvoice(order, { stream: true });
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=ORD-INV-${order._id.toString().slice(-6)}.pdf`
+    );
+
+    doc.pipe(res);
+    doc.end();
+  } catch (err) {
+    console.error("ORDER INVOICE ERROR:", err);
+    res.status(500).json({ message: "Failed to download invoice" });
+  }
+});
+
+export const generateOrderInvoice = async (order, options = {}) => {
+  const doc = new PDFDocument({ size: "A4", margin: 50 });
+
+  if (options.stream) {
+    return doc;
+  }
+};
+/* ======================================================
+   ADMIN – ORDER INVOICE
+   GET /api/admin/invoices/order/:id
+====================================================== */
+router.get("/admin/order/:id", adminAuth, async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id);
+
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
     }
 
     if (order.status !== "Delivered") {
@@ -93,7 +135,7 @@ router.get("/order/:id", userAuth, async (req, res) => {
 
     res.download(filePath);
   } catch (err) {
-    console.error("ORDER INVOICE ERROR:", err);
+    console.error("ADMIN ORDER INVOICE ERROR:", err);
     res.status(500).json({ message: "Failed to download invoice" });
   }
 });

@@ -5,6 +5,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import invoiceRoutes from "../routes/invoice.routes.js";
 import adminProductsRoutes from "../routes/adminProducts.routes.js";
+import adminInvoiceRoutes from "../routes/adminInvoice.routes.js";
 
 /* ================= MIDDLEWARE ================= */
 import { apiLimiter } from "../middleware/rateLimiter.js";
@@ -98,6 +99,7 @@ app.use("/api/admin/sell-requests", adminSellRequestRoutes);
 app.use("/api/admin/riders", adminRiderRoutes);
 app.use("/api/admin/inventory", adminInventoryRoutes);
 app.use("/api/admin", adminProductsRoutes);
+app.use("/api/invoices", adminInvoiceRoutes);
 /* ================= RIDER ================= */
 app.use("/api/rider", riderRoutes);
 

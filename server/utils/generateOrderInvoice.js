@@ -1,24 +1,10 @@
 import PDFDocument from "pdfkit";
 import fs from "fs";
 import path from "path";
-import { fileURLToPath } from "url";
 
-/* ================= PATH FIX ================= */
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+/* ================= RENDER-SAFE TEMP DIR ================= */
+const INVOICE_DIR = "/tmp/invoices";
 
-// project root → sellphone/
-const PROJECT_ROOT = path.resolve(__dirname, "..", "..");
-
-// uploads/invoices/order
-const INVOICE_DIR = path.join(
-  PROJECT_ROOT,
-  "uploads",
-  "invoices",
-  "order"
-);
-
-/* ================= ENSURE FOLDER ================= */
 if (!fs.existsSync(INVOICE_DIR)) {
   fs.mkdirSync(INVOICE_DIR, { recursive: true });
 }
@@ -29,11 +15,11 @@ export const generateOrderInvoice = async (order) => {
   const fileName = `${invoiceNumber}.pdf`;
   const filePath = path.join(INVOICE_DIR, fileName);
 
-  // 🔒 Prevent duplicate generation
+  // Reuse if generated during same runtime
   if (fs.existsSync(filePath)) {
     return {
       number: invoiceNumber,
-      url: `/uploads/invoices/order/${fileName}`,
+      absolutePath: filePath,
     };
   }
 
@@ -64,7 +50,7 @@ export const generateOrderInvoice = async (order) => {
   order.items.forEach((item, index) => {
     const phone = item.phone;
     doc.fontSize(11).text(
-      `${index + 1}. ${phone.brand} ${phone.model} ${phone.storage || ""} × ${item.quantity}`
+      `${index + 1}. ${phone.brand} ${phone.model} × ${item.quantity}  ₹${phone.price}`
     );
   });
 
@@ -87,6 +73,6 @@ export const generateOrderInvoice = async (order) => {
 
   return {
     number: invoiceNumber,
-    url: `/uploads/invoices/order/${fileName}`,
+    absolutePath: filePath,
   };
 };

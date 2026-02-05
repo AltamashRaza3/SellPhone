@@ -57,6 +57,36 @@ const OrderDetails = () => {
       toast.error(error?.response?.data?.message || "Failed to cancel order");
     }
   };
+const downloadInvoice = async () => {
+  try {
+    const res = await fetch(
+      `${import.meta.env.VITE_API_BASE_URL}/api/invoices/order/${order._id}`,
+      {
+        method: "GET",
+        credentials: "include", // 🔥 REQUIRED
+      },
+    );
+
+    if (!res.ok) {
+      const data = await res.json();
+      throw new Error(data.message || "Failed to download invoice");
+    }
+
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `Invoice-${order._id.slice(-6)}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  } catch (err) {
+    toast.error(err.message);
+  }
+};
 
   return (
     <div className="flex justify-center px-4 py-10 bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 min-h-screen">
@@ -152,12 +182,12 @@ const OrderDetails = () => {
         {/* ================= INVOICE ================= */}
         <div className="flex justify-end">
           {order.status === "Delivered" ? (
-            <a
-              href={`${import.meta.env.VITE_API_BASE_URL}/api/invoices/order/${order._id}`}
+            <button
+              onClick={downloadInvoice}
               className="px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-sm font-medium"
             >
               Download Invoice
-            </a>
+            </button>
           ) : (
             <p className="text-sm text-gray-400">
               Invoice will be available after delivery

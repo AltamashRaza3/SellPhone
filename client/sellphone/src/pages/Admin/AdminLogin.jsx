@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
+import API_BASE_URL from "../config/api";
 
 const AdminLogin = () => {
   const navigate = useNavigate();
@@ -35,10 +36,10 @@ const AdminLogin = () => {
     setLoading(true);
 
     try {
-      const res = await fetch($,`{API_BASE_URL},/api/admin/login`, {
+      const res = await fetch(`${API_BASE_URL}/api/admin/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
+        credentials: "include", // 🔥 REQUIRED for cookies
         body: JSON.stringify({ email, password }),
       });
 
@@ -51,11 +52,12 @@ const AdminLogin = () => {
       toast.success("Admin dashboard unlocked");
       navigate("/admin", { replace: true });
     } catch (err) {
-      toast.error(err.message);
+      toast.error(err.message || "Admin login failed");
     } finally {
       setLoading(false);
     }
   };
+
 
   /* -------------------- UI (UNCHANGED) -------------------- */
 
