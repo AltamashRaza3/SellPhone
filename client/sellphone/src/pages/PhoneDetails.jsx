@@ -8,9 +8,7 @@ import {
 import { addToCart } from "../redux/slices/cartSlice";
 import toast from "react-hot-toast";
 import noImage from "../assets/no-image.png";
-
-import API_BASE_URL from "../utils/api";
-
+import { resolveImageUrl } from "../utils/resolveImageUrl";
 
 const PhoneDetails = () => {
   const { id } = useParams();
@@ -49,9 +47,6 @@ const PhoneDetails = () => {
 
   const images = Array.isArray(phone.images) ? phone.images : [];
 
-  const resolveImage = (img) =>
-    img?.startsWith("http") ? img : `${API_BASE_URL}${img}`;
-
   return (
     <div className="space-y-14">
       {/* ================= TOP ================= */}
@@ -61,7 +56,7 @@ const PhoneDetails = () => {
           {/* MAIN IMAGE */}
           <div className="flex items-center justify-center w-full min-h-[420px]">
             <img
-              src={activeImage ? resolveImage(activeImage) : noImage}
+              src={activeImage ? resolveImageUrl(activeImage) : noImage}
               alt={`${phone.brand} ${phone.model}`}
               className="max-h-[380px] object-contain"
               onError={(e) => (e.currentTarget.src = noImage)}
@@ -74,7 +69,7 @@ const PhoneDetails = () => {
               {images.map((img, i) => (
                 <img
                   key={i}
-                  src={resolveImage(img)}
+                  src={resolveImageUrl(img)}
                   onClick={() => setActiveImage(img)}
                   className={`h-20 w-20 object-contain rounded-lg cursor-pointer border transition
                     ${

@@ -1,5 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "react-hot-toast";
+import API_BASE_URL from "../../config/api";
+import { resolveImageUrl } from "../../utils/resolveImageUrl";
 
 const AdminInventory = () => {
   const [items, setItems] = useState([]);
@@ -12,7 +14,7 @@ const AdminInventory = () => {
   const fetchInventory = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${API}/api/admin/inventory`, {
+      const res = await fetch(`${API_BASE_URL}/api/admin/inventory`, {
         credentials: "include",
       });
       if (!res.ok) throw new Error();
@@ -40,11 +42,14 @@ const AdminInventory = () => {
 
     try {
       setActionId(item._id);
-      const res = await fetch(`${API}/api/admin/inventory/${item._id}/images`, {
-        method: "PUT",
-        credentials: "include",
-        body: fd,
-      });
+      const res = await fetch(
+        `${API_BASE_URL}/api/admin/inventory/${item._id}/images`,
+        {
+          method: "PUT",
+          credentials: "include",
+          body: fd,
+        },
+      );
       if (!res.ok) throw new Error();
       toast.success("Images updated");
       fetchInventory();
@@ -63,7 +68,7 @@ const AdminInventory = () => {
     try {
       setActionId(item._id);
       const res = await fetch(
-        `${API}/api/admin/inventory/${item._id}/publish`,
+        `${API_BASE_URL}/api/admin/inventory/${item._id}/publish`,
         {
           method: "POST",
           credentials: "include",
@@ -88,12 +93,15 @@ const AdminInventory = () => {
 
     try {
       setActionId(item._id);
-      const res = await fetch(`${API}/api/admin/inventory/${item._id}/price`, {
-        method: "PUT",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ price }),
-      });
+      const res = await fetch(
+        `${API_BASE_URL}/api/admin/inventory/${item._id}/price`,
+        {
+          method: "PUT",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ price }),
+        },
+      );
       if (!res.ok) throw new Error();
       toast.success("Price updated");
       fetchInventory();
@@ -108,12 +116,15 @@ const AdminInventory = () => {
   const setStatus = async (item, status) => {
     try {
       setActionId(item._id);
-      const res = await fetch(`${API}/api/admin/inventory/${item._id}/status`, {
-        method: "PUT",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
-      });
+      const res = await fetch(
+        `${API_BASE_URL}/api/admin/inventory/${item._id}/status`,
+        {
+          method: "PUT",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status }),
+        },
+      );
       if (!res.ok) throw new Error();
       toast.success(status === "Published" ? "Listed" : "Unlisted");
       fetchInventory();
@@ -129,10 +140,13 @@ const AdminInventory = () => {
     if (!window.confirm("Mark item as sold?")) return;
     try {
       setActionId(item._id);
-      const res = await fetch(`${API}/api/admin/inventory/${item._id}/sold`, {
-        method: "POST",
-        credentials: "include",
-      });
+      const res = await fetch(
+        `${API_BASE_URL}/api/admin/inventory/${item._id}/sold`,
+        {
+          method: "POST",
+          credentials: "include",
+        },
+      );
       if (!res.ok) throw new Error();
       toast.success("Marked as sold");
       fetchInventory();
@@ -182,7 +196,7 @@ const AdminInventory = () => {
               {phone.images?.map((img, i) => (
                 <img
                   key={i}
-                  src={`${API}${img}`}
+                  src={resolveImageUrl(img)}
                   className="h-20 w-full object-cover rounded"
                   alt=""
                 />

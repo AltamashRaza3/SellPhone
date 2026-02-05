@@ -13,17 +13,7 @@ import {
 import { toast } from "react-hot-toast";
 import AppContainer from "../components/AppContainer";
 import noImage from "../assets/no-image.png";
-
-import API_BASE_URL from "../utils/api";
-
-
-/* ================= IMAGE RESOLVER ================= */
-const getPhoneImage = (phone) => {
-  if (phone?.images?.length > 0) {
-    return `${API_BASE_URL}${phone.images[0]}`;
-  }
-  return noImage;
-};
+import { resolveImageUrl } from "../utils/resolveImageUrl";
 
 const Cart = () => {
   const dispatch = useDispatch();
@@ -87,15 +77,13 @@ const Cart = () => {
           {/* ================= CART ITEMS ================= */}
           <div className="lg:col-span-2 space-y-4">
             {cartItems.map((item) => {
-              const imageSrc = getPhoneImage(item.phone);
-
               return (
                 <div
                   key={item.phone._id}
                   className="glass-card flex gap-6 items-center"
                 >
                   <img
-                    src={imageSrc}
+                    src={resolveImageUrl(item.phone.images?.[0])}
                     alt={`${item.phone.brand} ${item.phone.model}`}
                     className="w-28 h-28 object-contain rounded-xl bg-black/20 border border-white/10"
                     onError={(e) => (e.currentTarget.src = noImage)}
@@ -208,8 +196,6 @@ const Cart = () => {
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
               {suggestedPhones.map((phone) => {
-                const img = getPhoneImage(phone);
-
                 return (
                   <Link
                     to={`/phone/${phone._id}`}
@@ -217,11 +203,12 @@ const Cart = () => {
                     className="glass-card flex flex-col items-center hover:scale-[1.02] transition"
                   >
                     <img
-                      src={img}
+                      src={resolveImageUrl(phone.images?.[0])}
                       alt={`${phone.brand} ${phone.model}`}
                       className="h-28 object-contain mb-3"
                       onError={(e) => (e.currentTarget.src = noImage)}
                     />
+
                     <h4 className="font-semibold text-sm text-center">
                       {phone.brand} {phone.model}
                     </h4>

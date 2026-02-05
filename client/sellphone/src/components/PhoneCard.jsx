@@ -3,7 +3,8 @@ import { addToCart } from "../redux/slices/cartSlice";
 import { toast } from "react-hot-toast";
 import { Link } from "react-router-dom";
 import noImage from "../assets/no-image.png";
-import API_BASE_URL from "../utils/api";
+import { resolveImageUrl } from "../utils/resolveImageUrl";
+
 
 const PhoneCard = ({ phone }) => {
   const dispatch = useDispatch();
@@ -12,14 +13,7 @@ const PhoneCard = ({ phone }) => {
   if (!phone || !phone._id) return null;
 
   /* ================= IMAGE RESOLUTION ================= */
-  let imageSrc = noImage;
-
-  if (Array.isArray(phone.images) && phone.images.length > 0) {
-    const img = phone.images[0];
-    imageSrc = img.startsWith("http") ? img : `${API_BASE_URL}${img}`;
-  } else if (typeof phone.image === "string") {
-    imageSrc = phone.image;
-  }
+ const imageSrc = resolveImageUrl(phone.images?.[0] || phone.image) || noImage;
 
   /* ================= ADD TO CART ================= */
   const handleAddToCart = (e) => {
