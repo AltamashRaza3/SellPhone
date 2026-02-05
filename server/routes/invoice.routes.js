@@ -8,7 +8,7 @@ import Order from "../models/Order.js";
 
 import { generateInvoice } from "../utils/generateSellInvoice.js";
 import { generateOrderInvoice } from "../utils/generateOrderInvoice.js";
-
+import adminAuth from "../middleware/adminAuth.js";
 import userAuth from "../middleware/userAuth.js";
 
 const router = express.Router();
@@ -93,13 +93,6 @@ router.get("/order/:id", userAuth, async (req, res) => {
   }
 });
 
-export const generateOrderInvoice = async (order, options = {}) => {
-  const doc = new PDFDocument({ size: "A4", margin: 50 });
-
-  if (options.stream) {
-    return doc;
-  }
-};
 /* ======================================================
    ADMIN – ORDER INVOICE
    GET /api/admin/invoices/order/:id
