@@ -35,10 +35,10 @@ const AdminLogin = () => {
     setLoading(true);
 
     try {
-      const res = await fetch($,"{API_BASE_URL},/api/admin/login", {
+      const res = await fetch($,`{API_BASE_URL},/api/admin/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include", // 🔥 REQUIRED FOR COOKIE
+        credentials: "include",
         body: JSON.stringify({ email, password }),
       });
 
