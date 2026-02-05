@@ -1,8 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "react-hot-toast";
 
-const API = "http://localhost:5000";
-
 const AdminInventory = () => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);

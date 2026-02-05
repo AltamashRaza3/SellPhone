@@ -1,8 +1,8 @@
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
+import API_BASE_URL from "../utils/api";
 
-const API_BASE_URL = "http://localhost:5000";
 
 /* ===== LOCKED ENUMS ===== */
 const CONDITIONS = ["Like New", "Excellent", "Good", "Fair"];
@@ -21,7 +21,7 @@ const BRANDS = [
 const STORAGES = ["64GB", "128GB", "256GB", "512GB", "1TB"];
 
 const AdminAddProduct = ({
-  mode = "add", // "add" | "edit"
+  mode = "add", 
   initialData = null,
   onSave,
   onDelete,
@@ -34,8 +34,8 @@ const AdminAddProduct = ({
     price: "",
     storage: "",
     condition: "",
-    color: "", // ✅ REQUIRED (FREE TEXT)
-    ram: "", // ✅ REQUIRED
+    color: "",
+    ram: "", 
     description: "",
     images: "",
   });

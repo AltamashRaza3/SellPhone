@@ -1,7 +1,8 @@
 // utils/getPhoneImage.js
 import noImage from "../assets/no-image.png";
+import API_BASE_URL from "../config/api";
 
-export const getPhoneImage = (phone, API_BASE_URL) => {
+export const getPhoneImage = (phone) => {
   if (
     phone?.images &&
     Array.isArray(phone.images) &&

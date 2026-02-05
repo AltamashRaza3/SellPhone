@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { jsPDF } from "jspdf";
+import API_BASE_URL from "../utils/api";
 
 import AdminOrderTimeline from "../../components/AdminOrderTimeline";
 import AdminOrderStatusHistory from "../../components/AdminOrderStatusHistory.jsx";
@@ -34,8 +35,8 @@ const AdminOrderDetails = () => {
     const fetchOrder = async () => {
       try {
         const res = await fetch(
-          `http://localhost:5000/api/admin/orders/${id}`,
-          { credentials: "include" }
+          `${API_BASE_URL}/api/admin/orders/${id}`,
+          { credentials: "include" },
         );
 
         const data = await res.json();
@@ -76,12 +77,15 @@ const AdminOrderDetails = () => {
     try {
       setUpdating(true);
 
-      const res = await fetch(`http://localhost:5000/api/admin/orders/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ status }),
-      });
+      const res = await fetch(
+        `${API_BASE_URL}/api/admin/orders/${id}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ status }),
+        },
+      );
 
       const data = await res.json();
 

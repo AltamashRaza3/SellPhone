@@ -3,6 +3,7 @@ import { useDispatch } from "react-redux";
 import { clearAdmin } from "../../redux/slices/adminSlice";
 import { useState } from "react";
 import { FiMenu, FiX } from "react-icons/fi";
+import API_BASE_URL from "../utils/api";
 
 /* ================== STYLES ================== */
 const baseLink =
@@ -22,7 +23,7 @@ const AdminLayout = () => {
   /* 🔐 ADMIN LOGOUT (JWT BASED) */
   const handleLogout = async () => {
     try {
-      await fetch("http://localhost:5000/api/admin/logout", {
+      await fetch(`${API_BASE_URL}/api/admin/logout`, {
         method: "POST",
         credentials: "include",
       });

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import API_BASE_URL from "../utils/api";
 
 const LIMIT = 10;
 
@@ -15,7 +16,7 @@ const AdminOrders = () => {
         setLoading(true);
 
         const res = await fetch(
-          `http://localhost:5000/api/admin/orders?page=${page}&limit=${LIMIT}`,
+          `${API_BASE_URL}/api/admin/orders?page=${page}&limit=${LIMIT}`,
           { credentials: "include" },
         );
 

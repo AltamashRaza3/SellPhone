@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
+import API_BASE_URL from "../utils/api";
 
 const AssignRider = ({ requestId,alreadyAssigned ,onAssigned }) => {
   const [riders, setRiders] = useState([]);
@@ -9,7 +10,7 @@ const AssignRider = ({ requestId,alreadyAssigned ,onAssigned }) => {
 
   /* ================= LOAD RIDERS ================= */
   useEffect(() => {
-    fetch("http://localhost:5000/api/admin/riders", {
+    fetch(`${API_BASE_URL}/api/admin/riders`, {
       credentials: "include",
     })
       .then((res) => {
@@ -38,7 +39,7 @@ const AssignRider = ({ requestId,alreadyAssigned ,onAssigned }) => {
       setLoading(true);
 
       const res = await fetch(
-        `http://localhost:5000/api/admin/sell-requests/${requestId}/assign-rider`,
+        `${API_BASE_URL}/api/admin/sell-requests/${requestId}/assign-rider`,
         {
           method: "PUT",
           credentials: "include",

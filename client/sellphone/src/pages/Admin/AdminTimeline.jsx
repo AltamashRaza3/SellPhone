@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 
+import API_BASE_URL from "../../config/api";
+
 const AdminTimeline = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -9,9 +11,12 @@ const AdminTimeline = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`http://localhost:5000/api/admin/sell-requests/${id}/timeline`, {
-      credentials: "include",
-    })
+    fetch(
+      `${API_BASE_URL}/api/admin/sell-requests/${id}/timeline`,
+      {
+        credentials: "include",
+      },
+    )
       .then((res) => res.json())
       .then((data) => setTimeline(data))
       .finally(() => setLoading(false));
@@ -82,7 +87,7 @@ const AdminTimeline = () => {
             {timeline.verification.images.map((img, idx) => (
               <img
                 key={idx}
-                src={`http://localhost:5000${img}`}
+                src={`${API_BASE_URL}${img}`}
                 alt="Pickup"
                 className="rounded-xl border border-gray-700"
               />

@@ -3,7 +3,8 @@ import { useNavigate, useParams } from "react-router-dom";
 import riderApi from "../api/riderApi";
 import { FiCamera, FiPhoneCall, FiMapPin } from "react-icons/fi";
 import { FaWhatsapp } from "react-icons/fa";
-const API_BASE_URL = "http://localhost:5000";
+import API_BASE_URL from "../config/api";
+
 
 /* ================= VERIFICATION CHECKLIST ================= */
 const VERIFICATION_CHECKS = {

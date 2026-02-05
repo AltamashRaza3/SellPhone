@@ -14,7 +14,8 @@ import { toast } from "react-hot-toast";
 import AppContainer from "../components/AppContainer";
 import noImage from "../assets/no-image.png";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+import API_BASE_URL from "../utils/api";
+
 
 /* ================= IMAGE RESOLVER ================= */
 const getPhoneImage = (phone) => {

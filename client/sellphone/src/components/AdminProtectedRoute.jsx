@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
+import API_BASE_URL from "../utils/api";
 
 const AdminProtectedRoute = ({ children }) => {
   const [loading, setLoading] = useState(true);
@@ -10,7 +11,7 @@ const AdminProtectedRoute = ({ children }) => {
 
     const checkAdminAuth = async () => {
       try {
-        const res = await fetch("http://localhost:5000/api/admin/me", {
+        const res = await fetch(`${API_BASE_URL}/api/admin/me`, {
           method: "GET",
           credentials: "include", // ✅ JWT cookie
           signal: controller.signal,

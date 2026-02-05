@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { auth } from "../utils/firebase";
 import { toast } from "react-hot-toast";
 import OrderStatusBadge from "../components/OrderStatusBadge";
+import API_BASE_URL from "../utils/api";
 
 const Orders = () => {
   const user = useSelector((state) => state.user.user);
@@ -23,7 +24,7 @@ const Orders = () => {
 
         const token = await currentUser.getIdToken();
 
-        const res = await fetch("http://localhost:5000/api/orders/my", {
+        const res = await fetch(`${API_BASE_URL}/api/orders/my`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 

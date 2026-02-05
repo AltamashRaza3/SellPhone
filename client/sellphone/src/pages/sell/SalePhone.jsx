@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
+import API_BASE_URL from "../utils/api";
 
 /* ================= HELPERS ================= */
 const normalizeRam = (value) => {
@@ -111,7 +112,7 @@ const SalePhone = () => {
         formData.append("images", img);
       });
 
-      const res = await fetch("http://localhost:5000/api/sell-requests", {
+      const res = await fetch(`${API_BASE_URL}/api/sell-requests`, {
         method: "POST",
         credentials: "include",
         body: formData,

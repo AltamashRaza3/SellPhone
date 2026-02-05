@@ -1,7 +1,9 @@
 import axios from "axios";
+import API_BASE_URL from "../config/api";
 
 const riderApi = axios.create({
-  baseURL: "http://localhost:5000/api/rider",
+  baseURL: `${API_BASE_URL}/api/rider`,
+  withCredentials: true,
 });
 
 /* ================= AUTH INTERCEPTOR ================= */
@@ -9,12 +11,9 @@ riderApi.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("riderToken");
 
-    if (!token) {
-      throw new Error("Rider token missing");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
     }
-
-    // 🔐 THIS IS THE FIX
-    config.headers.Authorization = `Bearer ${token}`;
 
     // 🔥 IMPORTANT: never manually set multipart boundary
     if (config.data instanceof FormData) {

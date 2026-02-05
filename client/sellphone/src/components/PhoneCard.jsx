@@ -3,8 +3,7 @@ import { addToCart } from "../redux/slices/cartSlice";
 import { toast } from "react-hot-toast";
 import { Link } from "react-router-dom";
 import noImage from "../assets/no-image.png";
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+import API_BASE_URL from "../utils/api";
 
 const PhoneCard = ({ phone }) => {
   const dispatch = useDispatch();

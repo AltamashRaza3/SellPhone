@@ -12,7 +12,8 @@ import { toast } from "react-hot-toast";
 import { useDispatch } from "react-redux";
 import { mergeGuestCart } from "../redux/slices/cartSlice";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+import API_BASE_URL from "../utils/api";
+
 
 /* ================= VALIDATION ================= */
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

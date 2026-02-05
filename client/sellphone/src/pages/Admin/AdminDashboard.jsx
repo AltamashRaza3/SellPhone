@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import API_BASE_URL from "../utils/api";
 
 const StatCard = ({ title, value, icon, gradient }) => (
   <div className={`rounded-2xl p-6 shadow-lg text-white ${gradient}`}>
@@ -23,10 +24,10 @@ const AdminDashboard = () => {
     const fetchDashboardData = async () => {
       try {
         const [ordersRes, sellReqRes] = await Promise.all([
-          fetch("http://localhost:5000/api/admin/orders", {
+          fetch(`${API_BASE_URL}/api/admin/orders`, {
             credentials: "include",
           }),
-          fetch("http://localhost:5000/api/admin/sell-requests", {
+          fetch(`${API_BASE_URL}/api/admin/sell-requests`, {
             credentials: "include",
           }),
         ]);

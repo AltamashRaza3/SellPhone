@@ -9,7 +9,8 @@ import { addToCart } from "../redux/slices/cartSlice";
 import toast from "react-hot-toast";
 import noImage from "../assets/no-image.png";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+import API_BASE_URL from "../utils/api";
+
 
 const PhoneDetails = () => {
   const { id } = useParams();
