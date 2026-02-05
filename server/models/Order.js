@@ -24,10 +24,17 @@ const orderSchema = new mongoose.Schema(
           required: false,
         },
 
-        phone: {
-          type: Object,
-          required: true,
+        productId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Product",
+        required: true,
         },
+
+      price: {
+      type: Number,
+      required: true,
+      },
+
 
         quantity: {
           type: Number,
@@ -45,9 +52,15 @@ const orderSchema = new mongoose.Schema(
 
     /* ================= SHIPPING ================= */
     shippingAddress: {
-      type: String,
-      required: true,
+    name: { type: String, required: true },
+    phone: { type: String, required: true },
+    line1: { type: String, required: true },
+    line2: { type: String },
+    city: { type: String, required: true },
+    state: { type: String, required: true },
+    pincode: { type: String, required: true },
     },
+
 
     /* ================= PAYMENT ================= */
     paymentMethod: {

@@ -74,12 +74,12 @@ const Checkout = () => {
     try {
       const payload = {
         items: cartItems.map((item) => ({
-          inventoryId: item.phone.inventoryId || null, // if exists
+          inventoryId: item.phone.inventoryId || null,
           phoneId: item.phone._id,
           quantity: item.quantity,
           price: item.phone.price,
         })),
-        totalAmount, // ✅ REQUIRED
+        totalAmount,
         shippingAddress: {
           name: address.fullName,
           phone: address.phone,
