@@ -6,6 +6,7 @@ const API = `${API_BASE_URL}/api/orders`;
 export const createOrder = async (payload) => {
   const res = await fetch(API, {
     method: "POST",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
@@ -14,16 +15,19 @@ export const createOrder = async (payload) => {
   return res.json();
 };
 
-export const getMyOrders = async (userId) => {
-  const res = await fetch(`${API}/my?userId=${userId}`);
+export const getMyOrders = async () => {
+  const res = await fetch(`${API}/my`, {
+    credentials: "include",
+  });
   if (!res.ok) throw new Error("Failed to fetch orders");
   return res.json();
 };
 
+
 /* ================= ADMIN ================= */
 export const getAllOrders = async () => {
   const res = await fetch(API, {
-    credentials: "include", // 🔥 admin cookie
+    credentials: "include",
   });
 
   if (!res.ok) throw new Error("Unauthorized");
