@@ -62,45 +62,69 @@ const Checkout = () => {
 
   /* ================= PLACE ORDER ================= */
  const handlePlaceOrder = async () => {
-  console.log("🔥 NEW CHECKOUT HANDLER RUNNING");
+   console.log("🔥 NEW CHECKOUT HANDLER RUNNING");
 
    if (!cartItems.length) {
      toast.error("Your cart is empty");
      return;
    }
 
-   if (!validateAddress()) return;
+   // 🔒 HARD NORMALIZATION (THIS IS THE KEY)
+   const normalizedAddress = {
+     name: address.fullName?.trim(),
+     phone: address.phone?.trim(),
+     line1: address.line1?.trim(),
+     line2: address.line2?.trim() || "",
+     city: address.city?.trim(),
+     state: address.state?.trim(),
+     pincode: address.pincode?.trim(),
+   };
+
+   // 🔒 FINAL GUARANTEE (backend-safe)
+   if (
+     !normalizedAddress.name ||
+     !normalizedAddress.phone ||
+     !normalizedAddress.line1 ||
+     !normalizedAddress.city ||
+     !normalizedAddress.state ||
+     !normalizedAddress.pincode
+   ) {
+     toast.error("Please fill all required address fields");
+     return;
+   }
+
+   if (!/^\d{10}$/.test(normalizedAddress.phone)) {
+     toast.error("Enter a valid 10-digit phone number");
+     return;
+   }
+
+   if (!/^\d{6}$/.test(normalizedAddress.pincode)) {
+     toast.error("Enter a valid 6-digit pincode");
+     return;
+   }
 
    setLoading(true);
 
    try {
-     /* ================= FIX ITEMS ================= */
+     /* ================= ITEMS (FINAL) ================= */
      const orderItems = cartItems.map((item) => ({
-       productId: item.phone._id, // ✅ REQUIRED
-       price: item.phone.price, // ✅ REQUIRED
+       productId: item.phone._id,
+       price: item.phone.price,
        quantity: item.quantity || 1,
        ...(item.phone.inventoryId && {
          inventoryId: item.phone.inventoryId,
        }),
      }));
 
-     /* ================= FIX ADDRESS ================= */
-     const shippingAddress = {
-       name: address.fullName,
-       phone: address.phone,
-       line1: address.line1,
-       line2: address.line2 || "",
-       city: address.city,
-       state: address.state,
-       pincode: address.pincode,
-     };
-
      const payload = {
        items: orderItems,
        totalAmount,
-       shippingAddress,
+       shippingAddress: normalizedAddress,
        paymentMethod: "COD",
      };
+
+     // 🧪 DEBUG (KEEP FOR NOW, CAN REMOVE LATER)
+     console.log("📦 FINAL ORDER PAYLOAD", payload);
 
      await axios.post("/orders", payload, {
        withCredentials: true,
@@ -123,6 +147,7 @@ const Checkout = () => {
      setLoading(false);
    }
  };
+
 
 
 
