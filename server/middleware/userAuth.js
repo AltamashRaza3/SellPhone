@@ -22,13 +22,14 @@ const userAuth = async (req, res, next) => {
         }
 
         req.user = {
+          id: decoded.uid,
           uid: decoded.uid,
           email: decoded.email,
           role: "user",
           authType: "firebase",
         };
 
-        return next(); // ✅ SUCCESS
+        return next(); 
       } catch (err) {
         console.warn("Firebase auth failed:", err.message);
         // fall through to JWT only if cookie exists
@@ -60,6 +61,7 @@ const userAuth = async (req, res, next) => {
     }
 
     req.user = {
+      id: decoded.sub,
       uid: decoded.sub,
       email: decoded.email,
       role: decoded.role || "user",
