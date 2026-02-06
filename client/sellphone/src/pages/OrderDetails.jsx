@@ -61,20 +61,11 @@ const OrderDetails = () => {
   };
 const downloadInvoice = async () => {
   try {
-    const res = await fetch(
-      `${import.meta.env.VITE_API_BASE_URL}/api/invoices/order/${order._id}`,
-      {
-        method: "GET",
-        credentials: "include", // 🔥 REQUIRED
-      },
-    );
+    const res = await axios.get(`/invoices/order/${order._id}`, {
+      responseType: "blob", // 🔥 REQUIRED FOR PDF
+    });
 
-    if (!res.ok) {
-      const data = await res.json();
-      throw new Error(data.message || "Failed to download invoice");
-    }
-
-    const blob = await res.blob();
+    const blob = new Blob([res.data], { type: "application/pdf" });
     const url = window.URL.createObjectURL(blob);
 
     const a = document.createElement("a");
@@ -86,9 +77,11 @@ const downloadInvoice = async () => {
     a.remove();
     window.URL.revokeObjectURL(url);
   } catch (err) {
-    toast.error(err.message);
+    console.error(err);
+    toast.error("Unauthorized or invoice not available");
   }
 };
+
 
   return (
     <div className="flex justify-center px-4 py-10 bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 min-h-screen">
