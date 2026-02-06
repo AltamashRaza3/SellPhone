@@ -61,73 +61,67 @@ const Checkout = () => {
   };
 
   /* ================= PLACE ORDER ================= */
-  const handlePlaceOrder = async () => {
-    if (!cartItems.length) {
-      toast.error("Your cart is empty");
-      return;
-    }
+ const handlePlaceOrder = async () => {
+   if (!cartItems.length) {
+     toast.error("Your cart is empty");
+     return;
+   }
 
-    if (!validateAddress()) return;
+   if (!validateAddress()) return;
 
-    setLoading(true);
+   setLoading(true);
 
-    try {
-     const payload = {
-       items: cartItems.map((item) => {
-         const phone = {
-           _id: item.phone._id,
-           brand: item.phone.brand,
-           model: item.phone.model,
-           price: item.phone.price,
-           storage: item.phone.storage,
-           condition: item.phone.condition,
-           color: item.phone.color,
-           ram: item.phone.ram,
-           image: item.phone.image,
-         };
-
-         return {
-           phone,
-           quantity: item.quantity,
-           ...(item.phone.inventoryId && {
-             inventoryId: item.phone.inventoryId,
-           }),
-         };
+   try {
+     /* ================= FIX ITEMS ================= */
+     const orderItems = cartItems.map((item) => ({
+       productId: item.phone._id, // ✅ REQUIRED
+       price: item.phone.price, // ✅ REQUIRED
+       quantity: item.quantity || 1,
+       ...(item.phone.inventoryId && {
+         inventoryId: item.phone.inventoryId,
        }),
+     }));
 
+     /* ================= FIX ADDRESS ================= */
+     const shippingAddress = {
+       name: address.fullName,
+       phone: address.phone,
+       line1: address.line1,
+       line2: address.line2 || "",
+       city: address.city,
+       state: address.state,
+       pincode: address.pincode,
+     };
+
+     const payload = {
+       items: orderItems,
        totalAmount,
-
-       shippingAddress: `
-${address.fullName}, ${address.phone}
-${address.line1}${address.line2 ? ", " + address.line2 : ""}
-${address.city}, ${address.state} - ${address.pincode}
-  `.trim(),
-
+       shippingAddress,
        paymentMethod: "COD",
      };
 
+     await axios.post("/orders", payload, {
+       withCredentials: true,
+     });
 
-      await axios.post("/orders", payload, {
-        withCredentials: true,
-      });
+     dispatch(clearCart());
 
-      dispatch(clearCart());
+     if (auth.currentUser?.uid) {
+       await axios.delete(`/cart/${auth.currentUser.uid}`, {
+         withCredentials: true,
+       });
+     }
 
-      if (auth.currentUser?.uid) {
-        await axios.delete(`/cart/${auth.currentUser.uid}`, {
-          withCredentials: true,
-        });
-      }
+     toast.success("Order placed successfully");
+     navigate("/orders");
+   } catch (error) {
+     console.error("ORDER ERROR:", error);
+     toast.error(error?.response?.data?.message || "Failed to place order");
+   } finally {
+     setLoading(false);
+   }
+ };
 
-      toast.success("Order placed successfully");
-      navigate("/orders");
-    } catch (error) {
-      console.error("ORDER ERROR:", error);
-      toast.error(error?.response?.data?.message || "Failed to place order");
-    } finally {
-      setLoading(false);
-    }
-  };
 
 
   return (
