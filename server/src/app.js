@@ -41,11 +41,6 @@ app.use(cookieParser());
 /* ================= SECURITY ================= */
 app.use("/api", apiLimiter);
 
-/* ================= CORS ================= */
-/*
-  Client App  → http://localhost:5174
-  Rider App   → http://localhost:5173
-*/
 const corsOptions = {
   origin: [
     "http://localhost:5174", 

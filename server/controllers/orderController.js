@@ -22,11 +22,17 @@ export const createOrder = async (req, res) => {
     const user = req.user;
     const { items, totalAmount, shippingAddress, paymentMethod } = req.body;
 
-    if (!items?.length || !totalAmount || !shippingAddress) {
+    const uid = user?.uid || user?.id;
+
+    if (!uid || !user?.email) {
+      return res.status(401).json({ message: "Invalid user session" });
+    }
+
+    if (!items?.length || totalAmount == null || !shippingAddress) {
       return res.status(400).json({ message: "Invalid order data" });
     }
 
-    // Optional inventory validation
+    // Inventory validation
     for (const item of items) {
       if (item.inventoryId) {
         const inventory = await InventoryItem.findById(item.inventoryId);
@@ -38,30 +44,35 @@ export const createOrder = async (req, res) => {
       }
     }
 
+    const normalizedItems = items.map((item) => ({
+      productId: item.productId || item._id,
+      inventoryId: item.inventoryId || null,
+      price: item.price,
+      quantity: item.quantity || 1,
+    }));
+
     const order = await Order.create({
       user: {
-        uid: user.uid,
+        uid,
         email: user.email,
       },
-      items,
+      items: normalizedItems,
       totalAmount,
       shippingAddress,
       paymentMethod: paymentMethod || "COD",
       status: "Pending",
       statusHistory: [
-        {
-          status: "Pending",
-          changedBy: "user",
-        },
+        { status: "Pending", changedBy: "user" },
       ],
     });
 
     return res.status(201).json(order);
   } catch (error) {
     console.error("❌ CREATE ORDER ERROR:", error);
-    return res.status(500).json({ message: "Order creation failed" });
+    return res.status(500).json({ message: error.message });
   }
 };
+
 
 /* ======================================================
    GET USER ORDERS (SAFE)
