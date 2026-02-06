@@ -4,6 +4,8 @@ import axios from "../utils/axios";
 import { toast } from "react-hot-toast";
 import OrderTimeline from "../components/OrderTimeline";
 import OrderStatusBadge from "../components/OrderStatusBadge";
+import { resolveImageUrl } from "../utils/resolveImageUrl";
+import noImage from "../assets/no-image.png";
 
 const OrderDetails = () => {
   const { id } = useParams();

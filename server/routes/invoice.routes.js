@@ -3,23 +3,28 @@ import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
 
-import SellRequest from "../src/models/SellRequest.js";
+import SellRequest from "../models/SellRequest.js";
 import Order from "../models/Order.js";
 
 import { generateInvoice } from "../utils/generateSellInvoice.js";
 import { generateOrderInvoice } from "../utils/generateOrderInvoice.js";
+
 import adminAuth from "../middleware/adminAuth.js";
 import userAuth from "../middleware/userAuth.js";
 
 const router = express.Router();
 
-/* ================= PATH FIX ================= */
+/* ======================================================
+   BASE DIR (DEPLOYMENT SAFE)
+====================================================== */
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const PROJECT_ROOT = path.resolve(__dirname, "..","..");
+
+// always points to backend root (Render / Firebase safe)
+const PROJECT_ROOT = process.cwd();
 
 /* ======================================================
-   SELL PHONE INVOICE
+   SELL PHONE INVOICE (USER)
    GET /api/invoices/sell/:id
 ====================================================== */
 router.get("/sell/:id", userAuth, async (req, res) => {
@@ -47,20 +52,20 @@ router.get("/sell/:id", userAuth, async (req, res) => {
       return res.status(404).json({ message: "Invoice not found" });
     }
 
-    res.download(filePath);
+    return res.download(filePath);
   } catch (err) {
-    console.error("SELL INVOICE ERROR:", err);
-    res.status(500).json({ message: "Failed to download invoice" });
+    console.error("❌ SELL INVOICE ERROR:", err);
+    return res.status(500).json({ message: "Failed to download invoice" });
   }
 });
 
 /* ======================================================
-   ORDER INVOICE (BUY)
-   GET /api/invoices/order/:orderId
+   ORDER INVOICE (USER)
+   GET /api/invoices/order/:id
 ====================================================== */
 router.get("/order/:id", userAuth, async (req, res) => {
   try {
-    const order = await Order.findById(req.params.id).lean();
+    const order = await Order.findById(req.params.id);
 
     if (!order) {
       return res.status(404).json({ message: "Order not found" });
@@ -76,26 +81,38 @@ router.get("/order/:id", userAuth, async (req, res) => {
         .json({ message: "Invoice available only after delivery" });
     }
 
-    // 🔥 STREAM PDF DIRECTLY (NO FS, NO URL)
-    const doc = await generateOrderInvoice(order, { stream: true });
+    // 🔒 Generate once (idempotent)
+    if (!order.invoiceGenerated) {
+      const invoice = await generateOrderInvoice(order);
 
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename=ORD-INV-${order._id.toString().slice(-6)}.pdf`
-    );
+      await Order.updateOne(
+        { _id: order._id },
+        {
+          invoiceGenerated: true,
+          invoiceNumber: invoice.number,
+          invoiceUrl: invoice.url,
+        }
+      );
 
-    doc.pipe(res);
-    doc.end();
+      order.invoiceUrl = invoice.url;
+    }
+
+    const filePath = path.join(PROJECT_ROOT, order.invoiceUrl);
+
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ message: "Invoice not found" });
+    }
+
+    return res.download(filePath);
   } catch (err) {
-    console.error("ORDER INVOICE ERROR:", err);
-    res.status(500).json({ message: "Failed to download invoice" });
+    console.error("❌ USER ORDER INVOICE ERROR:", err);
+    return res.status(500).json({ message: "Failed to download invoice" });
   }
 });
 
 /* ======================================================
-   ADMIN – ORDER INVOICE
-   GET /api/admin/invoices/order/:id
+   ORDER INVOICE (ADMIN)
+   GET /api/invoices/admin/order/:id
 ====================================================== */
 router.get("/admin/order/:id", adminAuth, async (req, res) => {
   try {
@@ -111,13 +128,20 @@ router.get("/admin/order/:id", adminAuth, async (req, res) => {
         .json({ message: "Invoice available only after delivery" });
     }
 
-    // generate once (safe)
+    // 🔒 Generate once (safe for multi-admin)
     if (!order.invoiceGenerated) {
       const invoice = await generateOrderInvoice(order);
-      order.invoiceGenerated = true;
-      order.invoiceNumber = invoice.number;
+
+      await Order.updateOne(
+        { _id: order._id },
+        {
+          invoiceGenerated: true,
+          invoiceNumber: invoice.number,
+          invoiceUrl: invoice.url,
+        }
+      );
+
       order.invoiceUrl = invoice.url;
-      await order.save();
     }
 
     const filePath = path.join(PROJECT_ROOT, order.invoiceUrl);
@@ -126,10 +150,10 @@ router.get("/admin/order/:id", adminAuth, async (req, res) => {
       return res.status(404).json({ message: "Invoice not found" });
     }
 
-    res.download(filePath);
+    return res.download(filePath);
   } catch (err) {
-    console.error("ADMIN ORDER INVOICE ERROR:", err);
-    res.status(500).json({ message: "Failed to download invoice" });
+    console.error("❌ ADMIN ORDER INVOICE ERROR:", err);
+    return res.status(500).json({ message: "Failed to download invoice" });
   }
 });
 
