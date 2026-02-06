@@ -62,6 +62,8 @@ const Checkout = () => {
 
   /* ================= PLACE ORDER ================= */
  const handlePlaceOrder = async () => {
+  console.log("🔥 NEW CHECKOUT HANDLER RUNNING");
+
    if (!cartItems.length) {
      toast.error("Your cart is empty");
      return;
