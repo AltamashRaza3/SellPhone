@@ -134,7 +134,7 @@ const downloadInvoice = async () => {
           <h2 className="text-xl font-medium text-white">Ordered Items</h2>
 
           {order.items.map((item, idx) => {
-            const phone = item.phone;
+            const product = item.productId || {};
 
             return (
               <div
@@ -142,28 +142,29 @@ const downloadInvoice = async () => {
                 className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur p-5 flex flex-col sm:flex-row gap-6"
               >
                 <img
-                  src={phone.image}
-                  alt={phone.model}
+                  src={resolveImageUrl(product.images?.[0])}
+                  alt={product.model || "Product"}
                   className="w-24 h-24 object-contain rounded-xl border border-white/10 bg-black/20"
+                  onError={(e) => (e.currentTarget.src = noImage)}
                 />
 
                 <div className="flex-1">
                   <p className="text-lg font-semibold text-white">
-                    {phone.brand} {phone.model}
+                    {product.brand} {product.model}
                   </p>
 
                   <div className="mt-2 space-y-1 text-sm text-gray-400">
-                    {phone.color && <p>Color: {phone.color}</p>}
-                    {phone.storage && <p>Storage: {phone.storage}</p>}
-                    {phone.ram && <p>RAM: {phone.ram}</p>}
+                    {product.color && <p>Color: {product.color}</p>}
+                    {product.storage && <p>Storage: {product.storage}</p>}
+                    {product.ram && <p>RAM: {product.ram}</p>}
                   </div>
                 </div>
 
                 <div className="text-right text-sm text-gray-300 space-y-1">
                   <p>Qty: {item.quantity}</p>
-                  <p>₹{phone.price}</p>
+                  <p>₹{item.price}</p>
                   <p className="text-lg font-semibold text-white">
-                    ₹{phone.price * item.quantity}
+                    ₹{item.price * item.quantity}
                   </p>
                 </div>
               </div>
