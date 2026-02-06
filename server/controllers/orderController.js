@@ -28,29 +28,47 @@ export const createOrder = async (req, res) => {
       return res.status(401).json({ message: "Invalid user session" });
     }
 
-    if (!items?.length || totalAmount == null || !shippingAddress) {
-      return res.status(400).json({ message: "Invalid order data" });
-    }
+    /* ================= SHIPPING ADDRESS FIX ================= */
+    const normalizedAddress = {
+      name: shippingAddress?.name,
+      phone: shippingAddress?.phone,
+      line1: shippingAddress?.line1,
+      line2: shippingAddress?.line2 || "",
+      city: shippingAddress?.city,
+      state: shippingAddress?.state,
+      pincode: shippingAddress?.pincode,
+    };
 
-    // Inventory validation
-    for (const item of items) {
-      if (item.inventoryId) {
-        const inventory = await InventoryItem.findById(item.inventoryId);
-        if (!inventory || inventory.status !== "Available") {
-          return res.status(400).json({
-            message: "One or more items are no longer available",
-          });
-        }
+    for (const [key, value] of Object.entries(normalizedAddress)) {
+      if (!value && key !== "line2") {
+        return res.status(400).json({
+          message: `Missing shipping address field: ${key}`,
+        });
       }
     }
 
-    const normalizedItems = items.map((item) => ({
-      productId: item.productId || item._id,
-      inventoryId: item.inventoryId || null,
-      price: item.price,
-      quantity: item.quantity || 1,
-    }));
+    /* ================= ITEMS FIX ================= */
+    if (!items?.length) {
+      return res.status(400).json({ message: "Cart is empty" });
+    }
 
+    const normalizedItems = items.map((item, index) => {
+      const productId = item.productId || item._id;
+      const price = item.price;
+
+      if (!productId || price == null) {
+        throw new Error(`Invalid cart item at index ${index}`);
+      }
+
+      return {
+        productId,
+        inventoryId: item.inventoryId || null,
+        price,
+        quantity: item.quantity || 1,
+      };
+    });
+
+    /* ================= CREATE ORDER ================= */
     const order = await Order.create({
       user: {
         uid,
@@ -58,12 +76,10 @@ export const createOrder = async (req, res) => {
       },
       items: normalizedItems,
       totalAmount,
-      shippingAddress,
+      shippingAddress: normalizedAddress,
       paymentMethod: paymentMethod || "COD",
       status: "Pending",
-      statusHistory: [
-        { status: "Pending", changedBy: "user" },
-      ],
+      statusHistory: [{ status: "Pending", changedBy: "user" }],
     });
 
     return res.status(201).json(order);
@@ -72,6 +88,7 @@ export const createOrder = async (req, res) => {
     return res.status(500).json({ message: error.message });
   }
 };
+
 
 
 /* ======================================================
