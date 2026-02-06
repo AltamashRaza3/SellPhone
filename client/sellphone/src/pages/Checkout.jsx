@@ -73,9 +73,8 @@ const Checkout = () => {
 
     try {
      const payload = {
-       items: cartItems.map((item) => ({
-         inventoryId: item.phone.inventoryId || null,
-         phone: {
+       items: cartItems.map((item) => {
+         const phone = {
            _id: item.phone._id,
            brand: item.phone.brand,
            model: item.phone.model,
@@ -85,9 +84,16 @@ const Checkout = () => {
            color: item.phone.color,
            ram: item.phone.ram,
            image: item.phone.image,
-         },
-         quantity: item.quantity,
-       })),
+         };
+
+         return {
+           phone,
+           quantity: item.quantity,
+           ...(item.phone.inventoryId && {
+             inventoryId: item.phone.inventoryId,
+           }),
+         };
+       }),
 
        totalAmount,
 
