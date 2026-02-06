@@ -3,7 +3,7 @@ import { useDispatch } from "react-redux";
 import { clearAdmin } from "../../redux/slices/adminSlice";
 import { useState } from "react";
 import { FiMenu, FiX } from "react-icons/fi";
-import API_BASE_URL from "../../utils/api";
+import API_BASE_URL from "../../config/api";
 
 /* ================== STYLES ================== */
 const baseLink =

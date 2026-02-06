@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import API_BASE_URL from "../../utils/api";
+import API_BASE_URL from "../../config/api";
 
 const StatCard = ({ title, value, icon, gradient }) => (
   <div className={`rounded-2xl p-6 shadow-lg text-white ${gradient}`}>

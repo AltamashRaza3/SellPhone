@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import { toast } from "react-hot-toast";
-import API_BASE_URL from "../../utils/api";
+import API_BASE_URL from "../../config/api";
 
 import AdminOrderTimeline from "../../components/AdminOrderTimeline";
 import AdminOrderStatusHistory from "../../components/AdminOrderStatusHistory";

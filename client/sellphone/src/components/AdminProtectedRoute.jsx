@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
-import API_BASE_URL from "../utils/api";
+import API_BASE_URL from "../config/api";
 
 const AdminProtectedRoute = ({ children }) => {
   const [loading, setLoading] = useState(true);

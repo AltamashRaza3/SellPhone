@@ -12,7 +12,7 @@ import { toast } from "react-hot-toast";
 import { useDispatch } from "react-redux";
 import { mergeGuestCart } from "../redux/slices/cartSlice";
 
-import API_BASE_URL from "../utils/api";
+import API_BASE_URL from "../config/api";
 
 
 /* ================= VALIDATION ================= */
