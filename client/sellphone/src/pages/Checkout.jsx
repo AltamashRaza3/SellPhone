@@ -72,22 +72,34 @@ const Checkout = () => {
     setLoading(true);
 
     try {
-      const payload = {
-        items: cartItems.map((item) => ({
-          inventoryId: item.phone.inventoryId || null,
-          phone: item.phone,
-          quantity: item.quantity,
-        })),
+     const payload = {
+       items: cartItems.map((item) => ({
+         inventoryId: item.phone.inventoryId || null,
+         phone: {
+           _id: item.phone._id,
+           brand: item.phone.brand,
+           model: item.phone.model,
+           price: item.phone.price,
+           storage: item.phone.storage,
+           condition: item.phone.condition,
+           color: item.phone.color,
+           ram: item.phone.ram,
+           image: item.phone.image,
+         },
+         quantity: item.quantity,
+       })),
 
-        totalAmount,
-        shippingAddress: `
+       totalAmount,
+
+       shippingAddress: `
 ${address.fullName}, ${address.phone}
 ${address.line1}${address.line2 ? ", " + address.line2 : ""}
 ${address.city}, ${address.state} - ${address.pincode}
-      `.trim(),
+  `.trim(),
 
-        paymentMethod: "COD",
-      };
+       paymentMethod: "COD",
+     };
+
 
       await axios.post("/orders", payload, {
         withCredentials: true,
