@@ -2,12 +2,8 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import API_BASE_URL from "../../config/api";
 
-const LIMIT = 10;
-
 const AdminOrders = () => {
   const [orders, setOrders] = useState([]);
-  const [page, setPage] = useState(1);
-  const [pagination, setPagination] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -15,17 +11,14 @@ const AdminOrders = () => {
       try {
         setLoading(true);
 
-        const res = await fetch(
-          `${API_BASE_URL}/api/admin/orders?page=${page}&limit=${LIMIT}`,
-          { credentials: "include" },
-        );
+        const res = await fetch(`${API_BASE_URL}/api/admin/orders`, {
+          credentials: "include",
+        });
 
         const data = await res.json();
-
         if (!res.ok) throw new Error("Failed to load orders");
 
-        setOrders(data.orders || []);
-        setPagination(data.pagination);
+        setOrders(Array.isArray(data) ? data : []);
       } catch (err) {
         console.error(err);
         setOrders([]);
@@ -35,7 +28,7 @@ const AdminOrders = () => {
     };
 
     fetchOrders();
-  }, [page]);
+  }, []);
 
   if (loading) {
     return (
@@ -88,31 +81,6 @@ const AdminOrders = () => {
           </tbody>
         </table>
       </div>
-
-      {/* PAGINATION */}
-      {pagination && (
-        <div className="flex justify-center gap-4 mt-6">
-          <button
-            disabled={page === 1}
-            onClick={() => setPage((p) => p - 1)}
-            className="px-4 py-2 rounded bg-white/10 disabled:opacity-40"
-          >
-            Prev
-          </button>
-
-          <span className="text-gray-400 text-sm flex items-center">
-            Page {pagination.page} of {pagination.totalPages}
-          </span>
-
-          <button
-            disabled={page >= pagination.totalPages}
-            onClick={() => setPage((p) => p + 1)}
-            className="px-4 py-2 rounded bg-white/10 disabled:opacity-40"
-          >
-            Next
-          </button>
-        </div>
-      )}
     </div>
   );
 };

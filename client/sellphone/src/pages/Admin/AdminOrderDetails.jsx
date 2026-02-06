@@ -176,7 +176,7 @@ const AdminOrderDetails = () => {
 
         <div className="space-y-4">
           {order.items.map((item, index) => {
-            const phone = item.phone || {};
+            const phone = item.productId || {};
 
             return (
               <div
@@ -195,9 +195,9 @@ const AdminOrderDetails = () => {
                 </div>
 
                 <div className="text-right">
-                  <p className="text-gray-400">₹{phone.price}</p>
+                  <p className="text-gray-400">₹{item.price}</p>
                   <p className="font-semibold text-white">
-                    ₹{phone.price * item.quantity}
+                    ₹{item.price * item.quantity}
                   </p>
                 </div>
               </div>
