@@ -98,7 +98,8 @@ export const createOrder = async (req, res) => {
 export const getUserOrders = async (req, res) => {
   try {
     const orders = await Order.find({ "user.uid": req.user.uid })
-      .sort({ createdAt: -1 })
+    .populate("items.productId")  
+    .sort({ createdAt: -1 })
       .lean();
 
     const safeOrders = orders.map((order) => {
@@ -123,7 +124,10 @@ export const getUserOrders = async (req, res) => {
 ====================================================== */
 export const getOrderById = async (req, res) => {
   try {
-    const order = await Order.findById(req.params.id).lean();
+    const order = await Order.findById(req.params.id)
+    .populate("items.productId")
+    .lean();
+
 
     if (!order) {
       return res.status(404).json({ message: "Order not found" });
@@ -197,8 +201,9 @@ export const cancelOrder = async (req, res) => {
 export const getAllOrders = async (req, res) => {
   try {
     const orders = await Order.find({})
-      .sort({ createdAt: -1 })
-      .lean();
+  .populate("items.productId")
+  .sort({ createdAt: -1 })
+  .lean();
 
     const safeOrders = orders.map((order) => {
       if (order.status !== "Delivered") {
