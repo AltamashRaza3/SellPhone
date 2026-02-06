@@ -75,13 +75,11 @@ const Checkout = () => {
       const payload = {
         items: cartItems.map((item) => ({
           inventoryId: item.phone.inventoryId || null,
-          phone: item.phone, // 🔥 REQUIRED
+          phone: item.phone,
           quantity: item.quantity,
         })),
 
         totalAmount,
-
-        // 🔥 MUST BE STRING (backend + schema)
         shippingAddress: `
 ${address.fullName}, ${address.phone}
 ${address.line1}${address.line2 ? ", " + address.line2 : ""}
@@ -92,7 +90,7 @@ ${address.city}, ${address.state} - ${address.pincode}
       };
 
       await axios.post("/orders", payload, {
-        withCredentials: true, // userAuth cookie
+        withCredentials: true,
       });
 
       dispatch(clearCart());
