@@ -98,10 +98,11 @@ export const createOrder = async (req, res) => {
 export const getUserOrders = async (req, res) => {
   try {
     const orders = await Order.find({ "user.uid": req.user.uid })
-    .populate("items.productId")  
-    .sort({ createdAt: -1 })
+      .populate("items.productId")
+      .sort({ createdAt: -1 })
       .lean();
 
+    // 🔒 hide invoice until delivered
     const safeOrders = orders.map((order) => {
       if (order.status !== "Delivered") {
         delete order.invoiceUrl;
@@ -111,12 +112,13 @@ export const getUserOrders = async (req, res) => {
       return order;
     });
 
-    return res.status(200).json(safeOrders);
+    return res.status(200).json(safeOrders); // ✅ ALWAYS 200
   } catch (error) {
     console.error("❌ GET USER ORDERS ERROR:", error);
     return res.status(500).json([]);
   }
 };
+
 
 /* ======================================================
    GET SINGLE ORDER (USER + ADMIN SAFE)
