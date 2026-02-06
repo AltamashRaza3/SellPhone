@@ -9,7 +9,7 @@ import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "./utils/firebase";
-import API_BASE_URL from "./utils/api";
+import API_BASE_URL from "./config/api";
 
 /* ================= REDUX ================= */
 import { setUser, clearUser } from "./redux/slices/userSlice";
