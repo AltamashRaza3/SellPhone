@@ -18,7 +18,7 @@ const SellRequestDetails = () => {
       const { data } = await api.get(`/sell-requests/${id}`);
       setRequest(data);
     } catch (err) {
-      toast.error("Sell request not found");
+      toast.error(err?.response?.data?.message || "Sell request not found");
       navigate("/my-sell-requests", { replace: true });
     } finally {
       setLoading(false);
@@ -27,6 +27,7 @@ const SellRequestDetails = () => {
 
   useEffect(() => {
     fetchRequest();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   /* ================= LOADING ================= */
@@ -85,6 +86,7 @@ const SellRequestDetails = () => {
   /* ================= RENDER ================= */
   return (
     <div className="appContainer py-10 space-y-6">
+      {/* BACK */}
       <button
         onClick={() => navigate(-1)}
         className="text-sm text-gray-400 hover:underline"
@@ -92,7 +94,7 @@ const SellRequestDetails = () => {
         ← Back
       </button>
 
-      {/* ================= SUMMARY ================= */}
+      {/* SUMMARY */}
       <div className="glass-card space-y-2">
         <h2 className="text-xl font-semibold">
           {phone.brand} {phone.model}
@@ -113,7 +115,7 @@ const SellRequestDetails = () => {
         )}
       </div>
 
-      {/* ================= VERIFICATION IMAGES ================= */}
+      {/* VERIFICATION IMAGES */}
       {verification?.images?.length > 0 && (
         <div className="glass-card">
           <p className="font-medium mb-3">Rider Verification Images</p>
@@ -124,13 +126,14 @@ const SellRequestDetails = () => {
                 src={`${import.meta.env.VITE_API_BASE_URL}${img.url}`}
                 alt="Verification"
                 className="h-24 w-full object-cover rounded-lg"
+                loading="lazy"
               />
             ))}
           </div>
         </div>
       )}
 
-      {/* ================= USER DECISION ================= */}
+      {/* USER DECISION */}
       {verification?.finalPrice && verification.userAccepted === null && (
         <SellerDecision
           requestId={request._id}
@@ -151,7 +154,7 @@ const SellRequestDetails = () => {
         </div>
       )}
 
-      {/* ================= CANCEL ================= */}
+      {/* CANCEL */}
       {canCancel && (
         <button
           onClick={cancelRequest}
@@ -162,7 +165,7 @@ const SellRequestDetails = () => {
         </button>
       )}
 
-      {/* ================= INVOICE ================= */}
+      {/* INVOICE */}
       {pickup?.status === "Completed" && (
         <button
           onClick={downloadInvoice}
