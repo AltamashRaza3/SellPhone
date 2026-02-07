@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import SellerDecision from "../../components/SellerDecision";
 import { toast } from "react-hot-toast";
+import api from "../../config/axios";
+import SellerDecision from "../../components/SellerDecision";
 
 const SellRequestDetails = () => {
   const { id } = useParams();
@@ -11,18 +12,12 @@ const SellRequestDetails = () => {
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
 
-  /* ================= FETCH SINGLE REQUEST ================= */
+  /* ================= FETCH REQUEST ================= */
   const fetchRequest = async () => {
     try {
-      const res = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL}/api/sell-requests/${id}`,
-        { credentials: "include" },
-      );
-
-      if (!res.ok) throw new Error();
-
-      setRequest(await res.json());
-    } catch {
+      const { data } = await api.get(`/sell-requests/${id}`);
+      setRequest(data);
+    } catch (err) {
       toast.error("Sell request not found");
       navigate("/my-sell-requests", { replace: true });
     } finally {
@@ -34,15 +29,16 @@ const SellRequestDetails = () => {
     fetchRequest();
   }, [id]);
 
+  /* ================= LOADING ================= */
   if (loading) {
-    return <div className="py-12 text-center">Loading…</div>;
+    return <div className="py-12 text-center text-gray-400">Loading…</div>;
   }
 
   if (!request) return null;
 
-  const { phone, pricing, verification, pickup, assignedRider, invoice } =
-    request;
+  const { phone, pricing, verification, pickup, assignedRider } = request;
 
+  /* ================= CANCEL LOGIC ================= */
   const canCancel =
     pickup?.status === "Pending" &&
     !assignedRider?.riderId &&
@@ -53,29 +49,50 @@ const SellRequestDetails = () => {
 
     try {
       setCancelling(true);
-
-      const res = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL}/api/sell-requests/${request._id}/cancel`,
-        { method: "PUT", credentials: "include" },
-      );
-
-      if (!res.ok) throw new Error();
-
+      await api.put(`/sell-requests/${request._id}/cancel`);
       toast.success("Sell request cancelled");
       navigate("/my-sell-requests");
-    } catch {
-      toast.error("Failed to cancel request");
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to cancel request");
     } finally {
       setCancelling(false);
     }
   };
 
+  /* ================= DOWNLOAD INVOICE ================= */
+  const downloadInvoice = async () => {
+    try {
+      const res = await api.get(`/invoices/sell/${request._id}`, {
+        responseType: "blob",
+      });
+
+      const blob = new Blob([res.data], { type: "application/pdf" });
+      const url = window.URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `SELL-${request._id.slice(-6)}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to download invoice");
+    }
+  };
+
+  /* ================= RENDER ================= */
   return (
     <div className="appContainer py-10 space-y-6">
-      <button onClick={() => navigate(-1)} className="text-sm text-gray-400">
+      <button
+        onClick={() => navigate(-1)}
+        className="text-sm text-gray-400 hover:underline"
+      >
         ← Back
       </button>
 
+      {/* ================= SUMMARY ================= */}
       <div className="glass-card space-y-2">
         <h2 className="text-xl font-semibold">
           {phone.brand} {phone.model}
@@ -96,6 +113,7 @@ const SellRequestDetails = () => {
         )}
       </div>
 
+      {/* ================= VERIFICATION IMAGES ================= */}
       {verification?.images?.length > 0 && (
         <div className="glass-card">
           <p className="font-medium mb-3">Rider Verification Images</p>
@@ -104,15 +122,15 @@ const SellRequestDetails = () => {
               <img
                 key={i}
                 src={`${import.meta.env.VITE_API_BASE_URL}${img.url}`}
-                className="h-24 w-full object-cover rounded-lg"
                 alt="Verification"
+                className="h-24 w-full object-cover rounded-lg"
               />
             ))}
           </div>
         </div>
       )}
 
-      {/* ✅ ACCEPT / REJECT BUTTONS */}
+      {/* ================= USER DECISION ================= */}
       {verification?.finalPrice && verification.userAccepted === null && (
         <SellerDecision
           requestId={request._id}
@@ -133,25 +151,25 @@ const SellRequestDetails = () => {
         </div>
       )}
 
+      {/* ================= CANCEL ================= */}
       {canCancel && (
         <button
           onClick={cancelRequest}
           disabled={cancelling}
-          className="w-full h-11 rounded-xl bg-red-600 text-white font-semibold disabled:opacity-50"
+          className="w-full max-w-md h-11 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold disabled:opacity-50"
         >
           {cancelling ? "Cancelling…" : "Cancel Sell Request"}
         </button>
       )}
 
+      {/* ================= INVOICE ================= */}
       {pickup?.status === "Completed" && (
-        <div className="flex justify-center">
-          <a
-            href={`${import.meta.env.VITE_API_BASE_URL}/api/invoices/sell/${request._id}`}
-            className="w-full max-w-md h-11 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold flex items-center justify-center"
-          >
-            Download Invoice (PDF)
-          </a>
-        </div>
+        <button
+          onClick={downloadInvoice}
+          className="w-full max-w-md h-11 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold"
+        >
+          Download Invoice (PDF)
+        </button>
       )}
     </div>
   );
