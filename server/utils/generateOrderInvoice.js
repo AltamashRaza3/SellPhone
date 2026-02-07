@@ -1,31 +1,8 @@
 import PDFDocument from "pdfkit";
-import fs from "fs";
-import path from "path";
 
-/* ================= RENDER-SAFE TEMP DIR ================= */
-const INVOICE_DIR = "/tmp/invoices";
-
-if (!fs.existsSync(INVOICE_DIR)) {
-  fs.mkdirSync(INVOICE_DIR, { recursive: true });
-}
-
-/* ================= ORDER INVOICE GENERATOR ================= */
 export const generateOrderInvoice = async (order) => {
   const invoiceNumber = `ORD-INV-${order._id.toString().slice(-6)}`;
-  const fileName = `${invoiceNumber}.pdf`;
-  const filePath = path.join(INVOICE_DIR, fileName);
-
-  // Reuse if generated during same runtime
-  if (fs.existsSync(filePath)) {
-    return {
-      number: invoiceNumber,
-      absolutePath: filePath,
-    };
-  }
-
   const doc = new PDFDocument({ size: "A4", margin: 50 });
-  const stream = fs.createWriteStream(filePath);
-  doc.pipe(stream);
 
   /* ================= HEADER ================= */
   doc.fontSize(20).text("SellPhone Order Invoice", { align: "center" });
@@ -39,8 +16,11 @@ export const generateOrderInvoice = async (order) => {
   doc.moveDown();
 
   /* ================= CUSTOMER ================= */
+  const addr = order.shippingAddress;
   doc.text(`Customer Email: ${order.user.email}`);
-  doc.text(`Shipping Address: ${order.shippingAddress}`);
+  doc.text(
+    `Address: ${addr.name}, ${addr.line1}, ${addr.city}, ${addr.state} - ${addr.pincode}`
+  );
   doc.moveDown();
 
   /* ================= ITEMS ================= */
@@ -48,9 +28,12 @@ export const generateOrderInvoice = async (order) => {
   doc.moveDown(0.5);
 
   order.items.forEach((item, index) => {
-    const phone = item.phone;
+    const phone = item.productId; 
+
     doc.fontSize(11).text(
-      `${index + 1}. ${phone.brand} ${phone.model} × ${item.quantity}  ₹${phone.price}`
+      `${index + 1}. ${phone?.brand || "Phone"} ${
+        phone?.model || ""
+      } × ${item.quantity}  ₹${item.price * item.quantity}`
     );
   });
 
@@ -67,12 +50,5 @@ export const generateOrderInvoice = async (order) => {
     { align: "center" }
   );
 
-  doc.end();
-
-  await new Promise((resolve) => stream.on("finish", resolve));
-
-  return {
-    number: invoiceNumber,
-    absolutePath: filePath,
-  };
+  return doc;
 };
