@@ -1,14 +1,9 @@
 import { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
-import API_BASE_URL from "../../config/api";
 import api from "../../utils/axios";
 
 /* ================= HELPERS ================= */
-const normalizeRam = (value) => {
-  const num = value.replace(/\D/g, "");
-  return num ? `${num}GB` : "";
-};
-const normalizeStorage = (value) => {
+const normalizeToGB = (value) => {
   const num = value.replace(/\D/g, "");
   return num ? `${num}GB` : "";
 };
@@ -33,26 +28,21 @@ const SalePhone = () => {
     pincode: "",
   });
 
-  /* ================= CLEANUP PREVIEWS ================= */
+  /* ================= CLEANUP ================= */
   useEffect(() => {
-    return () => {
-      previews.forEach((url) => URL.revokeObjectURL(url));
-    };
+    return () => previews.forEach((url) => URL.revokeObjectURL(url));
   }, [previews]);
 
   /* ================= HANDLERS ================= */
- const handleChange = (e) => {
-   const { name, value } = e.target;
+  const handleChange = (e) => {
+    const { name, value } = e.target;
 
-   if (name === "ram") {
-     setForm({ ...form, ram: normalizeRam(value) });
-   } else if (name === "storage") {
-     setForm({ ...form, storage: normalizeStorage(value) });
-   } else {
-     setForm({ ...form, [name]: value });
-   }
- };
-
+    if (name === "ram" || name === "storage") {
+      setForm((prev) => ({ ...prev, [name]: normalizeToGB(value) }));
+    } else {
+      setForm((prev) => ({ ...prev, [name]: value }));
+    }
+  };
 
   const handleImages = (e) => {
     const files = Array.from(e.target.files);
@@ -62,27 +52,30 @@ const SalePhone = () => {
       return;
     }
 
-    const newPreviews = files.map((f) => URL.createObjectURL(f));
-
     setImages((prev) => [...prev, ...files]);
-    setPreviews((prev) => [...prev, ...newPreviews]);
+    setPreviews((prev) => [
+      ...prev,
+      ...files.map((f) => URL.createObjectURL(f)),
+    ]);
   };
 
   /* ================= SUBMIT ================= */
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (
-      !form.brand ||
-      !form.model ||
-      !form.condition ||
-      !form.purchaseYear ||
-      !form.phone ||
-      !form.fullAddress ||
-      !form.city ||
-      !form.state ||
-      !form.pincode
-    ) {
+    const required = [
+      "brand",
+      "model",
+      "condition",
+      "purchaseYear",
+      "phone",
+      "fullAddress",
+      "city",
+      "state",
+      "pincode",
+    ];
+
+    if (required.some((k) => !form[k])) {
       toast.error("Please fill all required fields");
       return;
     }
@@ -97,43 +90,29 @@ const SalePhone = () => {
 
       const formData = new FormData();
 
-      /* PHONE */
-      formData.append("brand", form.brand);
-      formData.append("model", form.model);
-      formData.append("storage", form.storage);
-      formData.append("ram", form.ram);
-      formData.append("color", form.color);
-      formData.append("declaredCondition", form.condition);
-      formData.append("purchaseYear", form.purchaseYear);
+      Object.entries({
+        brand: form.brand,
+        model: form.model,
+        storage: form.storage,
+        ram: form.ram,
+        color: form.color,
+        declaredCondition: form.condition,
+        purchaseYear: form.purchaseYear,
+        phone: form.phone,
+        fullAddress: form.fullAddress,
+        city: form.city,
+        state: form.state,
+        pincode: form.pincode,
+      }).forEach(([k, v]) => formData.append(k, v));
 
-      /* CONTACT */
-      formData.append("phone", form.phone);
+      images.forEach((img) => formData.append("images", img));
 
-      /* ADDRESS */
-      formData.append("fullAddress", form.fullAddress);
-      formData.append("city", form.city);
-      formData.append("state", form.state);
-      formData.append("pincode", form.pincode);
-
-      /* IMAGES */
-      images.forEach((img) => {
-        formData.append("images", img);
+      await api.post("/sell-requests", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
       });
-
-      const res = await api.post("/sell-requests", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.message || "Failed to submit request");
-      }
 
       toast.success("Sell request submitted successfully");
 
-      /* RESET */
       setForm({
         brand: "",
         model: "",
@@ -148,11 +127,10 @@ const SalePhone = () => {
         state: "",
         pincode: "",
       });
-
       setImages([]);
       setPreviews([]);
     } catch (err) {
-      toast.error(err.message || "Submission failed");
+      toast.error(err?.response?.data?.message || "Submission failed");
     } finally {
       setLoading(false);
     }
@@ -165,42 +143,22 @@ const SalePhone = () => {
         <h1 className="text-2xl font-bold text-white">Sell Your Phone</h1>
 
         <form onSubmit={handleSubmit} className="grid md:grid-cols-2 gap-4">
-          <input
-            className="input"
-            name="brand"
-            placeholder="Brand *"
-            value={form.brand}
-            onChange={handleChange}
-          />
-          <input
-            className="input"
-            name="model"
-            placeholder="Model *"
-            value={form.model}
-            onChange={handleChange}
-          />
-          <input
-            className="input"
-            name="storage"
-            placeholder="Storage (e.g. 128GB)"
-            value={form.storage}
-            onChange={handleChange}
-          />
-
-          <input
-            className="input"
-            name="ram"
-            placeholder="RAM (e.g. 8GB)"
-            value={form.ram}
-            onChange={handleChange}
-          />
-          <input
-            className="input"
-            name="color"
-            placeholder="Color"
-            value={form.color}
-            onChange={handleChange}
-          />
+          {[
+            ["brand", "Brand *"],
+            ["model", "Model *"],
+            ["storage", "Storage (e.g. 128GB)"],
+            ["ram", "RAM (e.g. 8GB)"],
+            ["color", "Color"],
+          ].map(([name, label]) => (
+            <input
+              key={name}
+              className="input"
+              name={name}
+              placeholder={label}
+              value={form[name]}
+              onChange={handleChange}
+            />
+          ))}
 
           <select
             className="input"
@@ -221,18 +179,19 @@ const SalePhone = () => {
             value={form.purchaseYear}
             onChange={handleChange}
           />
+
           <input
             className="input"
             name="phone"
-            placeholder="Mobile Number (WhatsApp) *"
+            placeholder="Mobile Number *"
             value={form.phone}
             onChange={handleChange}
           />
 
           {/* IMAGES */}
           <div className="md:col-span-2">
-            <label className="text-sm font-semibold text-gray-300">
-              Phone Images (Min 3 required)
+            <label className="text-sm text-gray-300">
+              Phone Images (min 3)
             </label>
             <input
               type="file"
@@ -247,13 +206,12 @@ const SalePhone = () => {
                 <img
                   key={i}
                   src={src}
-                  className="h-24 w-full object-cover rounded-lg border border-white/10"
+                  className="h-24 w-full object-cover rounded-lg"
                 />
               ))}
             </div>
           </div>
 
-          {/* ADDRESS */}
           <textarea
             className="input md:col-span-2"
             name="fullAddress"
@@ -261,30 +219,20 @@ const SalePhone = () => {
             value={form.fullAddress}
             onChange={handleChange}
           />
-          <input
-            className="input"
-            name="city"
-            placeholder="City *"
-            value={form.city}
-            onChange={handleChange}
-          />
-          <input
-            className="input"
-            name="state"
-            placeholder="State *"
-            value={form.state}
-            onChange={handleChange}
-          />
-          <input
-            className="input"
-            name="pincode"
-            placeholder="Pincode *"
-            value={form.pincode}
-            onChange={handleChange}
-          />
+
+          {["city", "state", "pincode"].map((k) => (
+            <input
+              key={k}
+              className="input"
+              name={k}
+              placeholder={`${k[0].toUpperCase()}${k.slice(1)} *`}
+              value={form[k]}
+              onChange={handleChange}
+            />
+          ))}
 
           <button disabled={loading} className="btn-primary md:col-span-2 py-3">
-            {loading ? "Submitting..." : "Submit Sell Request"}
+            {loading ? "Submitting…" : "Submit Sell Request"}
           </button>
         </form>
       </div>
