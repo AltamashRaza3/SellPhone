@@ -48,8 +48,10 @@ const AdminSellPhones = () => {
         `${import.meta.env.VITE_API_BASE_URL}/api/admin/sell-requests`,
         { credentials: "include" },
       );
+
       if (!res.ok) throw new Error();
-      setRequests(await res.json());
+      const data = await res.json();
+      setRequests(Array.isArray(data) ? data : []);
     } catch {
       toast.error("Failed to load sell requests");
     } finally {
@@ -65,6 +67,7 @@ const AdminSellPhones = () => {
   const updateStatus = async (id, status) => {
     try {
       setUpdatingId(id);
+
       const res = await fetch(
         `${import.meta.env.VITE_API_BASE_URL}/api/admin/sell-requests/${id}/status`,
         {
@@ -90,7 +93,9 @@ const AdminSellPhones = () => {
     }
   };
 
-  if (loading) return <p className="text-gray-400">Loading…</p>;
+  if (loading) {
+    return <p className="text-gray-400">Loading…</p>;
+  }
 
   return (
     <div className="space-y-6">
@@ -101,24 +106,18 @@ const AdminSellPhones = () => {
         const address = req.pickup?.address;
         const status = getDisplayStatus(req);
 
-        /* ================= UI LOCKS ================= */
+        /* ================= UI LOGIC ================= */
         const canApproveReject =
-          !req.admin?.status &&
+          req.admin?.status === "Pending" &&
           !req.assignedRider?.riderId &&
           req.pickup?.status === "Pending";
 
         const canAssignRider =
           req.admin?.status === "Approved" &&
-          req.pickup?.status !== "Picked" &&
-          req.pickup?.status !== "Completed" &&
-          req.verification?.finalPrice == null;
+          req.pickup?.status === "Pending" &&
+          !req.assignedRider?.riderId;
 
         const isEscalated = req.pickup?.status === "Rejected";
-
-        const riderRejection = req.statusHistory?.find(
-          (h) =>
-            h.status === "Pickup Rejected by Rider" && h.changedBy === "rider",
-        );
 
         return (
           <div
@@ -148,40 +147,18 @@ const AdminSellPhones = () => {
               </span>
             </div>
 
-            {/* USER IMAGES */}
+            {/* USER IMAGES (FINAL & CLEAN) */}
             {Array.isArray(phone.images) && phone.images.length > 0 && (
               <div className="grid grid-cols-3 gap-3">
-                {phone.images.map((img, i) => {
-                  let src = "";
-
-                  // ✅ STRING IMAGE (current schema)
-                  if (typeof img === "string") {
-                    src = img.startsWith("http")
-                      ? img
-                      : `${import.meta.env.VITE_API_BASE_URL}${img}`;
-                  }
-
-                  // ✅ OBJECT IMAGE (future / rider uploads safety)
-                  if (typeof img === "object" && img?.url) {
-                    src = img.url.startsWith("http")
-                      ? img.url
-                      : `${import.meta.env.VITE_API_BASE_URL}${img.url}`;
-                  }
-
-                  if (!src) return null;
-
-                  return (
-                    <img
-                      key={i}
-                      src={src}
-                      alt="Phone"
-                      className="h-28 w-full object-cover rounded-lg border border-white/10"
-                      onError={(e) => {
-                        e.currentTarget.src = "/no-image.png";
-                      }}
-                    />
-                  );
-                })}
+                {phone.images.map((img, i) => (
+                  <img
+                    key={i}
+                    src={`${import.meta.env.VITE_API_BASE_URL}${img}`}
+                    alt="Phone"
+                    className="h-28 w-full object-cover rounded-lg border border-white/10"
+                    onError={(e) => (e.currentTarget.src = "/no-image.png")}
+                  />
+                ))}
               </div>
             )}
 
@@ -210,18 +187,6 @@ const AdminSellPhones = () => {
                 <p className="text-sm text-gray-500">Address not provided</p>
               )}
             </div>
-
-            {/* ESCALATION */}
-            {isEscalated && riderRejection && (
-              <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20">
-                <p className="text-sm font-semibold text-red-400">
-                  Rider Escalation Reason
-                </p>
-                <p className="text-sm text-red-300 mt-1">
-                  {riderRejection.note}
-                </p>
-              </div>
-            )}
 
             {/* ADMIN ACTIONS */}
             {canApproveReject && (
@@ -255,11 +220,11 @@ const AdminSellPhones = () => {
               </div>
             )}
 
-            {/* ASSIGN / REASSIGN RIDER */}
+            {/* ASSIGN RIDER */}
             {canAssignRider && (
               <AssignRider
                 requestId={req._id}
-                alreadyAssigned={Boolean(req.assignedRider)}
+                alreadyAssigned={false}
                 onAssigned={fetchRequests}
               />
             )}

@@ -3,3 +3,4 @@ node_modules/
 .env.*
 server/.env
 server/config/firebase-service-account.js
+uploads
