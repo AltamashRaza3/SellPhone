@@ -38,7 +38,7 @@ const sellRequestSchema = new mongoose.Schema(
 
     /* ================= PRICING ================= */
     pricing: {
-      basePrice: Number, // 🔒 base only
+      basePrice: Number,
     },
     admin: {
     status: {
@@ -53,7 +53,7 @@ const sellRequestSchema = new mongoose.Schema(
 
     /* ================= ASSIGNED RIDER ================= */
     assignedRider: {
-      riderId: { type: String, index: true }, // 🔥 STRING (critical)
+      riderId: { type: String, index: true },
       riderName: String,
       riderPhone: String,
       assignedAt: Date,
@@ -89,7 +89,7 @@ const sellRequestSchema = new mongoose.Schema(
       images: { type: [verificationImageSchema], default: [] },
     },
 
-      /* ================= RIDER PAYOUT (🔥 CRITICAL) ================= */
+      /* ================= RIDER PAYOUT ================= */
     riderPayout: {
       amount: { type: Number, default: 0 },
       calculatedAt: Date,

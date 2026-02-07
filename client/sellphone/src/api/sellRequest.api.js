@@ -1,11 +1,6 @@
-import axios from "axios";
-
+import api from "../config/axios";
 export const getMySellRequests = () =>
-  axios.get("/api/sell-requests/my", { withCredentials: true });
+  api.get("/sell-requests/my");
 
 export const submitUserDecision = (id, decision) =>
-  axios.put(
-    `/api/sell-requests/${id}/user-decision`,
-    { decision },
-    { withCredentials: true }
-  );
+  api.put(`/sell-requests/${id}/user-decision`, { decision });
