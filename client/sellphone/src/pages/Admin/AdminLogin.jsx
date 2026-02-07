@@ -39,7 +39,7 @@ const AdminLogin = () => {
       const res = await fetch(`${API_BASE_URL}/api/admin/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include", // 🔥 REQUIRED for cookies
+        credentials: "include",
         body: JSON.stringify({ email, password }),
       });
 

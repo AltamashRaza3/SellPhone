@@ -23,7 +23,14 @@ export const adminLogin = async (req, res) => {
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
-    const token = generateToken(admin._id);
+    const token = jwt.sign(
+      {
+        id: admin._id,
+        role: "admin", // ✅ REQUIRED
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
 
     res.cookie("admin_token", token, {
       httpOnly: true,
@@ -44,6 +51,7 @@ export const adminLogin = async (req, res) => {
     res.status(500).json({ message: "Login failed" });
   }
 };
+
 
 /* ================= ADMIN LOGOUT ================= */
 export const adminLogout = (req, res) => {
