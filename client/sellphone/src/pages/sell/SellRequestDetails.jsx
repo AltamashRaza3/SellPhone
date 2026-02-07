@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
-import api from "../../config/axios";
+import api from "../../utils/axios";
 import SellerDecision from "../../components/SellerDecision";
 
 const SellRequestDetails = () => {
