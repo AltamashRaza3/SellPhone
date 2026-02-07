@@ -83,7 +83,7 @@ const sellRequestSchema = new mongoose.Schema(
       checks: { type: Object, default: {} },
       deductions: [{ reason: String, amount: Number }],
       finalPrice: Number,
-      verifiedBy: String, // riderId
+      verifiedBy: String,
       verifiedAt: Date,
       userAccepted: { type: Boolean, default: null },
       images: { type: [verificationImageSchema], default: [] },
