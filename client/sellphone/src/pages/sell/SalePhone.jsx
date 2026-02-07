@@ -7,6 +7,10 @@ const normalizeRam = (value) => {
   const num = value.replace(/\D/g, "");
   return num ? `${num}GB` : "";
 };
+const normalizeStorage = (value) => {
+  const num = value.replace(/\D/g, "");
+  return num ? `${num}GB` : "";
+};
 
 const SalePhone = () => {
   const [loading, setLoading] = useState(false);
@@ -36,15 +40,18 @@ const SalePhone = () => {
   }, [previews]);
 
   /* ================= HANDLERS ================= */
-  const handleChange = (e) => {
-    const { name, value } = e.target;
+ const handleChange = (e) => {
+   const { name, value } = e.target;
 
-    if (name === "ram") {
-      setForm({ ...form, ram: normalizeRam(value) });
-    } else {
-      setForm({ ...form, [name]: value });
-    }
-  };
+   if (name === "ram") {
+     setForm({ ...form, ram: normalizeRam(value) });
+   } else if (name === "storage") {
+     setForm({ ...form, storage: normalizeStorage(value) });
+   } else {
+     setForm({ ...form, [name]: value });
+   }
+ };
+
 
   const handleImages = (e) => {
     const files = Array.from(e.target.files);
@@ -174,10 +181,11 @@ const SalePhone = () => {
           <input
             className="input"
             name="storage"
-            placeholder="Storage"
+            placeholder="Storage (e.g. 128GB)"
             value={form.storage}
             onChange={handleChange}
           />
+
           <input
             className="input"
             name="ram"
