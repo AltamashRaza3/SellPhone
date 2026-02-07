@@ -1,25 +1,18 @@
 import jwt from "jsonwebtoken";
 import admin from "../config/firebaseAdmin.js";
 
-/* ======================================================
-   USER AUTH MIDDLEWARE (PRODUCTION FINAL)
-====================================================== */
 const userAuth = async (req, res, next) => {
   try {
     /* ======================================================
-       1️⃣ FIREBASE AUTH (PRIMARY – WEB & MOBILE)
+       1️⃣ FIREBASE AUTH (PRIMARY – REQUIRED)
     ====================================================== */
     const authHeader = req.headers.authorization;
 
-    if (authHeader && authHeader.startsWith("Bearer ")) {
+    if (authHeader?.startsWith("Bearer ")) {
       const firebaseToken = authHeader.split(" ")[1];
 
       try {
         const decoded = await admin.auth().verifyIdToken(firebaseToken);
-
-        if (!decoded?.uid || !decoded?.email) {
-          return res.status(401).json({ message: "Invalid Firebase token" });
-        }
 
         req.user = {
           id: decoded.uid,
@@ -29,15 +22,15 @@ const userAuth = async (req, res, next) => {
           authType: "firebase",
         };
 
-        return next(); 
+        return next(); // ✅ STOP HERE
       } catch (err) {
-        console.warn("Firebase auth failed:", err.message);
-        // fall through to JWT only if cookie exists
+        console.error("Firebase token invalid:", err.message);
+        return res.status(401).json({ message: "Invalid Firebase token" });
       }
     }
 
     /* ======================================================
-       2️⃣ JWT COOKIE AUTH (FALLBACK ONLY)
+       2️⃣ JWT COOKIE AUTH (OPTIONAL FALLBACK)
     ====================================================== */
     const cookieToken =
       req.cookies?.token ||
@@ -49,16 +42,7 @@ const userAuth = async (req, res, next) => {
       });
     }
 
-    let decoded;
-    try {
-      decoded = jwt.verify(cookieToken, process.env.JWT_SECRET);
-    } catch {
-      return res.status(401).json({ message: "Session expired" });
-    }
-
-    if (!decoded?.sub || !decoded?.email) {
-      return res.status(401).json({ message: "Invalid session token" });
-    }
+    const decoded = jwt.verify(cookieToken, process.env.JWT_SECRET);
 
     req.user = {
       id: decoded.sub,
