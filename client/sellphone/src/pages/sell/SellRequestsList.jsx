@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "react-hot-toast";
+import api from "../../config/axios";
 
 /* ================= STATUS HELPERS ================= */
 const getStatusLabel = (req) => {
@@ -38,23 +39,19 @@ const SellRequestsList = () => {
   const [loading, setLoading] = useState(true);
 
   /* ================= FETCH REQUESTS ================= */
-  const fetchRequests = async () => {
-    try {
-      const res = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL}/api/sell-requests/my`,
-        { credentials: "include" },
-      );
-
-      if (!res.ok) throw new Error();
-      setRequests(await res.json());
-    } catch {
-      toast.error("Failed to load sell requests");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
+    const fetchRequests = async () => {
+      try {
+        const { data } = await api.get("/sell-requests/my");
+        setRequests(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error("SELL REQUEST LOAD ERROR:", err);
+        toast.error("Failed to load sell requests");
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchRequests();
   }, []);
 
@@ -113,26 +110,18 @@ const SellRequestsList = () => {
               )}
             </div>
 
-            {/* RIDER DETAILS (ONLY AFTER SCHEDULING) */}
+            {/* RIDER DETAILS */}
             {req.assignedRider && req.pickup?.status === "Scheduled" && (
               <div className="p-3 rounded-lg bg-indigo-500/10 border border-indigo-500/20 space-y-1">
                 <p className="text-sm font-semibold text-indigo-400">
                   Assigned Rider
                 </p>
-
                 <p className="text-sm text-white">
                   {req.assignedRider.riderName}
                 </p>
-
                 {req.assignedRider.riderPhone && (
                   <p className="text-sm text-gray-300">
                     📞 {req.assignedRider.riderPhone}
-                  </p>
-                )}
-
-                {req.pickup?.scheduledAt && (
-                  <p className="text-sm text-gray-300">
-                    🕒 {new Date(req.pickup.scheduledAt).toLocaleString()}
                   </p>
                 )}
               </div>
@@ -140,22 +129,19 @@ const SellRequestsList = () => {
 
             {/* FOOTER */}
             <div className="pt-4 mt-4 border-t border-white/10 flex items-center justify-between">
-              {/* STATUS BADGE */}
               <span
                 className={`h-7 px-4 rounded text-sm flex items-center ${badgeColor[label]}`}
               >
                 {label}
               </span>
 
-              {/* DETAILS BUTTON */}
               <Link
                 to={`/my-sell-requests/${req._id}`}
-                className={`h-8 px-5 rounded-lg text-sm font-medium flex items-center transition
-                  ${
-                    needsAction
-                      ? "bg-orange-600 hover:bg-orange-700 text-white"
-                      : "bg-zinc-800 hover:bg-zinc-700 text-white"
-                  }`}
+                className={`h-8 px-5 rounded-lg text-sm font-medium flex items-center transition ${
+                  needsAction
+                    ? "bg-orange-600 hover:bg-orange-700 text-white"
+                    : "bg-zinc-800 hover:bg-zinc-700 text-white"
+                }`}
               >
                 View Details
               </Link>
