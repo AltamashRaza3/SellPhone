@@ -1,5 +1,5 @@
 import express from "express";
-import SellRequest from "../models/SellRequest.js";
+import SellRequest from "../src/models/SellRequest.js";
 import Order from "../models/Order.js";
 
 import { generateInvoice } from "../utils/generateSellInvoice.js";
