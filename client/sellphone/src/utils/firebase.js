@@ -24,6 +24,11 @@ export const storage = getStorage(app);
 
 /* ⚠️ Analytics disabled on localhost (prevents timing issues) */
 export let analytics;
-if (typeof window !== "undefined" && location.hostname !== "localhost") {
+if (
+  typeof window !== "undefined" &&
+  window.location &&
+  window.location.hostname !== "localhost"
+) {
   analytics = getAnalytics(app);
 }
+
