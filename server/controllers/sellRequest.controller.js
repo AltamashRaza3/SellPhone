@@ -57,9 +57,9 @@ export const createSellRequest = async (req, res) => {
       });
     }
     /* ================= IMAGE PATHS (SCHEMA SAFE) ================= */
-const images = req.files.map((file) => ({
-  url: `/uploads/sell/${file.filename}`,
-}));
+  const images = req.files.map(
+  (file) => `/uploads/sell/${file.filename}`
+  );
 
     /* ================= PRICE CALC ================= */
     const catalog = {
@@ -94,7 +94,7 @@ const images = req.files.map((file) => ({
         color,
         declaredCondition,
         purchaseYear: year,
-        images, // ✅ RELATIVE PATHS ONLY
+        images, 
       },
 
       pricing: {
