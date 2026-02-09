@@ -75,9 +75,8 @@ const AdminOrderDetails = () => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Update failed");
 
-      const updatedOrder = data.order || data;
-      setOrder(updatedOrder);
-      setStatus(updatedOrder.status);
+      setOrder(data.order || data);
+      setStatus((data.order || data).status);
 
       toast.success("Order status updated");
     } catch (err) {
@@ -139,6 +138,8 @@ const AdminOrderDetails = () => {
     );
   }
 
+  const address = order.shippingAddress || {};
+
   /* ================= RENDER ================= */
   return (
     <div className="max-w-6xl mx-auto space-y-8">
@@ -152,7 +153,7 @@ const AdminOrderDetails = () => {
       {/* HEADER */}
       <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur p-6 space-y-2">
         <h1 className="text-2xl font-bold text-white">Order #{order._id}</h1>
-        <p className="text-gray-400">User: {order.user?.email || "Guest"}</p>
+        <p className="text-gray-400">User: {order.user?.email}</p>
         <p className="text-gray-400">Total: ₹{order.totalAmount}</p>
         <p className="text-gray-400">Status: {order.status}</p>
       </div>
@@ -169,24 +170,21 @@ const AdminOrderDetails = () => {
             <p className="text-gray-400">
               Name:
               <span className="text-white font-medium ml-2">
-                {order.user?.name || "Guest User"}
+                {address.name}
               </span>
             </p>
 
             <p className="text-gray-400">
               Email:
               <span className="text-white font-medium ml-2">
-                {order.user?.email || "N/A"}
+                {order.user?.email}
               </span>
             </p>
 
             <p className="text-gray-400">
               Phone:
               <span className="text-white font-medium ml-2">
-                {order.phone ||
-                  order.shippingAddress?.phone ||
-                  order.address?.phone ||
-                  "N/A"}
+                {address.phone}
               </span>
             </p>
 
@@ -206,24 +204,14 @@ const AdminOrderDetails = () => {
           </h2>
 
           <p className="text-sm text-gray-300 leading-relaxed">
-            {order.shippingAddress?.fullName && (
-              <span className="font-medium text-white">
-                {order.shippingAddress.fullName}
-                <br />
-              </span>
-            )}
-
-            {order.shippingAddress?.addressLine1 ||
-              order.address?.street ||
-              "—"}
+            <span className="font-medium text-white">{address.name}</span>
             <br />
-
-            {order.shippingAddress?.city || order.address?.city || ""}
-
-            {order.shippingAddress?.state && `, ${order.shippingAddress.state}`}
+            {address.line1}
+            {address.line2 && `, ${address.line2}`}
             <br />
-
-            {order.shippingAddress?.pincode || order.address?.pincode || ""}
+            {address.city}, {address.state}
+            <br />
+            {address.pincode}
           </p>
         </div>
       </div>

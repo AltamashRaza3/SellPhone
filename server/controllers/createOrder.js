@@ -15,7 +15,7 @@ export const createOrder = async (req, res) => {
     }
 
     const order = await Order.create({
-      user: req.user.id, // ✅ WORKS FOR FIREBASE + JWT
+      user: req.user.id,
       items,
       totalAmount,
       address,
