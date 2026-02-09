@@ -86,7 +86,7 @@ const AdminOrderDetails = () => {
     }
   };
 
-  /* ================= DOWNLOAD INVOICE ================= */
+  /* ================= INVOICE DOWNLOAD ================= */
   const downloadInvoice = async () => {
     if (!order || downloading) return;
 
@@ -119,6 +119,27 @@ const AdminOrderDetails = () => {
     } finally {
       setDownloading(false);
     }
+  };
+
+  /* ================= ADMIN ACTIONS ================= */
+  const callCustomer = () => {
+    if (!order?.shippingAddress?.phone) return;
+    window.location.href = `tel:${order.shippingAddress.phone}`;
+  };
+
+  const copyAddress = () => {
+    if (!order?.shippingAddress) return;
+
+    const a = order.shippingAddress;
+
+    const text = `${a.name}
+${a.line1}${a.line2 ? `, ${a.line2}` : ""}
+${a.city}, ${a.state}
+${a.pincode}
+Phone: ${a.phone}`;
+
+    navigator.clipboard.writeText(text);
+    toast.success("Delivery address copied");
   };
 
   /* ================= UI STATES ================= */
@@ -194,6 +215,23 @@ const AdminOrderDetails = () => {
                 {new Date(order.createdAt).toLocaleString()}
               </span>
             </p>
+          </div>
+
+          {/* ADMIN QUICK ACTIONS */}
+          <div className="flex flex-wrap gap-3 mt-4">
+            <button
+              onClick={callCustomer}
+              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg font-medium"
+            >
+              📞 Call Customer
+            </button>
+
+            <button
+              onClick={copyAddress}
+              className="px-4 py-2 bg-gray-800 hover:bg-black text-white text-sm rounded-lg font-medium"
+            >
+              📋 Copy Address
+            </button>
           </div>
         </div>
 

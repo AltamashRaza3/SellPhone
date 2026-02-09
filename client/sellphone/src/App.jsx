@@ -185,12 +185,7 @@ const App = () => {
             <Route path="/auth" element={<Auth />} />
             <Route path="/phone/:id" element={<PhoneDetails />} />
 
-            <Route
-              path="/cart"
-              element={
-                  <Cart /> 
-              }
-            />
+            <Route path="/cart" element={<Cart />} />
 
             <Route
               path="/checkout"
@@ -220,7 +215,7 @@ const App = () => {
             />
 
             <Route
-              path="/order-success"
+              path="/order-success/:orderId"
               element={
                 <ProtectedRoute>
                   <OrderSuccess />

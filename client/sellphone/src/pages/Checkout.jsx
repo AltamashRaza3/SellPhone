@@ -51,7 +51,7 @@ const Checkout = () => {
       pincode: address.pincode.trim(),
     };
 
-    // ✅ FINAL VALIDATION
+    /* ===== VALIDATION ===== */
     if (
       !shippingAddress.name ||
       !shippingAddress.phone ||
@@ -86,7 +86,7 @@ const Checkout = () => {
         }),
       }));
 
-      await axios.post(
+      const res = await axios.post(
         "/orders",
         {
           items,
@@ -97,9 +97,13 @@ const Checkout = () => {
         { withCredentials: true },
       );
 
+      const createdOrder = res.data?.order || res.data;
+
       dispatch(clearCart());
       toast.success("Order placed successfully");
-      navigate("/orders");
+
+      // ✅ Redirect to Order Success page
+      navigate(`/order-success/${createdOrder._id}`);
     } catch (err) {
       toast.error(err?.response?.data?.message || "Failed to place order");
     } finally {
@@ -112,6 +116,7 @@ const Checkout = () => {
       <div className="space-y-10">
         <h1 className="text-3xl font-semibold text-white">Checkout</h1>
 
+        {/* ================= ADDRESS ================= */}
         <div className="glass-card space-y-4">
           <h2 className="text-lg font-medium text-white">Delivery Address</h2>
 
@@ -173,6 +178,7 @@ const Checkout = () => {
           </div>
         </div>
 
+        {/* ================= SUMMARY ================= */}
         <div className="glass-card space-y-4">
           <h2 className="text-lg font-medium text-white">Order Summary</h2>
 
@@ -196,6 +202,7 @@ const Checkout = () => {
           </div>
         </div>
 
+        {/* ================= CTA ================= */}
         <button
           onClick={handlePlaceOrder}
           disabled={loading}
