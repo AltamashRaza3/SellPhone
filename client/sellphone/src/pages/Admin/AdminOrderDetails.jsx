@@ -35,10 +35,7 @@ const AdminOrderDetails = () => {
         });
 
         const data = await res.json();
-
-        if (!res.ok) {
-          throw new Error(data.message || "Failed to load order");
-        }
+        if (!res.ok) throw new Error(data.message || "Failed to load order");
 
         setOrder(data);
         setStatus(data.status);
@@ -76,13 +73,9 @@ const AdminOrderDetails = () => {
       });
 
       const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.message || "Update failed");
-      }
+      if (!res.ok) throw new Error(data.message || "Update failed");
 
       const updatedOrder = data.order || data;
-
       setOrder(updatedOrder);
       setStatus(updatedOrder.status);
 
@@ -94,7 +87,7 @@ const AdminOrderDetails = () => {
     }
   };
 
-  /* ================= DOWNLOAD INVOICE (BACKEND) ================= */
+  /* ================= DOWNLOAD INVOICE ================= */
   const downloadInvoice = async () => {
     if (!order || downloading) return;
 
@@ -103,10 +96,7 @@ const AdminOrderDetails = () => {
 
       const res = await fetch(
         `${API_BASE_URL}/api/invoices/admin/order/${order._id}`,
-        {
-          method: "GET",
-          credentials: "include", // 🔐 admin cookie
-        },
+        { credentials: "include" },
       );
 
       if (!res.ok) {
@@ -162,9 +152,80 @@ const AdminOrderDetails = () => {
       {/* HEADER */}
       <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur p-6 space-y-2">
         <h1 className="text-2xl font-bold text-white">Order #{order._id}</h1>
-        <p className="text-gray-400">User: {order.user?.email}</p>
+        <p className="text-gray-400">User: {order.user?.email || "Guest"}</p>
         <p className="text-gray-400">Total: ₹{order.totalAmount}</p>
         <p className="text-gray-400">Status: {order.status}</p>
+      </div>
+
+      {/* CUSTOMER + ADDRESS */}
+      <div className="grid md:grid-cols-2 gap-6">
+        {/* CUSTOMER DETAILS */}
+        <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur p-6">
+          <h2 className="text-lg font-semibold text-white mb-4">
+            Customer Details
+          </h2>
+
+          <div className="space-y-2 text-sm">
+            <p className="text-gray-400">
+              Name:
+              <span className="text-white font-medium ml-2">
+                {order.user?.name || "Guest User"}
+              </span>
+            </p>
+
+            <p className="text-gray-400">
+              Email:
+              <span className="text-white font-medium ml-2">
+                {order.user?.email || "N/A"}
+              </span>
+            </p>
+
+            <p className="text-gray-400">
+              Phone:
+              <span className="text-white font-medium ml-2">
+                {order.phone ||
+                  order.shippingAddress?.phone ||
+                  order.address?.phone ||
+                  "N/A"}
+              </span>
+            </p>
+
+            <p className="text-gray-400">
+              Order Date:
+              <span className="text-white font-medium ml-2">
+                {new Date(order.createdAt).toLocaleString()}
+              </span>
+            </p>
+          </div>
+        </div>
+
+        {/* DELIVERY ADDRESS */}
+        <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur p-6">
+          <h2 className="text-lg font-semibold text-white mb-4">
+            Delivery Address
+          </h2>
+
+          <p className="text-sm text-gray-300 leading-relaxed">
+            {order.shippingAddress?.fullName && (
+              <span className="font-medium text-white">
+                {order.shippingAddress.fullName}
+                <br />
+              </span>
+            )}
+
+            {order.shippingAddress?.addressLine1 ||
+              order.address?.street ||
+              "—"}
+            <br />
+
+            {order.shippingAddress?.city || order.address?.city || ""}
+
+            {order.shippingAddress?.state && `, ${order.shippingAddress.state}`}
+            <br />
+
+            {order.shippingAddress?.pincode || order.address?.pincode || ""}
+          </p>
+        </div>
       </div>
 
       <AdminOrderTimeline order={order} />
