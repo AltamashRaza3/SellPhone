@@ -51,7 +51,6 @@ const Checkout = () => {
       pincode: address.pincode.trim(),
     };
 
-    /* ===== VALIDATION ===== */
     if (
       !shippingAddress.name ||
       !shippingAddress.phone ||
@@ -97,13 +96,9 @@ const Checkout = () => {
         { withCredentials: true },
       );
 
-      const createdOrder = res.data?.order || res.data;
-
       dispatch(clearCart());
       toast.success("Order placed successfully");
-
-      // ✅ Redirect to Order Success page
-      navigate(`/order-success/${createdOrder._id}`);
+      navigate(`/order-success/${res.data._id}`);
     } catch (err) {
       toast.error(err?.response?.data?.message || "Failed to place order");
     } finally {
@@ -111,6 +106,7 @@ const Checkout = () => {
     }
   };
 
+  /* ================= RENDER ================= */
   return (
     <AppContainer>
       <div className="space-y-10">
@@ -202,11 +198,11 @@ const Checkout = () => {
           </div>
         </div>
 
-        {/* ================= CTA ================= */}
+        {/* ================= ACTION ================= */}
         <button
           onClick={handlePlaceOrder}
           disabled={loading}
-          className="btn-primary w-full py-4 text-base disabled:opacity-50"
+          className="w-full py-4 rounded-xl bg-[#1E6BFF] hover:bg-[#1557D6] text-white font-medium disabled:opacity-50"
         >
           {loading ? "Placing Order..." : "Place Order (Cash on Delivery)"}
         </button>

@@ -51,23 +51,25 @@ const OrderSuccess = () => {
     <div className="max-w-4xl mx-auto px-4 py-16 text-center">
       <CheckCircle className="mx-auto text-green-500" size={72} />
 
-      <h1 className="text-3xl font-bold mt-4">Order Placed Successfully 🎉</h1>
+      <h1 className="text-3xl font-semibold mt-4 text-gray-900">
+        Order Placed Successfully
+      </h1>
 
       <p className="text-gray-600 mt-2">
         Thank you for shopping with{" "}
-        <span className="font-semibold">SalePhone</span>
+        <span className="font-medium">SalePhone</span>
       </p>
 
       {/* ORDER INFO */}
-      <div className="bg-white shadow-md rounded-2xl p-6 mt-8 text-left">
-        <div className="flex justify-between mb-4">
+      <div className="bg-white border border-gray-200 rounded-2xl p-6 mt-8 text-left">
+        <div className="flex justify-between mb-4 text-sm">
           <span className="text-gray-500">Order ID</span>
-          <span className="font-semibold">{order._id}</span>
+          <span className="font-medium text-gray-900">{order._id}</span>
         </div>
 
         <div className="mb-4">
-          <h3 className="font-semibold mb-2">Delivery Address</h3>
-          <p className="text-sm text-gray-600">
+          <h3 className="font-medium mb-1 text-gray-900">Delivery Address</h3>
+          <p className="text-sm text-gray-600 leading-relaxed">
             {a.name}
             <br />
             {a.line1}
@@ -78,24 +80,26 @@ const OrderSuccess = () => {
           </p>
         </div>
 
-        <hr className="my-4" />
+        <hr className="my-4 border-gray-200" />
 
         {/* ITEMS */}
         <div className="space-y-2">
           {order.items.map((item, i) => (
             <div key={i} className="flex justify-between text-sm">
-              <span>
+              <span className="text-gray-700">
                 {item.productId?.brand} {item.productId?.model} ×{" "}
                 {item.quantity}
               </span>
-              <span>₹{item.price * item.quantity}</span>
+              <span className="text-gray-900">
+                ₹{item.price * item.quantity}
+              </span>
             </div>
           ))}
         </div>
 
-        <hr className="my-4" />
+        <hr className="my-4 border-gray-200" />
 
-        <div className="flex justify-between text-lg font-bold">
+        <div className="flex justify-between text-lg font-semibold text-gray-900">
           <span>Total Paid</span>
           <span>₹{order.totalAmount}</span>
         </div>
@@ -104,17 +108,17 @@ const OrderSuccess = () => {
       {/* ACTIONS */}
       <div className="flex justify-center gap-4 mt-10 flex-wrap">
         <Link
-          to="/"
-          className="px-6 py-3 rounded-full border border-gray-300 text-gray-700 font-medium hover:bg-gray-100"
+          to="/orders"
+          className="px-6 py-3 rounded-xl bg-[#1E6BFF] hover:bg-[#1557D6] text-white font-medium"
         >
-          Continue Shopping
+          View My Orders
         </Link>
 
         <Link
-          to="/my-orders"
-          className="px-6 py-3 rounded-full bg-black text-white font-medium hover:bg-gray-900"
+          to="/"
+          className="px-6 py-3 rounded-xl border border-gray-300 text-gray-700 font-medium hover:bg-gray-100"
         >
-          View My Orders
+          Continue Shopping
         </Link>
       </div>
     </div>
