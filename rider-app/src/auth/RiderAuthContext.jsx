@@ -2,7 +2,6 @@ import { createContext, useContext, useEffect, useState } from "react";
 
 const RiderAuthContext = createContext(null);
 
-/* ================= JWT UTILS ================= */
 const isTokenValid = (token) => {
   try {
     const payload = JSON.parse(atob(token.split(".")[1]));
@@ -16,7 +15,6 @@ export const RiderAuthProvider = ({ children }) => {
   const [token, setToken] = useState(null);
   const [authReady, setAuthReady] = useState(false);
 
-  /* 🔐 Initialize auth from storage */
   useEffect(() => {
     const storedToken = localStorage.getItem("riderToken");
 
@@ -36,11 +34,10 @@ export const RiderAuthProvider = ({ children }) => {
 
   const logout = () => {
     localStorage.removeItem("riderToken");
+    localStorage.removeItem("riderProfile");
     setToken(null);
-    window.location.href = "/";
+    window.location.hash = "#/login"; // ✅ FIX
   };
-
-  const isAuthenticated = Boolean(token);
 
   return (
     <RiderAuthContext.Provider
@@ -48,7 +45,7 @@ export const RiderAuthProvider = ({ children }) => {
         token,
         login,
         logout,
-        isAuthenticated,
+        isAuthenticated: Boolean(token),
         authReady,
       }}
     >
@@ -57,10 +54,4 @@ export const RiderAuthProvider = ({ children }) => {
   );
 };
 
-export const useRiderAuth = () => {
-  const ctx = useContext(RiderAuthContext);
-  if (!ctx) {
-    throw new Error("useRiderAuth must be used within RiderAuthProvider");
-  }
-  return ctx;
-};
+export const useRiderAuth = () => useContext(RiderAuthContext);
