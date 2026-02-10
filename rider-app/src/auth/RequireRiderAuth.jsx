@@ -18,7 +18,6 @@ const RequireRiderAuth = ({ children }) => {
     return <Navigate to="/login" replace />;
   }
 
-  // ✅ Auth OK
   return children;
 };
 

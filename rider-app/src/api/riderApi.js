@@ -11,11 +11,12 @@ riderApi.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("riderToken");
 
-    if (token) {
+    // ✅ DO NOT attach token for auth routes
+    if (token && !config.url.includes("/auth/")) {
       config.headers.Authorization = `Bearer ${token}`;
     }
 
-    // 🔥 IMPORTANT: never manually set multipart boundary
+    // ✅ Let browser handle multipart boundary
     if (config.data instanceof FormData) {
       delete config.headers["Content-Type"];
     }

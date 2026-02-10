@@ -1,9 +1,15 @@
 import { Navigate } from "react-router-dom";
+import { useRiderAuth } from "../auth/RiderAuthContext";
 
 const ProtectedRoute = ({ children }) => {
-  const token = localStorage.getItem("riderToken");
+  const { isAuthenticated, authReady } = useRiderAuth();
 
-  if (!token) {
+  // ⏳ Wait until auth is initialized
+  if (!authReady) {
+    return null; // or loader
+  }
+
+  if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 
