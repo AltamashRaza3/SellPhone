@@ -49,6 +49,7 @@ const corsOptions = {
     "https://salephone-cf695.firebaseapp.com",
     "https://salephone-cf695.firebaseapp.com/admin/login",
     "https://salephone-cf695.firebaseapp.com/admin/",
+    "https://altamashraza3.github.io/SellPhone/#/login",
   ],
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],

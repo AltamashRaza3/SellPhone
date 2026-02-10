@@ -124,7 +124,14 @@ const AdminLayout = () => {
             📦 Inventory
           </NavLink>
         </nav>
-
+        <NavLink
+          to="/admin/riders"
+          className={({ isActive }) =>
+            `${baseLink} ${isActive ? active : inactive}`
+          }
+        >
+          🛵 Riders
+        </NavLink>
         {/* Logout */}
         <div className="px-4 py-6 border-t border-white/10">
           <button
