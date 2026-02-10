@@ -38,6 +38,8 @@ const riderSchema = new mongoose.Schema(
 
     /* Audit */
     lastLoginAt: Date,
+    statusUpdatedAt: Date,
+    statusUpdatedBy: String,
   },
   { timestamps: true }
 );

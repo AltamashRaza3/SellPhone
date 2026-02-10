@@ -3,11 +3,11 @@ import { useNavigate } from "react-router-dom";
 const Header = () => {
   const navigate = useNavigate();
 
-  const rider = JSON.parse(localStorage.getItem("riderProfile"));
+  const rider = JSON.parse(localStorage.getItem("rider"));
 
   const logout = () => {
     localStorage.removeItem("riderToken");
-    localStorage.removeItem("riderProfile");
+    localStorage.removeItem("rider");
     sessionStorage.removeItem("rider_phone");
     navigate("/login", { replace: true });
   };

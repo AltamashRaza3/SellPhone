@@ -40,7 +40,7 @@ const VerifyOtp = () => {
       });
 
       localStorage.setItem("riderToken", res.data.token);
-      localStorage.setItem("riderProfile", JSON.stringify(res.data.rider));
+      localStorage.setItem("rider", JSON.stringify(res.data.rider)); // ✅ FIX
 
       sessionStorage.removeItem("rider_phone");
 
