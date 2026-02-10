@@ -7,58 +7,61 @@ import PickupDetails from "./pages/PickupDetails";
 import Earnings from "./pages/Earnings";
 import Profile from "./pages/Profile";
 
-import ProtectedRoute from "./components/ProtectedRoute";
+import RequireRiderAuth from "./auth/RequireRiderAuth";
 import RiderLayout from "./layout/RiderLayout";
 
 const App = () => {
   return (
     <Routes>
-      {/* Redirect root */}
-      <Route path="/" element={<Navigate to="/login" />} />
+      {/* Root redirect */}
+      <Route path="/" element={<Navigate to="/login" replace />} />
 
-      {/* Public Routes */}
+      {/* Public */}
       <Route path="/login" element={<Login />} />
       <Route path="/verify-otp" element={<VerifyOtp />} />
 
-      {/* Protected Routes */}
+      {/* Protected */}
       <Route
         path="/pickups"
         element={
-          <ProtectedRoute>
+          <RequireRiderAuth>
             <RiderLayout>
               <Pickups />
             </RiderLayout>
-          </ProtectedRoute>
+          </RequireRiderAuth>
         }
       />
-      <Route
-        path="/earnings"
-        element={
-          <ProtectedRoute>
-            <RiderLayout>
-              <Earnings />
-            </RiderLayout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/profile"
-        element={
-          <ProtectedRoute>
-            <RiderLayout>
-              <Profile />
-            </RiderLayout>
-          </ProtectedRoute>
-        }
-      />
+
       <Route
         path="/pickups/:id"
         element={
-          <ProtectedRoute>
+          <RequireRiderAuth>
             <RiderLayout>
               <PickupDetails />
             </RiderLayout>
-          </ProtectedRoute>
+          </RequireRiderAuth>
+        }
+      />
+
+      <Route
+        path="/earnings"
+        element={
+          <RequireRiderAuth>
+            <RiderLayout>
+              <Earnings />
+            </RiderLayout>
+          </RequireRiderAuth>
+        }
+      />
+
+      <Route
+        path="/profile"
+        element={
+          <RequireRiderAuth>
+            <RiderLayout>
+              <Profile />
+            </RiderLayout>
+          </RequireRiderAuth>
         }
       />
     </Routes>

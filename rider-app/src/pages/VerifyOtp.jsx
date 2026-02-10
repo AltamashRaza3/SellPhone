@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import riderApi from "../api/riderApi";
+import {useRiderAuth} from "../auth/RequireRiderAuth";
 
 const VerifyOtp = () => {
   const navigate = useNavigate();
@@ -39,12 +40,11 @@ const VerifyOtp = () => {
         otp: cleanOtp,
       });
 
-      localStorage.setItem("riderToken", res.data.token);
-      localStorage.setItem("rider", JSON.stringify(res.data.rider)); // ✅ FIX
-
+      login(res.data.token);
+      localStorage.setItem("rider", JSON.stringify(res.data.rider));
       sessionStorage.removeItem("rider_phone");
-
       navigate("/pickups", { replace: true });
+
     } catch (err) {
       setError(err?.response?.data?.message || "Invalid or expired OTP");
     } finally {
