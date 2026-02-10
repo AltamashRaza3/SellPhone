@@ -32,9 +32,9 @@ const AdminRiders = () => {
 
   /* ================= TOGGLE STATUS ================= */
   const toggleStatus = async (rider) => {
-    const newStatus = rider.status === "active" ? "inactive" : "active";
-
     try {
+      const newStatus = rider.status === "active" ? "inactive" : "active";
+
       const res = await fetch(
         `${API_BASE_URL}/api/admin/riders/${rider._id}/status`,
         {
@@ -55,6 +55,7 @@ const AdminRiders = () => {
       toast.error("Failed to update rider status");
     }
   };
+
 
   /* ================= RENDER ================= */
   return (
@@ -89,10 +90,10 @@ const AdminRiders = () => {
 
                 <button
                   onClick={() => toggleStatus(r)}
-                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold ${
                     r.status === "active"
-                      ? "bg-green-500/20 text-green-400 hover:bg-green-500/30"
-                      : "bg-red-500/20 text-red-400 hover:bg-red-500/30"
+                      ? "bg-green-500/20 text-green-400"
+                      : "bg-red-500/20 text-red-400"
                   }`}
                 >
                   {r.status}
