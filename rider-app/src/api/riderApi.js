@@ -3,7 +3,7 @@ import API_BASE_URL from "../config/api";
 
 const riderApi = axios.create({
   baseURL: `${API_BASE_URL}/api/rider`,
-  withCredentials: true,
+  withCredentials: false,
 });
 
 /* ================= AUTH INTERCEPTOR ================= */
