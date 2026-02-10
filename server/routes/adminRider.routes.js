@@ -29,7 +29,7 @@ router.get("/", adminAuth, async (req, res) => {
 ====================================================== */
 router.post("/", adminAuth, async (req, res) => {
   try {
-    const { name, phone } = req.body;
+    const { name, phone, city } = req.body;
 
     if (!name || !phone) {
       return res.status(400).json({
@@ -53,7 +53,9 @@ router.post("/", adminAuth, async (req, res) => {
     const rider = await Rider.create({
       name: name.trim(),
       phone: phone.trim(),
+      city: city?.trim(),
       status: "active",
+      createdBy: "admin",
     });
 
     res.status(201).json(rider);
@@ -64,11 +66,11 @@ router.post("/", adminAuth, async (req, res) => {
 });
 
 /* ======================================================
-   UPDATE RIDER (ADMIN)
+   UPDATE RIDER BASIC INFO (ADMIN)
 ====================================================== */
 router.put("/:id", adminAuth, async (req, res) => {
   try {
-    const { name } = req.body;
+    const { name, city } = req.body;
 
     const rider = await Rider.findById(req.params.id);
     if (!rider) {
@@ -76,6 +78,7 @@ router.put("/:id", adminAuth, async (req, res) => {
     }
 
     if (name !== undefined) rider.name = name.trim();
+    if (city !== undefined) rider.city = city.trim();
 
     await rider.save();
     res.json(rider);
@@ -98,7 +101,11 @@ router.patch("/:id/status", adminAuth, async (req, res) => {
 
     const rider = await Rider.findByIdAndUpdate(
       req.params.id,
-      { status },
+      {
+        status,
+        statusUpdatedAt: new Date(),
+        statusUpdatedBy: req.admin?._id || "admin",
+      },
       { new: true }
     );
 
