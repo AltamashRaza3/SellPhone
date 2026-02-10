@@ -15,11 +15,21 @@ const riderSchema = new mongoose.Schema(
       required: true,
     },
 
+    city: {
+      type: String,
+    },
+
     status: {
       type: String,
       enum: ["active", "inactive"],
       default: "active",
       index: true,
+    },
+
+    createdBy: {
+      type: String,
+      enum: ["admin"],
+      default: "admin",
     },
 
     /* OTP (temporary) */

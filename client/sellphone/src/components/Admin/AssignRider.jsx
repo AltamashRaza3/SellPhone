@@ -2,15 +2,15 @@ import { useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
 import API_BASE_URL from "../../config/api";
 
-const AssignRider = ({ requestId,alreadyAssigned ,onAssigned }) => {
+const AssignRider = ({ requestId, alreadyAssigned, onAssigned }) => {
   const [riders, setRiders] = useState([]);
   const [riderId, setRiderId] = useState("");
   const [scheduledAt, setScheduledAt] = useState("");
   const [loading, setLoading] = useState(false);
 
-  /* ================= LOAD RIDERS ================= */
+  /* ================= LOAD ACTIVE RIDERS ONLY ================= */
   useEffect(() => {
-    fetch(`${API_BASE_URL}/api/admin/riders`, {
+    fetch(`${API_BASE_URL}/api/admin/riders?status=active`, {
       credentials: "include",
     })
       .then((res) => {
@@ -18,7 +18,10 @@ const AssignRider = ({ requestId,alreadyAssigned ,onAssigned }) => {
         return res.json();
       })
       .then((data) => {
-        setRiders(Array.isArray(data) ? data : []);
+        const activeRiders = Array.isArray(data)
+          ? data.filter((r) => r.status === "active")
+          : [];
+        setRiders(activeRiders);
       })
       .catch(() => toast.error("Failed to load riders"));
   }, []);
@@ -48,7 +51,7 @@ const AssignRider = ({ requestId,alreadyAssigned ,onAssigned }) => {
           },
           body: JSON.stringify({
             riderId,
-            scheduledAt, // ✅ NOW SENT
+            scheduledAt,
           }),
         },
       );
@@ -59,7 +62,12 @@ const AssignRider = ({ requestId,alreadyAssigned ,onAssigned }) => {
         throw new Error(data.message || "Assignment failed");
       }
 
-      toast.success("Rider assigned successfully");
+      toast.success(
+        alreadyAssigned
+          ? "Rider reassigned successfully"
+          : "Rider assigned successfully",
+      );
+
       setRiderId("");
       setScheduledAt("");
       onAssigned?.();

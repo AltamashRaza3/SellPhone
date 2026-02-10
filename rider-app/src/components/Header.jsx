@@ -3,11 +3,13 @@ import { useNavigate } from "react-router-dom";
 const Header = () => {
   const navigate = useNavigate();
 
-  const rider = JSON.parse(sessionStorage.getItem("rider"));
+  const rider = JSON.parse(localStorage.getItem("riderProfile"));
 
   const logout = () => {
-    sessionStorage.clear();
-    navigate("/login");
+    localStorage.removeItem("riderToken");
+    localStorage.removeItem("riderProfile");
+    sessionStorage.removeItem("rider_phone");
+    navigate("/login", { replace: true });
   };
 
   return (
@@ -18,7 +20,9 @@ const Header = () => {
           <h1 className="text-base font-semibold tracking-wide text-white">
             SellPhone Rider
           </h1>
-          <p className="text-xs text-zinc-400 leading-none">{rider?.name}</p>
+          <p className="text-xs text-zinc-400 leading-none">
+            {rider?.name || "Rider"}
+          </p>
         </div>
 
         {/* Logout */}

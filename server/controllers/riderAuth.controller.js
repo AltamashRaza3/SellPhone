@@ -20,7 +20,9 @@ export const sendOtp = async (req, res) => {
 
     const rider = await Rider.findOne({ phone, status: "active" });
     if (!rider) {
-      return res.status(404).json({ message: "Rider not found or inactive" });
+      return res.status(403).json({
+        message: "Rider account is inactive. Contact admin.",
+      });
     }
 
     // TEMP OTP (static for now)
@@ -54,11 +56,18 @@ export const verifyOtp = async (req, res) => {
 
     const rider = await Rider.findOne({ phone, status: "active" });
     if (!rider) {
-      return res.status(404).json({ message: "Rider not found" });
+      return res.status(403).json({
+        message: "Rider account is inactive. Contact admin.",
+      });
     }
 
     // OTP is single-use
     otpStore.delete(phone);
+
+    /* ================= AUDIT ================= */
+    rider.lastLoginAt = new Date();
+    await rider.save();
+    /* ========================================= */
 
     const token = jwt.sign(
       {

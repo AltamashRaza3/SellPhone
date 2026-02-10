@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import riderApi from "../api/riderApi";
 
@@ -10,14 +10,23 @@ const VerifyOtp = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  if (!phone) {
-    navigate("/login");
-    return null;
-  }
+  /* ================= SAFETY REDIRECT ================= */
+  useEffect(() => {
+    if (!phone) {
+      navigate("/login", { replace: true });
+    }
+  }, [phone, navigate]);
 
   const verifyOtp = async () => {
-    if (!otp) {
+    const cleanOtp = otp.trim();
+
+    if (!cleanOtp) {
       setError("Enter OTP");
+      return;
+    }
+
+    if (!/^\d{6}$/.test(cleanOtp)) {
+      setError("OTP must be 6 digits");
       return;
     }
 
@@ -25,23 +34,28 @@ const VerifyOtp = () => {
       setLoading(true);
       setError("");
 
-      const res = await riderApi.post("/auth/verify-otp", { phone, otp });
+      const res = await riderApi.post("/auth/verify-otp", {
+        phone,
+        otp: cleanOtp,
+      });
 
       localStorage.setItem("riderToken", res.data.token);
       localStorage.setItem("riderProfile", JSON.stringify(res.data.rider));
 
-      navigate("/pickups");
-    } catch {
-      setError("Invalid or expired OTP");
+      sessionStorage.removeItem("rider_phone");
+
+      navigate("/pickups", { replace: true });
+    } catch (err) {
+      setError(err?.response?.data?.message || "Invalid or expired OTP");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-zinc-900 via-black to-zinc-900 flex justify-center items-center px-4">
-      <div className="w-full max-w-sm bg-zinc-950 border border-white/10 rounded-2xl p-6 space-y-5 shadow-2xl">
-        {/* Title */}
+    <div className="min-h-screen bg-gradient-to-br from-zinc-900 via-black to-zinc-900 flex items-center justify-center px-4">
+      <div className="w-full max-w-sm bg-zinc-950 border border-white/10 rounded-2xl p-6 space-y-6 shadow-2xl">
+        {/* Header */}
         <div className="text-center space-y-1">
           <h1 className="text-xl font-semibold text-white">Verify OTP</h1>
           <p className="text-sm text-zinc-400">OTP sent to {phone}</p>
@@ -53,9 +67,11 @@ const VerifyOtp = () => {
         {/* OTP Input */}
         <input
           type="tel"
-          placeholder="Enter OTP"
+          inputMode="numeric"
+          maxLength={6}
+          placeholder="Enter 6-digit OTP"
           value={otp}
-          onChange={(e) => setOtp(e.target.value)}
+          onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
           className="w-full h-12 rounded-xl bg-zinc-900 border border-white/10 px-4 text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-center tracking-widest"
         />
 

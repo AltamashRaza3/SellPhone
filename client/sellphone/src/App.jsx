@@ -58,6 +58,7 @@ import AdminInventory from "./pages/Admin/AdminInventory";
 
 /* ================= UI ================= */
 import { Toaster } from "react-hot-toast";
+import AdminRiders from "./pages/Admin/AdminRider";
 
 const App = () => {
   const dispatch = useDispatch();
@@ -276,6 +277,7 @@ const App = () => {
             <Route path="products" element={<AdminProducts />} />
             <Route path="products/add" element={<AdminAddProduct />} />
             <Route path="products/edit/:id" element={<AdminEditProduct />} />
+            <Route path="riders" element={<AdminRiders/>} />
 
             {/* ✅ INVENTORY */}
             <Route path="inventory" element={<AdminInventory />} />

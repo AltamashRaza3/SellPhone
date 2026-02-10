@@ -9,8 +9,15 @@ const Login = () => {
   const navigate = useNavigate();
 
   const sendOtp = async () => {
-    if (!phone) {
+    const cleanPhone = phone.trim();
+
+    if (!cleanPhone) {
       setError("Enter mobile number");
+      return;
+    }
+
+    if (!/^\d{10}$/.test(cleanPhone)) {
+      setError("Enter a valid 10-digit mobile number");
       return;
     }
 
@@ -18,21 +25,26 @@ const Login = () => {
       setLoading(true);
       setError("");
 
-      await riderApi.post("/auth/send-otp", { phone });
+      await riderApi.post("/auth/send-otp", {
+        phone: cleanPhone,
+      });
 
-      sessionStorage.setItem("rider_phone", phone);
+      sessionStorage.setItem("rider_phone", cleanPhone);
       navigate("/verify-otp");
     } catch (err) {
-      setError("Unable to send OTP");
+      setError(
+        err?.response?.data?.message ||
+          "Unable to send OTP. Please contact admin.",
+      );
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-zinc-900 via-black to-zinc-900 flex justify-center items-center px-4">
-      <div className="w-full max-w-sm bg-zinc-950 border border-white/10 rounded-2xl p-6 space-y-5 shadow-2xl">
-        {/* App Title */}
+    <div className="min-h-screen bg-gradient-to-br from-zinc-900 via-black to-zinc-900 flex items-center justify-center px-4">
+      <div className="w-full max-w-sm bg-zinc-950 border border-white/10 rounded-2xl p-6 space-y-6 shadow-2xl">
+        {/* Header */}
         <div className="text-center space-y-1">
           <h1 className="text-xl font-semibold text-white">SellPhone Rider</h1>
           <p className="text-sm text-zinc-400">Login to continue deliveries</p>
@@ -42,13 +54,18 @@ const Login = () => {
         {error && <p className="text-sm text-red-400 text-center">{error}</p>}
 
         {/* Input */}
-        <input
-          type="tel"
-          placeholder="Mobile number"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          className="w-full h-12 rounded-xl bg-zinc-900 border border-white/10 px-4 text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-        />
+        <div className="space-y-1">
+          <label className="text-xs text-zinc-400">Mobile Number</label>
+          <input
+            type="tel"
+            inputMode="numeric"
+            placeholder="10-digit mobile number"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
+            maxLength={10}
+            className="w-full h-12 rounded-xl bg-zinc-900 border border-white/10 px-4 text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          />
+        </div>
 
         {/* CTA */}
         <button

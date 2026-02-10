@@ -15,7 +15,9 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
-
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
 a {
   font-weight: 500;
   color: #646cff;
