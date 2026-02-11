@@ -199,7 +199,7 @@ router.put("/pickups/:id/complete", riderAuth, async (req, res) => {
         images: [], // admin uploads later
       },
       purchasePrice: request.verification.finalPrice,
-      status: "Draft",
+      status: "InStock",
     },
     { upsert: true, new: true, runValidators: true }
   );
