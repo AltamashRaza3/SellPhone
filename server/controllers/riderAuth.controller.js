@@ -61,13 +61,10 @@ export const verifyOtp = async (req, res) => {
       });
     }
 
-    // OTP is single-use
     otpStore.delete(phone);
 
-    /* ================= AUDIT ================= */
     rider.lastLoginAt = new Date();
     await rider.save();
-    /* ========================================= */
 
     const token = jwt.sign(
       {
@@ -78,9 +75,16 @@ export const verifyOtp = async (req, res) => {
       { expiresIn: "7d" }
     );
 
-    res.json({
+    // ✅ SET SECURE COOKIE
+    res.cookie("riderToken", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    return res.json({
       success: true,
-      token,
       rider: {
         _id: rider._id,
         name: rider.name,
@@ -92,3 +96,4 @@ export const verifyOtp = async (req, res) => {
     res.status(500).json({ message: "OTP verification failed" });
   }
 };
+

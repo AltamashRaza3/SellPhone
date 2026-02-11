@@ -3,7 +3,7 @@ import API_BASE_URL from "../config/api";
 
 const riderApi = axios.create({
   baseURL: `${API_BASE_URL}/api/rider`,
-  withCredentials: false,
+  withCredentials: true,
 });
 
 /* ================= AUTH INTERCEPTOR ================= */
@@ -11,12 +11,12 @@ riderApi.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("riderToken");
 
-    // ✅ DO NOT attach token for auth routes
+  
     if (token && !config.url.includes("/auth/")) {
       config.headers.Authorization = `Bearer ${token}`;
     }
 
-    // ✅ Let browser handle multipart boundary
+   
     if (config.data instanceof FormData) {
       delete config.headers["Content-Type"];
     }
