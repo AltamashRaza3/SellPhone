@@ -171,63 +171,81 @@ router.put("/pickups/:id/verify", riderAuth, async (req, res) => {
 
 /* ================= COMPLETE PICKUP (🔥 INVENTORY + PAYOUT) ================= */
 router.put("/pickups/:id/complete", riderAuth, async (req, res) => {
-  const request = await SellRequest.findOne({
-    _id: req.params.id,
-    "assignedRider.riderId": req.rider.riderId,
-    "pickup.status": "Picked",
-    "verification.userAccepted": true,
-  });
+  try {
+    console.log("=== COMPLETE PICKUP START ===");
 
-  if (!request) {
-    return res.status(409).json({
-      message: "User acceptance required",
+    const request = await SellRequest.findOne({
+      _id: req.params.id,
+      "assignedRider.riderId": req.rider.riderId,
+      "pickup.status": "Picked",
+      "verification.userAccepted": true,
+    });
+
+    if (!request) {
+      console.log("❌ Request not found or user not accepted");
+      return res.status(409).json({
+        message: "User acceptance required",
+      });
+    }
+
+    console.log("✅ SellRequest found:", request._id);
+
+    /* ================= INVENTORY ================= */
+    const inventory = await InventoryItem.findOneAndUpdate(
+      { sellRequestId: request._id },
+      {
+        sellRequestId: request._id,
+        phone: {
+          brand: request.phone.brand,
+          model: request.phone.model,
+          storage: request.phone.storage,
+          ram: request.phone.ram,
+          color: request.phone.color,
+          condition: request.phone.declaredCondition,
+          images: [],
+        },
+        purchasePrice: request.verification.finalPrice,
+        status: "InStock",
+      },
+      { upsert: true, new: true, runValidators: true }
+    );
+
+    console.log("✅ Inventory created/updated:", inventory._id);
+
+    /* ================= RIDER PAYOUT ================= */
+    if (!request.riderPayout?.amount) {
+      request.riderPayout = {
+        amount: RIDER_PAYOUT_AMOUNT,
+        calculatedAt: new Date(),
+      };
+    }
+
+    request.pickup.status = "Completed";
+    request.pickup.completedAt = new Date();
+
+    request.statusHistory.push({
+      status: "Pickup Completed",
+      changedBy: "rider",
+      note: `Inventory created | Rider payout ₹${RIDER_PAYOUT_AMOUNT}`,
+    });
+
+    await request.save();
+
+    console.log("✅ SellRequest updated successfully");
+
+    res.json({
+      success: true,
+      message: "Pickup completed successfully",
+    });
+
+  } catch (error) {
+    console.error("🔥 COMPLETE PICKUP ERROR FULL:", error);
+    res.status(500).json({
+      message: error.message,
     });
   }
-
-  /* ================= INVENTORY (SCHEMA SAFE) ================= */
-  await InventoryItem.findOneAndUpdate(
-    { sellRequestId: request._id },
-    {
-      sellRequestId: request._id,
-      phone: {
-        brand: request.phone.brand,
-        model: request.phone.model,
-        storage: request.phone.storage,
-        ram: request.phone.ram,
-        color: request.phone.color,
-        condition: request.phone.declaredCondition,
-        images: [], // admin uploads later
-      },
-      purchasePrice: request.verification.finalPrice,
-      status: "InStock",
-    },
-    { upsert: true, new: true, runValidators: true }
-  );
-
-  /* ================= RIDER PAYOUT ================= */
-  if (!request.riderPayout?.amount) {
-    request.riderPayout = {
-      amount: RIDER_PAYOUT_AMOUNT,
-      calculatedAt: new Date(),
-    };
-  }
-
-  request.pickup.status = "Completed";
-  request.pickup.completedAt = new Date();
-
-  request.statusHistory.push({
-    status: "Pickup Completed",
-    changedBy: "rider",
-    note: `Inventory created | Rider payout ₹${RIDER_PAYOUT_AMOUNT}`,
-  });
-
-  await request.save();
-
-  res.json({
-    success: true,
-    message: "Pickup completed successfully",
-  });
 });
+
 
 /* ================= RIDER EARNINGS ================= */
 router.get("/earnings", riderAuth, async (req, res) => {
