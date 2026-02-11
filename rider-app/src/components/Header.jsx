@@ -1,33 +1,39 @@
 import { useNavigate } from "react-router-dom";
+import { LogOut } from "lucide-react";
 
 const Header = () => {
   const navigate = useNavigate();
-
   const rider = JSON.parse(localStorage.getItem("riderProfile"));
 
   const logout = () => {
     localStorage.removeItem("riderProfile");
     sessionStorage.removeItem("rider_phone");
-    window.location.href = "/SellPhone/#/login";
+    navigate("/login", { replace: true });
   };
 
   return (
-    <header className="sticky top-0 z-20 bg-zinc-950 border-b border-white/10">
-      <div className="h-14 px-4 flex items-center justify-between">
+    <header className="sticky top-0 z-50 bg-white border-b border-gray-100">
+      <div className="max-w-[480px] mx-auto px-6 py-5 flex items-center justify-between">
+        {/* Brand */}
         <div>
-          <h1 className="text-base font-semibold tracking-wide text-white">
-            SellPhone Rider
+          <h1 className="text-xl font-semibold tracking-tight text-gray-900">
+            SellPhone <span className="text-blue-600">Rider</span>
           </h1>
-          <p className="text-xs text-zinc-400 leading-none">
-            {rider?.name || "Rider"}
-          </p>
+          <p className="text-xs text-gray-500 mt-1">{rider?.name || "Rider"}</p>
         </div>
 
+        {/* Logout Icon */}
         <button
           onClick={logout}
-          className="text-xs text-zinc-300 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 transition"
+          className="
+            w-10 h-10 rounded-full
+            flex items-center justify-center
+            bg-gray-100 hover:bg-gray-200
+            transition-all duration-200
+            active:scale-95
+          "
         >
-          Logout
+          <LogOut size={16} className="text-gray-600" />
         </button>
       </div>
     </header>

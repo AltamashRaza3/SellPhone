@@ -1,37 +1,79 @@
 import { NavLink } from "react-router-dom";
-import { FiHome, FiUser, FiTrendingUp } from "react-icons/fi";
+import { Home, TrendingUp, User } from "lucide-react";
 
 const BottomNav = () => {
   const base =
-    "flex flex-col items-center justify-center flex-1 py-1 text-[11px] transition";
-  const active = "text-emerald-400";
-  const inactive = "text-zinc-400";
+    "flex flex-col items-center justify-center flex-1 py-2 text-[11px] font-medium transition-all duration-200";
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-30 h-14 border-t border-white/10 bg-zinc-950 flex safe-area-bottom">
-      <NavLink
-        to="/pickups"
-        className={({ isActive }) => `${base} ${isActive ? active : inactive}`}
-      >
-        <FiHome size={18} />
-        <span className="mt-0.5">Pickups</span>
-      </NavLink>
+    <nav className="sticky bottom-0 z-40 bg-white border-t border-gray-100 safe-area-bottom">
+      <div className="max-w-[480px] mx-auto h-16 flex">
+        <NavLink
+          to="/pickups"
+          className={({ isActive }) =>
+            `${base} ${
+              isActive ? "text-blue-600" : "text-gray-400 hover:text-gray-600"
+            }`
+          }
+        >
+          {({ isActive }) => (
+            <>
+              <Home
+                size={22}
+                strokeWidth={2}
+                className={`transition-transform duration-200 ${
+                  isActive ? "scale-110" : ""
+                }`}
+              />
+              <span className="mt-1">Pickups</span>
+            </>
+          )}
+        </NavLink>
 
-      <NavLink
-        to="/earnings"
-        className={({ isActive }) => `${base} ${isActive ? active : inactive}`}
-      >
-        <FiTrendingUp size={18} />
-        <span className="mt-0.5">Earnings</span>
-      </NavLink>
+        <NavLink
+          to="/earnings"
+          className={({ isActive }) =>
+            `${base} ${
+              isActive ? "text-blue-600" : "text-gray-400 hover:text-gray-600"
+            }`
+          }
+        >
+          {({ isActive }) => (
+            <>
+              <TrendingUp
+                size={22}
+                strokeWidth={2}
+                className={`transition-transform duration-200 ${
+                  isActive ? "scale-110" : ""
+                }`}
+              />
+              <span className="mt-1">Earnings</span>
+            </>
+          )}
+        </NavLink>
 
-      <NavLink
-        to="/profile"
-        className={({ isActive }) => `${base} ${isActive ? active : inactive}`}
-      >
-        <FiUser size={18} />
-        <span className="mt-0.5">Profile</span>
-      </NavLink>
+        <NavLink
+          to="/profile"
+          className={({ isActive }) =>
+            `${base} ${
+              isActive ? "text-blue-600" : "text-gray-400 hover:text-gray-600"
+            }`
+          }
+        >
+          {({ isActive }) => (
+            <>
+              <User
+                size={22}
+                strokeWidth={2}
+                className={`transition-transform duration-200 ${
+                  isActive ? "scale-110" : ""
+                }`}
+              />
+              <span className="mt-1">Profile</span>
+            </>
+          )}
+        </NavLink>
+      </div>
     </nav>
   );
 };

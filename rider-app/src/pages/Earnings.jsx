@@ -23,56 +23,63 @@ const Earnings = () => {
 
   if (loading) {
     return (
-      <div className="py-24 text-center text-zinc-400">Loading earnings…</div>
+      <div className="py-24 text-center text-gray-500">Loading earnings…</div>
     );
   }
 
   if (!earnings) {
     return (
-      <div className="py-24 text-center text-zinc-400">
+      <div className="py-24 text-center text-gray-500">
         No earnings data available
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* HEADER */}
+    <div className="space-y-12">
+      {/* ===== HEADER ===== */}
       <div>
-        <h1 className="text-xl font-bold text-white">Earnings</h1>
-        <p className="text-sm text-zinc-400">Your completed pickup earnings</p>
+        <h1 className="text-3xl font-semibold tracking-tight text-gray-900">
+          Earnings
+        </h1>
+        <p className="text-sm text-gray-500 mt-2">
+          Your completed pickup earnings
+        </p>
       </div>
 
-      {/* SUMMARY CARD */}
-      <div className="rounded-3xl bg-gradient-to-br from-emerald-500 to-green-600 p-6 text-black shadow-xl">
-        <p className="text-sm font-medium opacity-90">Total Earnings</p>
-        <p className="text-4xl font-bold mt-1">
+      {/* ===== MAIN EARNINGS CARD ===== */}
+      <div className="bg-white rounded-3xl p-8 shadow-sm space-y-6">
+        <p className="text-sm text-gray-500">Total Earnings</p>
+
+        <p className="text-5xl font-semibold text-gray-900 tracking-tight">
           ₹{earnings.totalEarnings?.toLocaleString("en-IN") || 0}
         </p>
 
-        <div className="flex justify-between text-sm mt-5 opacity-90">
-          <span>Completed Pickups</span>
-          <span>{earnings.completedPickups || 0}</span>
+        <div className="flex justify-between pt-6 border-t border-gray-100">
+          <span className="text-sm text-gray-500">Completed Pickups</span>
+          <span className="text-sm font-medium text-gray-900">
+            {earnings.completedPickups || 0}
+          </span>
         </div>
       </div>
 
-      {/* PAYOUT INFO */}
-      <div className="rounded-2xl bg-zinc-900 border border-white/10 p-4 space-y-2">
-        <p className="font-medium text-white">Payout Details</p>
+      {/* ===== PAYOUT INFO CARD ===== */}
+      <div className="bg-white rounded-3xl p-8 shadow-sm space-y-4">
+        <h2 className="text-lg font-semibold text-gray-900">Payout Details</h2>
 
-        <p className="text-sm text-zinc-400">
+        <p className="text-sm text-gray-600 leading-relaxed">
           ₹{earnings.totalEarnings || 0} earned from{" "}
           {earnings.completedPickups || 0} completed pickups.
         </p>
 
         {earnings.lastPayoutAt && (
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-gray-400">
             Last calculated on{" "}
             {new Date(earnings.lastPayoutAt).toLocaleString()}
           </p>
         )}
 
-        <p className="text-xs text-zinc-500">Payouts are settled by admin.</p>
+        <p className="text-xs text-gray-400">Payouts are settled by admin.</p>
       </div>
     </div>
   );

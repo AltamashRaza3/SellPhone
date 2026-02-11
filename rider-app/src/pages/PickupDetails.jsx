@@ -170,124 +170,184 @@ const PickupDetails = () => {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-12">
+      {/* ===== Back Button ===== */}
       <button
         onClick={() => navigate("/pickups")}
-        className="text-sm text-zinc-400"
+        className="text-sm text-gray-500 hover:text-gray-900 transition"
       >
         ← Back to pickups
       </button>
 
-      {/* DEVICE INFO */}
-      <div className="rounded-2xl bg-zinc-900 border border-white/10 p-4">
-        <h2 className="text-lg font-semibold text-white">
-          {phone?.brand} {phone?.model}
-        </h2>
-        <p className="text-sm text-zinc-400">
-          {phone?.storage} • {phone?.color} • {phone?.declaredCondition}
-        </p>
-        <p className="text-emerald-400 font-semibold mt-1">
-          Base Price: ₹{pricing?.basePrice?.toLocaleString("en-IN")}
-        </p>
-        {verification?.finalPrice && (
-          <p className="text-red-400 font-semibold">
-            Final Price: ₹{verification.finalPrice.toLocaleString("en-IN")}
+      {/* ===== Device Info Card ===== */}
+      <div className="bg-white rounded-[28px] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.06)] space-y-6">
+        <div>
+          <h2 className="text-xl font-semibold text-gray-900">
+            {phone?.brand} {phone?.model}
+          </h2>
+
+          <p className="text-sm text-gray-500 mt-2">
+            {phone?.storage} • {phone?.color} • {phone?.declaredCondition}
           </p>
-        )}
+        </div>
+
+        <div className="pt-6 border-t border-gray-100 space-y-3">
+          <div>
+            <p className="text-xs uppercase tracking-wider text-gray-400">
+              Base Price
+            </p>
+            <p className="text-2xl font-semibold text-gray-900 mt-1">
+              ₹{pricing?.basePrice?.toLocaleString("en-IN")}
+            </p>
+          </div>
+
+          {verification?.finalPrice && (
+            <div>
+              <p className="text-xs uppercase tracking-wider text-gray-400">
+                Final Price
+              </p>
+              <p className="text-2xl font-semibold text-green-600 mt-1">
+                ₹{verification.finalPrice.toLocaleString("en-IN")}
+              </p>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* CONTACT */}
+      {/* ===== Contact Card ===== */}
       {contact?.phone && (
-        <div className="flex gap-4 text-indigo-400">
-          <a href={`tel:${contact.phone}`} className="flex items-center gap-1">
-            <FiPhoneCall /> Call
+        <div className="bg-white rounded-[28px] p-6 shadow-[0_10px_40px_rgba(0,0,0,0.05)] flex justify-around text-sm text-gray-600">
+          <a
+            href={`tel:${contact.phone}`}
+            className="flex flex-col items-center gap-1 hover:text-blue-600 transition"
+          >
+            <FiPhoneCall size={18} />
+            Call
           </a>
+
           <a
             href={`https://wa.me/91${contact.phone}`}
             target="_blank"
             rel="noreferrer"
-            className="flex items-center gap-1"
+            className="flex flex-col items-center gap-1 hover:text-green-600 transition"
           >
-            <FaWhatsapp /> WhatsApp
+            <FaWhatsapp size={18} />
+            WhatsApp
           </a>
+
           <a
             href={`https://www.google.com/maps/search/?api=1&query=${mapQuery}`}
             target="_blank"
             rel="noreferrer"
-            className="flex items-center gap-1"
+            className="flex flex-col items-center gap-1 hover:text-indigo-600 transition"
           >
-            <FiMapPin /> Maps
+            <FiMapPin size={18} />
+            Maps
           </a>
         </div>
       )}
 
-      {/* VERIFICATION CHECKLIST */}
+      {/* ===== Verification Checklist ===== */}
       {!isVerified && !isRejected && (isScheduled || isPicked) && (
-        <div className="rounded-2xl bg-zinc-900 border border-white/10 p-4 space-y-3">
-          <p className="font-medium text-white">Device Verification</p>
+        <div className="bg-white rounded-[28px] p-8 shadow-[0_10px_40px_rgba(0,0,0,0.05)] space-y-6">
+          <h3 className="text-lg font-semibold text-gray-900">
+            Device Verification
+          </h3>
 
-          {Object.entries(VERIFICATION_CHECKS).map(([key, label]) => (
-            <label
-              key={key}
-              className="flex items-center gap-3 text-sm text-zinc-300 cursor-pointer"
-            >
-              <input
-                type="checkbox"
-                checked={checks[key]}
-                onChange={(e) =>
-                  setChecks({ ...checks, [key]: e.target.checked })
-                }
-              />
-              {label}
-            </label>
-          ))}
+          <div className="space-y-4">
+            {Object.entries(VERIFICATION_CHECKS).map(([key, label]) => (
+              <label
+                key={key}
+                className="flex items-center gap-3 text-sm text-gray-700 cursor-pointer"
+              >
+                <input
+                  type="checkbox"
+                  checked={checks[key]}
+                  onChange={(e) =>
+                    setChecks({ ...checks, [key]: e.target.checked })
+                  }
+                  className="w-4 h-4 accent-blue-600"
+                />
+                {label}
+              </label>
+            ))}
+          </div>
 
           <button
             onClick={verifyDevice}
             disabled={!canVerify || verifying}
-            className="w-full h-11 rounded-xl bg-zinc-800 text-white disabled:opacity-40"
+            className="
+            w-full h-14 rounded-2xl
+            bg-gradient-to-r from-blue-600 to-blue-500
+            text-white font-semibold
+            shadow-[0_10px_30px_rgba(37,99,235,0.35)]
+            hover:from-blue-700 hover:to-blue-600
+            active:scale-[0.98]
+            transition-all
+            disabled:opacity-50
+          "
           >
             {verifying ? "Verifying…" : "Verify Device"}
           </button>
         </div>
       )}
 
-      {/* COMPLETE */}
+      {/* ===== Complete Pickup ===== */}
       {canComplete && (
         <button
           onClick={completePickup}
-          className="w-full h-12 rounded-xl bg-emerald-600 text-black font-semibold"
+          className="
+          w-full h-14 rounded-2xl
+          bg-gradient-to-r from-green-600 to-green-500
+          text-white font-semibold
+          shadow-[0_10px_30px_rgba(22,163,74,0.35)]
+          hover:from-green-700 hover:to-green-600
+          active:scale-[0.98]
+          transition-all
+        "
         >
           Complete Pickup
         </button>
       )}
 
-      {/* REJECT */}
+      {/* ===== Reject Card ===== */}
       {!isCompleted && !isRejected && (
-        <div className="rounded-2xl bg-zinc-900 border border-white/10 p-4 space-y-3">
+        <div className="bg-white rounded-[28px] p-8 shadow-[0_10px_40px_rgba(0,0,0,0.05)] space-y-5">
           <textarea
             placeholder="Reason for rejection / escalation"
             value={rejectReason}
             onChange={(e) => setRejectReason(e.target.value)}
-            className="w-full rounded-xl bg-zinc-800 p-3 text-sm text-white"
+            className="w-full rounded-2xl border border-gray-200 p-4 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500"
           />
+
           <button
             onClick={rejectPickup}
             disabled={!rejectReason.trim() || rejecting}
-            className="w-full h-11 rounded-xl bg-red-600 text-white disabled:opacity-40"
+            className="
+            w-full h-14 rounded-2xl
+            bg-gradient-to-r from-red-600 to-red-500
+            text-white font-semibold
+            shadow-[0_10px_30px_rgba(220,38,38,0.35)]
+            hover:from-red-700 hover:to-red-600
+            active:scale-[0.98]
+            transition-all
+            disabled:opacity-50
+          "
           >
             {rejecting ? "Escalating…" : "Reject & Escalate"}
           </button>
         </div>
       )}
 
+      {/* ===== Completed State ===== */}
       {isCompleted && (
-        <div className="p-4 rounded-xl bg-green-500/10 text-green-400 text-center font-semibold">
+        <div className="bg-green-50 border border-green-200 rounded-[28px] p-6 text-center text-green-600 font-medium">
           Pickup Completed Successfully
         </div>
       )}
     </div>
   );
-};
 
+
+};
 export default PickupDetails;

@@ -11,50 +11,88 @@ const Profile = () => {
     navigate("/login", { replace: true });
   };
 
-  if (!rider) {
-    return (
-      <div className="py-24 text-center text-zinc-400">
-        Rider profile not found
-      </div>
-    );
-  }
+if (!rider) {
+  return (
+    <div className="py-24 text-center text-gray-400">
+      Rider profile not found
+    </div>
+  );
+}
+
+
 
   return (
-    <div className="space-y-8">
-      {/* HEADER */}
+    <div className="space-y-14">
+      {/* ===== Header ===== */}
       <div>
-        <h1 className="text-xl font-bold text-white">Profile</h1>
-        <p className="text-sm text-zinc-400">Rider account details</p>
+        <h1 className="text-3xl font-semibold tracking-tight text-gray-900">
+          Profile
+        </h1>
+        <p className="text-sm text-gray-500 mt-3">Rider account details</p>
       </div>
 
-      {/* PROFILE CARD */}
-      <div className="rounded-3xl bg-zinc-900 border border-white/10 p-6 space-y-4">
+      {/* ===== Profile Card ===== */}
+      <div className="bg-white rounded-[28px] p-10 shadow-[0_20px_60px_rgba(0,0,0,0.06)] space-y-8">
         {/* Avatar */}
-        <div className="w-20 h-20 rounded-full bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center text-black text-2xl font-bold">
-          {rider.name?.charAt(0).toUpperCase()}
+        <div className="flex justify-center">
+          <div
+            className="
+          w-24 h-24
+          rounded-full
+          bg-gradient-to-br from-blue-500 to-blue-600
+          text-white
+          text-3xl
+          font-semibold
+          flex items-center justify-center
+          shadow-[0_10px_30px_rgba(37,99,235,0.35)]
+        "
+          >
+            {rider.name?.charAt(0).toUpperCase()}
+          </div>
         </div>
 
         {/* Info */}
-        <div>
-          <p className="text-lg font-semibold text-white">{rider.name}</p>
-          <p className="text-sm text-zinc-400">{rider.phone}</p>
+        <div className="text-center space-y-2">
+          <p className="text-xl font-semibold text-gray-900">{rider.name}</p>
+          <p className="text-sm text-gray-500">+91 {rider.phone}</p>
         </div>
 
-        {/* Status */}
-        <div className="inline-flex items-center gap-2 text-sm text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full w-fit">
-          ● Active Rider
+        {/* Status Badge */}
+        <div className="flex justify-center">
+          <div
+            className="
+          inline-flex items-center gap-2
+          text-sm font-medium
+          text-green-600
+          bg-green-50
+          px-4 py-2
+          rounded-full
+        "
+          >
+            ● Active Rider
+          </div>
         </div>
       </div>
 
-      {/* LOGOUT */}
+      {/* ===== Logout Button ===== */}
       <button
         onClick={logout}
-        className="w-full h-12 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold transition"
+        className="
+        w-full h-14 rounded-2xl
+        bg-gradient-to-r from-red-600 to-red-500
+        text-white font-semibold
+        shadow-[0_10px_30px_rgba(220,38,38,0.35)]
+        hover:from-red-700 hover:to-red-600
+        active:scale-[0.98]
+        transition-all
+      "
       >
         Logout
       </button>
     </div>
   );
+
+
 };
 
 export default Profile;

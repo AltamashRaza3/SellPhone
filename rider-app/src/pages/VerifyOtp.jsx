@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { CheckSquare } from "lucide-react";
 import riderApi from "../api/riderApi";
 
 const VerifyOtp = () => {
   const navigate = useNavigate();
   const phone = sessionStorage.getItem("rider_phone");
+
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -13,7 +15,7 @@ const VerifyOtp = () => {
     if (!phone) {
       navigate("/login", { replace: true });
     }
-  }, []); 
+  }, [phone, navigate]);
 
   const handleVerify = async () => {
     const cleanOtp = otp.trim();
@@ -39,7 +41,6 @@ const VerifyOtp = () => {
       }
 
       localStorage.setItem("riderProfile", JSON.stringify(res.data.rider));
-
       sessionStorage.removeItem("rider_phone");
 
       window.location.href = "/SellPhone/#/pickups";
@@ -50,32 +51,78 @@ const VerifyOtp = () => {
     }
   };
 
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-zinc-900 via-black to-zinc-900 flex items-center justify-center px-4">
-      <div className="w-full max-w-sm bg-zinc-950 border border-white/10 rounded-2xl p-6 space-y-6 shadow-2xl">
-        <h1 className="text-xl font-semibold text-white text-center">
-          Verify OTP
-        </h1>
+    <div className="min-h-screen flex items-center justify-center px-6 bg-gradient-to-b from-[#eef2f7] via-[#f6f8fb] to-[#e9edf4]">
+      <div className="w-full max-w-[440px]">
+        <div className="bg-white rounded-[36px] px-12 py-14 shadow-[0_50px_120px_rgba(37,99,235,0.15)]">
+          {/* ===== Brand ===== */}
+          <div className="flex items-center justify-center gap-3 mb-8">
+            <CheckSquare
+              size={30}
+              strokeWidth={2.5}
+              className="text-blue-600"
+            />
+            <h1 className="text-2xl font-semibold tracking-tight text-gray-900">
+              SellPhone <span className="text-blue-600">Rider</span>
+            </h1>
+          </div>
 
-        {error && <p className="text-red-400 text-sm text-center">{error}</p>}
+          {/* ===== Subtitle ===== */}
+          <p className="text-center text-gray-600 mb-6 text-[15px]">
+            Enter the verification code sent to
+          </p>
 
-        <input
-          type="tel"
-          maxLength={6}
-          value={otp}
-          onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
-          placeholder="Enter 6-digit OTP"
-          className="w-full h-12 rounded-xl bg-zinc-900 border border-white/10 text-white text-center focus:outline-none focus:ring-2 focus:ring-emerald-500"
-        />
+          <p className="text-center text-blue-600 font-medium mb-10">
+            +91 {phone}
+          </p>
 
-        <button
-          onClick={handleVerify}
-          disabled={loading}
-          className="w-full h-12 rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 text-black font-semibold shadow-lg active:scale-95 transition disabled:opacity-60"
-        >
-          {loading ? "Verifying..." : "Verify OTP"}
-        </button>
+          {error && (
+            <p className="text-sm text-red-500 text-center mb-6">{error}</p>
+          )}
+
+          {/* ===== OTP Input ===== */}
+          <div className="mb-10">
+            <input
+              type="tel"
+              maxLength={6}
+              value={otp}
+              onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
+              placeholder="Enter 6-digit OTP"
+              className="
+                w-full h-16 rounded-xl 
+                border border-gray-200 
+                bg-gray-50
+                text-center text-2xl tracking-[0.3em]
+                text-gray-900 placeholder:text-gray-400
+                focus:outline-none focus:ring-2 focus:ring-blue-500
+                transition
+              "
+            />
+          </div>
+
+          {/* ===== Button ===== */}
+          <button
+            onClick={handleVerify}
+            disabled={loading}
+            className="
+              w-full h-16 rounded-2xl 
+              bg-gradient-to-r from-[#2563eb] to-[#3b82f6]
+              text-white font-semibold text-lg
+              shadow-[0_20px_50px_rgba(37,99,235,0.35)]
+              transition-all duration-200
+              hover:from-[#1e40af] hover:to-[#2563eb]
+              active:scale-[0.97]
+              disabled:opacity-60 disabled:cursor-not-allowed
+            "
+          >
+            {loading ? "Verifying..." : "Verify OTP"}
+          </button>
+
+          {/* ===== Helper Text ===== */}
+          <p className="text-sm text-gray-400 text-center mt-10">
+            Didn’t receive the code? Request again.
+          </p>
+        </div>
       </div>
     </div>
   );
