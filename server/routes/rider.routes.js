@@ -183,8 +183,6 @@ router.put("/pickups/:id/complete", riderAuth, async (req, res) => {
       message: "User acceptance required",
     });
   }
-// 🔥 GENERATE INVOICE ONCE PICKUP IS COMPLETED
-await generateInvoice(request);
 
   /* ================= INVENTORY (SCHEMA SAFE) ================= */
   await InventoryItem.findOneAndUpdate(
