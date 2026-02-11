@@ -1,11 +1,30 @@
+import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
-import { useRiderAuth } from "./RiderAuthContext";
+import riderApi from "../api/riderApi";
 
 const RequireRiderAuth = ({ children }) => {
-  const { isAuthenticated, authReady } = useRiderAuth();
+  const [loading, setLoading] = useState(true);
+  const [authenticated, setAuthenticated] = useState(false);
 
-  // ⏳ Wait until auth state is resolved
-  if (!authReady) {
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        await riderApi.get("/pickups", {
+          withCredentials: true,
+        });
+
+        setAuthenticated(true);
+      } catch {
+        setAuthenticated(false);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkAuth();
+  }, []);
+
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center text-zinc-400">
         Checking session…
@@ -13,8 +32,7 @@ const RequireRiderAuth = ({ children }) => {
     );
   }
 
-  // 🔒 Not logged in → redirect
-  if (!isAuthenticated) {
+  if (!authenticated) {
     return <Navigate to="/login" replace />;
   }
 
