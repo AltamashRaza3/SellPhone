@@ -1,13 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import riderApi from "../api/riderApi";
-import { useRiderAuth } from "../auth/RiderAuthContext";
 
 const VerifyOtp = () => {
   const navigate = useNavigate();
   const phone = sessionStorage.getItem("rider_phone");
-  const { login } = useRiderAuth();
-
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
