@@ -9,16 +9,11 @@ const RequireRiderAuth = ({ children }) => {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        console.log("Calling /pickups for auth check");
-
         const res = await riderApi.get("/pickups", {
           withCredentials: true,
         });
-
-        console.log("Auth success:", res.status);
         setAuthenticated(true);
       } catch (err) {
-        console.log("Auth failed:", err?.response?.status);
         setAuthenticated(false);
       } finally {
         setLoading(false);

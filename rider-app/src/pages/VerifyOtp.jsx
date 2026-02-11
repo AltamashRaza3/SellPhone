@@ -13,7 +13,7 @@ const VerifyOtp = () => {
     if (!phone) {
       navigate("/login", { replace: true });
     }
-  }, [phone, navigate]);
+  }, []); 
 
   const handleVerify = async () => {
     const cleanOtp = otp.trim();
@@ -42,7 +42,7 @@ const VerifyOtp = () => {
 
       sessionStorage.removeItem("rider_phone");
 
-      navigate("/pickups", { replace: true });
+      window.location.href = "/SellPhone/#/pickups";
     } catch (err) {
       setError(err?.response?.data?.message || "Invalid OTP");
     } finally {
