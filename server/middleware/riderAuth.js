@@ -3,28 +3,27 @@ import Rider from "../models/Rider.js";
 
 const riderAuth = async (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization;
+    const token =
+      req.cookies.riderToken ||
+      req.headers.authorization?.split(" ")[1];
 
-    if (!authHeader?.startsWith("Bearer ")) {
+    if (!token) {
       return res.status(401).json({ message: "Rider not authenticated" });
     }
 
-    const token = authHeader.split(" ")[1];
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // 🔒 STRICT ROLE CHECK
     if (decoded.role !== "rider") {
       return res.status(403).json({ message: "Forbidden" });
     }
 
-    // 🔥 decoded.riderId MUST BE Rider._id
     const rider = await Rider.findById(decoded.riderId);
     if (!rider || rider.status !== "active") {
       return res.status(401).json({ message: "Invalid rider" });
     }
 
     req.rider = {
-      riderId: rider._id, 
+      riderId: rider._id,
       name: rider.name,
       phone: rider.phone,
     };

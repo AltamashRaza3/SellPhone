@@ -1,12 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import riderApi from "../api/riderApi";
-import { useRiderAuth } from "../auth/RiderAuthContext";
 
 const VerifyOtp = () => {
   const navigate = useNavigate();
   const phone = sessionStorage.getItem("rider_phone");
-  const { login } = useRiderAuth();
 
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
@@ -19,7 +17,7 @@ const VerifyOtp = () => {
     }
   }, [phone, navigate]);
 
-  const verifyOtp = async () => {
+  const handleVerify = async () => {
     const cleanOtp = otp.trim();
 
     if (!/^\d{6}$/.test(cleanOtp)) {
@@ -31,20 +29,27 @@ const VerifyOtp = () => {
       setLoading(true);
       setError("");
 
-      const res = await riderApi.post("/auth/verify-otp", {
-        phone,
-        otp: cleanOtp,
-      });
+      const res = await riderApi.post(
+        "/auth/verify-otp",
+        { phone, otp: cleanOtp },
+        { withCredentials: true },
+      );
 
-      // ✅ SINGLE SOURCE OF TRUTH
-      login(res.data.token); // updates context + localStorage
-      localStorage.setItem("riderProfile", JSON.stringify(res.data.rider));
+      if (!res?.data?.success) {
+        setError("Login failed. Contact admin.");
+        return;
+      }
+
+      // Store rider info only (NOT token)
+      if (res.data.rider) {
+        localStorage.setItem("riderProfile", JSON.stringify(res.data.rider));
+      }
 
       sessionStorage.removeItem("rider_phone");
 
       navigate("/pickups", { replace: true });
     } catch (err) {
-      setError(err?.response?.data?.message || "Invalid OTP");
+      setError(err?.response?.data?.message || "Invalid OTP. Try again.");
     } finally {
       setLoading(false);
     }
@@ -52,7 +57,7 @@ const VerifyOtp = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-zinc-900 via-black to-zinc-900 flex items-center justify-center px-4">
-      <div className="w-full max-w-sm bg-zinc-950 border border-white/10 rounded-2xl p-6 space-y-6">
+      <div className="w-full max-w-sm bg-zinc-950 border border-white/10 rounded-2xl p-6 space-y-6 shadow-2xl">
         <h1 className="text-xl font-semibold text-white text-center">
           Verify OTP
         </h1>
@@ -64,14 +69,14 @@ const VerifyOtp = () => {
           maxLength={6}
           value={otp}
           onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
-          placeholder="Enter OTP"
-          className="w-full h-12 rounded-xl bg-zinc-900 border border-white/10 text-white text-center"
+          placeholder="Enter 6-digit OTP"
+          className="w-full h-12 rounded-xl bg-zinc-900 border border-white/10 text-white text-center focus:outline-none focus:ring-2 focus:ring-emerald-500"
         />
 
         <button
-          onClick={verifyOtp}
+          onClick={handleVerify}
           disabled={loading}
-          className="w-full h-12 rounded-xl bg-emerald-600 text-black font-semibold"
+          className="w-full h-12 rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 text-black font-semibold shadow-lg active:scale-95 transition disabled:opacity-60"
         >
           {loading ? "Verifying..." : "Verify OTP"}
         </button>
