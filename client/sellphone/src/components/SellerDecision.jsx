@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { toast } from "react-hot-toast";
+import { getAuth } from "firebase/auth";
 
 const SellerDecision = ({ requestId, finalPrice, onDecision }) => {
   const [loading, setLoading] = useState(false);
@@ -19,12 +20,24 @@ const SellerDecision = ({ requestId, finalPrice, onDecision }) => {
     try {
       setLoading(true);
 
+      const auth = getAuth();
+      const user = auth.currentUser;
+
+      if (!user) {
+        toast.error("Session expired. Please login again.");
+        return;
+      }
+
+      const idToken = await user.getIdToken();
+
       const res = await fetch(
         `${import.meta.env.VITE_API_BASE_URL}/api/sell-requests/${requestId}/decision`,
         {
           method: "PUT",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${idToken}`,
+          },
           body: JSON.stringify({ accept }),
         },
       );
@@ -43,6 +56,7 @@ const SellerDecision = ({ requestId, finalPrice, onDecision }) => {
       setLoading(false);
     }
   };
+
 
   return (
     <div className="rounded-2xl bg-zinc-900 border border-white/10 p-4 space-y-4">
