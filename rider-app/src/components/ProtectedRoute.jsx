@@ -1,15 +1,31 @@
+import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
-import { useRiderAuth } from "../auth/RiderAuthContext";
+import riderApi from "../api/riderApi";
 
 const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated, authReady } = useRiderAuth();
+  const [loading, setLoading] = useState(true);
+  const [authenticated, setAuthenticated] = useState(false);
 
-  // ⏳ Wait until auth is initialized
-  if (!authReady) {
-    return null; // or loader
-  }
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        await riderApi.get("/pickups", {
+          withCredentials: true,
+        });
+        setAuthenticated(true);
+      } catch {
+        setAuthenticated(false);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  if (!isAuthenticated) {
+    checkAuth();
+  }, []);
+
+  if (loading) return null;
+
+  if (!authenticated) {
     return <Navigate to="/login" replace />;
   }
 

@@ -1,16 +1,17 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import riderApi from "../api/riderApi";
+import { useRiderAuth } from "../auth/RiderAuthContext";
 
 const VerifyOtp = () => {
   const navigate = useNavigate();
   const phone = sessionStorage.getItem("rider_phone");
+  const { login } = useRiderAuth();
 
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  /* ================= SAFETY ================= */
   useEffect(() => {
     if (!phone) {
       navigate("/login", { replace: true });
@@ -36,24 +37,22 @@ const VerifyOtp = () => {
       );
 
       if (!res?.data?.success) {
-        setError("Login failed. Contact admin.");
+        setError("Login failed. Please contact admin.");
         return;
       }
 
-      // Store rider info only (NOT token)
-      if (res.data.rider) {
-        localStorage.setItem("riderProfile", JSON.stringify(res.data.rider));
-      }
+      localStorage.setItem("riderProfile", JSON.stringify(res.data.rider));
 
       sessionStorage.removeItem("rider_phone");
 
       navigate("/pickups", { replace: true });
     } catch (err) {
-      setError(err?.response?.data?.message || "Invalid OTP. Try again.");
+      setError(err?.response?.data?.message || "Invalid OTP");
     } finally {
       setLoading(false);
     }
   };
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-zinc-900 via-black to-zinc-900 flex items-center justify-center px-4">
