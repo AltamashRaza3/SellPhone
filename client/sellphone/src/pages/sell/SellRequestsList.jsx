@@ -24,13 +24,13 @@ const getStatusLabel = (req) => {
 };
 
 const badgeStyles = {
-  "Pickup Completed": "bg-green-100 text-green-700",
-  "Pickup Scheduled": "bg-blue-100 text-blue-700",
-  "Device Picked": "bg-indigo-100 text-indigo-700",
-  "Pickup Pending": "bg-yellow-100 text-yellow-700",
-  "Action Required": "bg-orange-100 text-orange-700",
-  "Rejected by You": "bg-red-100 text-red-700",
-  "Rejected by Admin": "bg-red-100 text-red-700",
+  "Pickup Completed": "bg-green-50 text-green-700",
+  "Pickup Scheduled": "bg-blue-50 text-blue-700",
+  "Device Picked": "bg-indigo-50 text-indigo-700",
+  "Pickup Pending": "bg-yellow-50 text-yellow-700",
+  "Action Required": "bg-orange-50 text-orange-700",
+  "Rejected by You": "bg-red-50 text-red-700",
+  "Rejected by Admin": "bg-red-50 text-red-700",
   "Under Review": "bg-gray-100 text-gray-700",
 };
 
@@ -38,7 +38,6 @@ const SellRequestsList = () => {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  /* ================= FETCH REQUESTS ================= */
   useEffect(() => {
     const fetchRequests = async () => {
       try {
@@ -55,120 +54,147 @@ const SellRequestsList = () => {
     fetchRequests();
   }, []);
 
+  /* ================= LOADING ================= */
   if (loading) {
     return (
-      <div className="max-w-5xl mx-auto px-6 py-20 text-center text-gray-400">
+      <div className="min-h-[70vh] flex items-center justify-center bg-[#f5f5f7] text-gray-400 text-sm">
         Loading your sell requests…
       </div>
     );
   }
 
+  /* ================= EMPTY ================= */
   if (!requests.length) {
     return (
-      <div className="max-w-5xl mx-auto px-6 py-20 text-center">
-        <h2 className="text-2xl font-semibold text-gray-900">
-          No sell requests yet
-        </h2>
-        <p className="text-gray-500 mt-2">
-          Start by submitting your first device.
-        </p>
-        <Link
-          to="/sale"
-          className="inline-block mt-6 px-6 py-3 rounded-full bg-black text-white text-sm font-medium hover:opacity-90 transition"
-        >
-          Sell Your Phone
-        </Link>
+      <div className="min-h-[80vh] flex items-center justify-center bg-[#f5f5f7] px-6">
+        <div className="text-center space-y-6 max-w-md">
+          <h2 className="text-3xl font-semibold tracking-tight text-gray-900">
+            No sell requests yet
+          </h2>
+
+          <p className="text-gray-500 leading-relaxed">
+            Start by submitting your first device and track everything here.
+          </p>
+
+          <Link
+            to="/sale"
+            className="inline-block px-8 py-3 rounded-full bg-black text-white text-sm font-medium hover:scale-[1.03] transition"
+          >
+            Sell Your Phone
+          </Link>
+        </div>
       </div>
     );
   }
 
+  /* ================= UI ================= */
   return (
-    <div className="max-w-5xl mx-auto px-6 py-20">
-      <div className="mb-12">
-        <h1 className="text-4xl font-semibold tracking-tight text-gray-900">
-          My Sell Requests
-        </h1>
-        <p className="text-gray-500 mt-2 text-sm">
-          Track the status of your submitted devices.
-        </p>
-      </div>
+    <div className="bg-[#f5f5f7] min-h-screen py-28">
+      <div className="w-full flex justify-center">
+        <div className="w-full max-w-5xl px-6 flex flex-col items-center space-y-20">
+          {/* HEADER */}
+          <div className="text-center space-y-4">
+            <h1 className="text-5xl font-semibold tracking-tight text-gray-900">
+              My Sell Requests
+            </h1>
+            <p className="text-gray-500 text-lg max-w-xl">
+              Track your submitted devices and stay updated on pickup,
+              verification and payment status.
+            </p>
+          </div>
 
-      <div className="space-y-6">
-        {requests.map((req) => {
-          const label = getStatusLabel(req);
-          const needsAction =
-            req.verification?.finalPrice &&
-            req.verification.userAccepted == null;
+          {/* CARDS */}
+          <div className="w-full flex flex-col gap-14">
+            {requests.map((req) => {
+              const label = getStatusLabel(req);
+              const needsAction =
+                req.verification?.finalPrice &&
+                req.verification.userAccepted == null;
 
-          return (
-            <div
-              key={req._id}
-              className="bg-white border border-gray-100 rounded-3xl p-6 hover:shadow-md transition"
-            >
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-                {/* LEFT */}
-                <div className="space-y-2">
-                  <p className="text-sm text-gray-400">
-                    Request #{req._id.slice(-6)}
-                  </p>
-
-                  <p className="text-xl font-semibold text-gray-900">
-                    {req.phone.brand} {req.phone.model}
-                  </p>
-
-                  <p className="text-sm text-gray-500">
-                    {req.phone.storage} • {req.phone.declaredCondition}
-                  </p>
-
-                  <div className="mt-2 space-y-1">
-                    <p className="text-sm text-gray-500">
-                      Estimated: ₹
-                      {req.pricing.basePrice.toLocaleString("en-IN")}
-                    </p>
-
-                    {req.verification?.finalPrice && (
-                      <p className="text-sm font-semibold text-green-600">
-                        Final: ₹
-                        {req.verification.finalPrice.toLocaleString("en-IN")}
+              return (
+                <div
+                  key={req._id}
+                  className="
+          w-full
+          bg-white
+          rounded-3xl
+          px-20
+          py-16
+          shadow-[0_15px_50px_rgba(0,0,0,0.05)]
+          transition
+          hover:shadow-[0_25px_70px_rgba(0,0,0,0.08)]
+        "
+                >
+                  <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-16">
+                    {/* LEFT */}
+                    <div className="space-y-6 max-w-2xl">
+                      <p className="text-xs uppercase tracking-[0.25em] text-gray-400">
+                        Request #{req._id.slice(-6)}
                       </p>
-                    )}
-                  </div>
 
-                  {/* RIDER INFO */}
-                  {req.assignedRider && req.pickup?.status === "Scheduled" && (
-                    <div className="mt-3 text-sm text-gray-600">
-                      Rider: {req.assignedRider.riderName}
-                      {req.assignedRider.riderPhone &&
-                        ` • ${req.assignedRider.riderPhone}`}
+                      <h3 className="text-4xl font-semibold tracking-tight text-gray-900">
+                        {req.phone.brand} {req.phone.model}
+                      </h3>
+
+                      <p className="text-lg text-gray-500">
+                        {req.phone.storage} • {req.phone.declaredCondition}
+                      </p>
+
+                      <div className="pt-4 space-y-2">
+                        <p className="text-base text-gray-500">
+                          Estimated: ₹
+                          {req.pricing.basePrice.toLocaleString("en-IN")}
+                        </p>
+
+                        {req.verification?.finalPrice && (
+                          <p className="text-xl font-semibold text-green-600">
+                            Final: ₹
+                            {req.verification.finalPrice.toLocaleString(
+                              "en-IN",
+                            )}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                  )}
-                </div>
 
-                {/* RIGHT */}
-                <div className="flex flex-col items-start md:items-end gap-4">
-                  <span
-                    className={`px-4 py-1.5 rounded-full text-xs font-medium ${
-                      badgeStyles[label]
-                    }`}
-                  >
-                    {label}
-                  </span>
+                    {/* RIGHT */}
+                    <div className="flex flex-col items-start lg:items-end gap-8">
+                      <span
+                        className={`
+                px-8 py-3
+                rounded-full
+                text-sm
+                font-medium
+                ${badgeStyles[label]}
+              `}
+                      >
+                        {label}
+                      </span>
 
-                  <Link
-                    to={`/my-sell-requests/${req._id}`}
-                    className={`px-6 py-2.5 rounded-full text-sm font-medium transition ${
-                      needsAction
-                        ? "bg-orange-600 hover:bg-orange-700 text-white"
-                        : "border border-gray-300 text-gray-700 hover:bg-gray-100"
-                    }`}
-                  >
-                    View Details
-                  </Link>
+                      <Link
+                        to={`/my-sell-requests/${req._id}`}
+                        className={`
+                px-12 py-4
+                rounded-full
+                text-base
+                font-medium
+                transition
+                ${
+                  needsAction
+                    ? "bg-orange-600 hover:bg-orange-700 text-white"
+                    : "bg-black text-white hover:opacity-90"
+                }
+              `}
+                      >
+                        View Details
+                      </Link>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
-          );
-        })}
+              );
+            })}
+          </div>
+        </div>
       </div>
     </div>
   );

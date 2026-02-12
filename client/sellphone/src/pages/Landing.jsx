@@ -1,9 +1,6 @@
 import { Link } from "react-router-dom";
 import { useSelector } from "react-redux";
 import Container from "../components/ui/Container";
-import Card from "../components/ui/Card";
-import Button from "../components/ui/Button";
-import SectionTitle from "../components/ui/SectionTitle";
 import PhoneCard from "../components/PhoneCard";
 
 const Landing = () => {
@@ -14,59 +11,51 @@ const Landing = () => {
   const featuredPhones = phones.slice(0, 4);
 
   return (
-    <div className="w-full bg-gradient-to-br from-slate-50 via-white to-slate-50 min-h-screen">
-      {/* ================= HERO SECTION ================= */}
-      <section className="relative overflow-hidden py-24 lg:py-32">
+    <div className="w-full bg-[#f5f5f7] min-h-screen">
+      {/* ================= HERO ================= */}
+      <section className="pt-28 pb-28">
         <Container>
-          <div className="grid lg:grid-cols-2 items-center gap-12 lg:gap-20 justify-items-center lg:justify-items-start">
-            {/* LEFT CONTENT - CENTERED ON MOBILE */}
-            <div className="text-center lg:text-left space-y-8 lg:space-y-10 max-w-lg lg:max-w-none w-full lg:w-auto">
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-semibold tracking-tight text-slate-900 leading-tight">
-                Buy & Sell <br className="hidden sm:block" />
-                <span className="text-transparent bg-gradient-to-r from-slate-900 via-black to-slate-900 bg-clip-text">
-                  Premium Smartphones
-                </span>
-                .
-              </h1>
+          <div className="flex justify-center">
+            <div className="w-full max-w-6xl bg-white rounded-[48px] shadow-[0_40px_100px_rgba(0,0,0,0.08)] px-10 sm:px-16 py-20">
+              <div className="grid lg:grid-cols-2 items-center gap-20">
+                {/* LEFT */}
+                <div className="text-center lg:text-left space-y-8">
+                  <h1 className="text-5xl lg:text-6xl font-semibold tracking-tight leading-[1.05] text-gray-900">
+                    Buy & Sell
+                    <br />
+                    <span className="text-gray-400">Premium Smartphones</span>
+                  </h1>
 
-              <p className="text-slate-600 text-lg lg:text-xl max-w-xl mx-auto lg:mx-0 leading-relaxed">
-                Certified refurbished devices. Verified quality. Secure
-                payments. Nationwide pickup and fast delivery.
-              </p>
+                  <p className="text-gray-500 text-lg leading-relaxed max-w-xl mx-auto lg:mx-0">
+                    Certified refurbished devices. Verified quality. Secure
+                    payments. Nationwide pickup and fast delivery.
+                  </p>
 
-              <div className="flex flex-col sm:flex-row justify-center lg:justify-start gap-4 w-full sm:w-auto">
-                <Link to="/phones">
-                  <Button size="lg">Browse Phones</Button>
-                </Link>
-                <Link to="/sale">
-                  <Button variant="secondary" size="lg">
-                    Sell Your Phone
-                  </Button>
-                </Link>
-              </div>
-            </div>
+                  <div className="flex flex-col sm:flex-row gap-5 justify-center lg:justify-start">
+                    <Link to="/phones">
+                      <button className="px-10 py-4 text-lg font-semibold rounded-full bg-black text-white hover:scale-[1.02] transition shadow-md">
+                        Browse Phones
+                      </button>
+                    </Link>
 
-            {/* RIGHT IMAGES - RELIABLE CDN IMAGES */}
-            <div className="relative flex justify-center lg:justify-end w-full">
-              <div className="relative w-[280px] md:w-[360px] lg:w-[420px] max-w-full">
-                {/* Main Phone */}
-                <img
-                  src="https://images.pexels.com/photos/404280/pexels-photo-404280.jpeg?auto=compress&cs=tinysrgb&w=800"
-                  alt="iPhone device"
-                  className="w-full h-auto rounded-3xl shadow-2xl rotate-[-8deg] absolute bottom-0 z-10 max-w-full"
-                  loading="eager"
-                />
+                    <Link to="/sale">
+                      <button className="px-10 py-4 text-lg font-semibold rounded-full border border-gray-300 hover:bg-gray-100 transition">
+                        Sell Your Phone
+                      </button>
+                    </Link>
+                  </div>
+                </div>
 
-                {/* Secondary Phone */}
-                <img
-                  src="https://images.pexels.com/photos/607812/pexels-photo-607812.jpeg?auto=compress&cs=tinysrgb&w=800"
-                  alt="Premium smartphone"
-                  className="w-[85%] h-auto rounded-3xl shadow-2xl rotate-[10deg] absolute top-16 lg:-right-12 md:-right-8 -right-4 z-20"
-                  loading="eager"
-                />
-
-                {/* Background Glow */}
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-400/10 via-purple-400/10 to-pink-400/10 rounded-3xl blur-xl -z-10 w-full h-full" />
+                {/* RIGHT IMAGE */}
+                <div className="flex justify-center">
+                  <div className="w-[320px] lg:w-[420px]">
+                    <img
+                      src="https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=900"
+                      alt="Smartphone"
+                      className="rounded-[36px] shadow-[0_40px_90px_rgba(0,0,0,0.12)] w-full"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -74,168 +63,199 @@ const Landing = () => {
       </section>
 
       {/* ================= FEATURES ================= */}
-      <section className="py-24 lg:py-32">
+      <section className="pb-32">
         <Container>
-          <div className="grid md:grid-cols-3 gap-8 lg:gap-10 justify-items-center">
-            <Card className="group hover:shadow-xl transition-all duration-300 hover:-translate-y-2 p-8 w-full max-w-sm">
-              <div className="w-16 h-16 bg-gradient-to-r from-emerald-400 to-teal-500 rounded-2xl flex items-center justify-center mb-6 mx-auto group-hover:scale-110 transition-transform duration-300">
-                <svg
-                  className="w-8 h-8 text-white"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
+          <div className="flex justify-center">
+            <div className="w-full max-w-5xl grid grid-cols-1 sm:grid-cols-3 gap-16 text-center">
+              {[
+                {
+                  title: "Verified Devices",
+                  desc: "35+ quality checks before delivery.",
+                  icon: (
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      className="w-6 h-6"
+                    >
+                      <path d="M12 3l7 4v5c0 5-3.5 8.5-7 9-3.5-.5-7-4-7-9V7l7-4z" />
+                      <path d="M9 12l2 2 4-4" />
+                    </svg>
+                  ),
+                },
+                {
+                  title: "Free Pickup",
+                  desc: "Doorstep pickup at your convenience.",
+                  icon: (
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      className="w-6 h-6"
+                    >
+                      <path d="M3 7h13l3 4v6H3z" />
+                      <circle cx="7.5" cy="17.5" r="1.5" />
+                      <circle cx="17.5" cy="17.5" r="1.5" />
+                    </svg>
+                  ),
+                },
+                {
+                  title: "Secure Delivery",
+                  desc: "Fast & insured nationwide shipping.",
+                  icon: (
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      className="w-6 h-6"
+                    >
+                      <path d="M7 11V8a5 5 0 0110 0v3" />
+                      <path d="M12 11c1.657 0 3 1.343 3 3v3H9v-3c0-1.657 1.343-3 3-3z" />
+                    </svg>
+                  ),
+                },
+              ].map((item, index) => (
+                <div
+                  key={index}
+                  className="flex flex-col items-center space-y-6"
                 >
-                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                </svg>
-              </div>
-              <h3 className="text-xl font-semibold text-slate-900 mb-4 tracking-tight">
-                Verified Devices
-              </h3>
-              <p className="text-slate-600 text-sm leading-relaxed text-center">
-                Every phone undergoes 35+ quality checks and certification
-                before delivery.
-              </p>
-            </Card>
+                  <div className="w-14 h-14 flex items-center justify-center rounded-2xl bg-white shadow-sm">
+                    {item.icon}
+                  </div>
 
-            <Card className="group hover:shadow-xl transition-all duration-300 hover:-translate-y-2 p-8 w-full max-w-sm">
-              <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-2xl flex items-center justify-center mb-6 mx-auto group-hover:scale-110 transition-transform duration-300">
-                <svg
-                  className="w-8 h-8 text-white"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                  />
-                </svg>
-              </div>
-              <h3 className="text-xl font-semibold text-slate-900 mb-4 tracking-tight">
-                Secure Payments
-              </h3>
-              <p className="text-slate-600 text-sm leading-relaxed text-center">
-                Multiple payment options with buyer & seller protection
-                guarantee.
-              </p>
-            </Card>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    {item.title}
+                  </h3>
 
-            <Card className="group hover:shadow-xl transition-all duration-300 hover:-translate-y-2 p-8 w-full max-w-sm">
-              <div className="w-16 h-16 bg-gradient-to-r from-amber-400 to-orange-500 rounded-2xl flex items-center justify-center mb-6 mx-auto group-hover:scale-110 transition-transform duration-300">
-                <svg
-                  className="w-8 h-8 text-white"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                  />
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                  />
-                </svg>
-              </div>
-              <h3 className="text-xl font-semibold text-slate-900 mb-4 tracking-tight">
-                Free Pickup
-              </h3>
-              <p className="text-slate-600 text-sm leading-relaxed text-center">
-                Schedule pickup from your doorstep. No shipping hassles.
-              </p>
-            </Card>
-          </div>
-        </Container>
-      </section>
-
-      {/* ================= FEATURED PHONES ================= */}
-      <section className="py-24 lg:py-32 bg-white">
-        <Container>
-          <div className="flex flex-col lg:flex-row items-center justify-between mb-12 lg:mb-16 gap-4 lg:gap-0">
-            <SectionTitle>Featured Phones</SectionTitle>
-            <Link
-              to="/phones"
-              className="text-base font-semibold text-slate-900 hover:text-black transition-colors duration-200 flex items-center gap-2 whitespace-nowrap"
-            >
-              View All
-              <svg
-                className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-200"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M17 8l4 4m0 0l-4 4m4-4H3"
-                />
-              </svg>
-            </Link>
-          </div>
-
-          {featuredPhones.length === 0 ? (
-            <div className="text-center py-16">
-              <div className="w-24 h-24 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                <svg
-                  className="w-12 h-12 text-slate-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
-                  />
-                </svg>
-              </div>
-              <h3 className="text-xl font-semibold text-slate-900 mb-2">
-                No phones available
-              </h3>
-              <p className="text-slate-600">
-                Check back soon for amazing deals!
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8 justify-items-center lg:justify-items-stretch">
-              {featuredPhones.map((phone) => (
-                <PhoneCard key={phone._id} phone={phone} />
+                  <p className="text-sm text-gray-500 leading-relaxed max-w-xs">
+                    {item.desc}
+                  </p>
+                </div>
               ))}
             </div>
-          )}
+          </div>
         </Container>
       </section>
 
-      {/* ================= CTA SECTION ================= */}
-      <section className="py-24 lg:py-32">
+      {/* ================= FEATURED ================= */}
+      <section className="py-32 border-t border-gray-100 bg-white">
         <Container>
-          <div className="flex flex-col items-center justify-center text-center max-w-2xl mx-auto space-y-8 lg:space-y-10">
-            <div className="space-y-4">
-              <h2 className="text-4xl lg:text-5xl font-semibold tracking-tight text-slate-900 leading-tight">
-                Upgrade Your <br />
-                <span className="text-transparent bg-gradient-to-r from-slate-900 via-black to-slate-900 bg-clip-text">
-                  Smartphone Today
-                </span>
-                .
-              </h2>
-              <div className="w-28 h-1 bg-gradient-to-r from-emerald-400 to-teal-500 rounded-full mx-auto" />
+          <div className="flex justify-center">
+            <div className="w-full max-w-6xl space-y-16">
+              <div className="text-center space-y-4">
+                <h2 className="text-4xl md:text-5xl font-semibold tracking-tight text-gray-900">
+                  Featured Phones
+                </h2>
+
+                <Link
+                  to="/phones"
+                  className="text-sm text-gray-500 hover:text-black transition"
+                >
+                  View All →
+                </Link>
+              </div>
+
+              {featuredPhones.length === 0 ? (
+                <div className="bg-[#f5f5f7] rounded-3xl py-24 text-center">
+                  <p className="text-gray-500">No phones available</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-12">
+                  {featuredPhones.map((phone) => (
+                    <PhoneCard key={phone._id} phone={phone} />
+                  ))}
+                </div>
+              )}
             </div>
+          </div>
+        </Container>
+      </section>
 
-            <p className="text-slate-600 text-xl lg:text-2xl font-medium leading-relaxed max-w-lg">
-              Discover top refurbished devices at unbeatable prices.
+      {/* ================= WHY SELL WITH US ================= */}
+      <section className="py-44 bg-[#f5f5f7] border-t border-gray-100">
+        <div className="max-w-6xl mx-auto px-6 text-center space-y-28">
+          {/* HEADER */}
+          <div className="flex flex-col items-center space-y-6 text-center">
+            <h2 className="text-4xl md:text-5xl font-semibold tracking-tight text-gray-900">
+              Why Sell With Us
+            </h2>
+
+            <p
+              className="text-gray-500 text-lg leading-relaxed max-w-xl"
+            >
+              We make selling your smartphone simple, transparent, and
+              rewarding.
+              <br className="hidden md:block" />
+              No hidden fees. No stress.
             </p>
+          </div>
 
-            <div className="flex justify-center">
+          {/* CARDS */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-24">
+            {[
+              {
+                icon: "₹",
+                title: "Best Market Value",
+                desc: "Competitive payouts powered by real-time demand analytics.",
+              },
+              {
+                icon: "🚚",
+                title: "Free Doorstep Pickup",
+                desc: "Schedule pickup at your convenience anywhere in India.",
+              },
+              {
+                icon: "⚡",
+                title: "Instant Payment",
+                desc: "Once verified, your payment is processed immediately.",
+              },
+            ].map((item, index) => (
+              <div key={index} className="flex flex-col items-center space-y-6">
+                <div className="w-16 h-16 flex items-center justify-center rounded-3xl bg-white shadow-sm text-xl font-semibold">
+                  {item.icon}
+                </div>
+
+                <h3 className="text-xl font-semibold text-gray-900">
+                  {item.title}
+                </h3>
+
+                <p className="text-gray-500 leading-relaxed max-w-sm">
+                  {item.desc}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          {/* CTA BUTTON */}
+          <div className="pt-10">
+            <Link to="/sale">
+              <button className="px-12 py-4 text-lg font-semibold rounded-full bg-black text-white hover:scale-[1.02] transition shadow-md">
+                Start Selling
+              </button>
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ================= FINAL CTA ================= */}
+      <section className="py-36 bg-white border-t border-gray-100">
+        <Container>
+          <div className="flex justify-center">
+            <div className="max-w-3xl text-center space-y-8">
+              <h2 className="text-4xl md:text-5xl font-semibold tracking-tight text-gray-900">
+                Upgrade Your Smartphone Today
+              </h2>
+
+              <p className="text-gray-500 text-lg">
+                Discover top refurbished devices at unbeatable prices.
+              </p>
+
               <Link to="/phones">
-                <Button size="xl">Explore Collection</Button>
+                <button className="px-12 py-4 text-lg font-semibold rounded-full bg-black text-white hover:scale-[1.02] transition shadow-md">
+                  Explore Collection
+                </button>
               </Link>
             </div>
           </div>

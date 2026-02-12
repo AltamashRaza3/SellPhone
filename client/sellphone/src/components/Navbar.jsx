@@ -27,13 +27,11 @@ const Navbar = () => {
 
   const isAuthPage = location.pathname.startsWith("/auth");
 
-  /* ================= CLOSE MENUS ON ROUTE CHANGE ================= */
   useEffect(() => {
     setMobileMenuOpen(false);
     setDesktopCartOpen(false);
   }, [location.pathname]);
 
-  /* ================= CLOSE CART ON OUTSIDE CLICK ================= */
   useEffect(() => {
     const handler = (e) => {
       if (cartRef.current && !cartRef.current.contains(e.target)) {
@@ -44,7 +42,6 @@ const Navbar = () => {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  /* ================= LOGOUT ================= */
   const handleLogout = async () => {
     await auth.signOut();
     dispatch(clearUser());
@@ -62,40 +59,32 @@ const Navbar = () => {
     return (
       <Link
         to={to}
-        className={`relative transition ${
-          isActive ? "text-black" : "text-gray-600 hover:text-black"
-        }`}
+        className="relative text-sm font-medium text-gray-600 hover:text-black transition duration-300"
       >
         {label}
         <span
-          className={`absolute left-0 -bottom-1 h-[1px] bg-black transition-all duration-300 ${
-            isActive ? "w-full" : "w-0 group-hover:w-full"
-          }`}
+          className={`
+            absolute left-0 -bottom-2 h-[1.5px] bg-black transition-all duration-300
+            ${isActive ? "w-full" : "w-0"}
+          `}
         />
       </Link>
     );
   };
 
-  /* ================= MOBILE LINK ================= */
-  const MobileNavLink = ({ to, label }) => (
-    <Link to={to} className="block text-gray-700 hover:text-black transition">
-      {label}
-    </Link>
-  );
-
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-gray-200 bg-white/80 backdrop-blur-xl">
-      <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-        {/* ================= LOGO ================= */}
+    <header className="sticky top-0 z-50 w-full backdrop-blur-2xl bg-white/70 border-b border-white/40">
+      <div className="max-w-7xl mx-auto px-8 h-16 flex items-center justify-between">
+        {/* LOGO */}
         <div
           onClick={() => navigate("/")}
-          className="cursor-pointer text-xl font-semibold tracking-tight text-gray-900 hover:opacity-80 transition"
+          className="cursor-pointer text-xl font-semibold tracking-tight text-gray-900"
         >
           SalePhone
         </div>
 
-        {/* ================= DESKTOP NAV ================= */}
-        <div className="hidden lg:flex items-center gap-10 text-sm font-medium">
+        {/* DESKTOP NAV */}
+        <div className="hidden lg:flex items-center gap-12">
           <NavLink to="/phones" label="Browse Phones" />
           <NavLink to="/sale" label="Sell Phone" />
 
@@ -106,7 +95,7 @@ const Navbar = () => {
             </>
           )}
 
-          {/* ================= CART ================= */}
+          {/* CART */}
           <div className="relative" ref={cartRef}>
             <button
               onClick={() => setDesktopCartOpen((v) => !v)}
@@ -114,14 +103,23 @@ const Navbar = () => {
             >
               <FiShoppingCart size={20} />
               {cartCount > 0 && (
-                <span className="absolute -top-2 -right-2 w-5 h-5 bg-black text-white text-xs rounded-full flex items-center justify-center">
+                <span className="absolute -top-2 -right-2 w-5 h-5 bg-black text-white text-[11px] rounded-full flex items-center justify-center">
                   {cartCount}
                 </span>
               )}
             </button>
 
             {desktopCartOpen && (
-              <div className="absolute right-0 mt-4 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 p-6 space-y-4">
+              <div
+                className="
+                absolute right-0 mt-5 w-96
+                bg-white/90 backdrop-blur-xl
+                rounded-3xl
+                shadow-[0_30px_80px_rgba(0,0,0,0.08)]
+                p-8
+                space-y-6
+              "
+              >
                 {cartItems.length === 0 ? (
                   <p className="text-gray-500 text-sm text-center">
                     Your cart is empty
@@ -152,7 +150,7 @@ const Navbar = () => {
 
                     <Link
                       to="/cart"
-                      className="block text-center bg-black text-white py-2.5 rounded-full text-sm font-medium hover:opacity-90 transition"
+                      className="block text-center bg-black text-white py-3 rounded-full text-sm font-medium hover:opacity-90 transition"
                     >
                       View Cart
                     </Link>
@@ -162,30 +160,30 @@ const Navbar = () => {
             )}
           </div>
 
-          {/* ================= AUTH ================= */}
+          {/* AUTH */}
           {user ? (
             <button
               onClick={handleLogout}
-              className="text-gray-600 hover:text-black transition"
+              className="text-sm text-gray-600 hover:text-black transition"
             >
               Logout
             </button>
           ) : (
             <Link
               to="/auth"
-              className="px-5 py-2 rounded-full bg-black text-white text-sm font-medium hover:opacity-90 transition"
+              className="px-6 py-2.5 rounded-full bg-black text-white text-sm font-medium hover:opacity-90 transition"
             >
               Sign In
             </Link>
           )}
         </div>
 
-        {/* ================= MOBILE RIGHT ================= */}
-        <div className="lg:hidden flex items-center gap-4">
+        {/* MOBILE */}
+        <div className="lg:hidden flex items-center gap-5">
           <button onClick={() => navigate("/cart")} className="relative">
             <FiShoppingCart size={22} />
             {cartCount > 0 && (
-              <span className="absolute -top-2 -right-2 w-5 h-5 bg-black text-white text-xs rounded-full flex items-center justify-center">
+              <span className="absolute -top-2 -right-2 w-5 h-5 bg-black text-white text-[11px] rounded-full flex items-center justify-center">
                 {cartCount}
               </span>
             )}
@@ -197,31 +195,28 @@ const Navbar = () => {
         </div>
       </div>
 
-      {/* ================= MOBILE MENU ================= */}
+      {/* MOBILE MENU */}
       {mobileMenuOpen && (
-        <div className="lg:hidden border-t border-gray-200 bg-white">
-          <div className="px-6 py-6 space-y-5 text-sm font-medium">
-            <MobileNavLink to="/phones" label="Browse Phones" />
-            <MobileNavLink to="/sale" label="Sell Phone" />
+        <div className="lg:hidden bg-white/95 backdrop-blur-xl border-t border-gray-100">
+          <div className="px-8 py-8 space-y-6 text-base font-medium text-gray-700">
+            <Link to="/phones">Browse Phones</Link>
+            <Link to="/sale">Sell Phone</Link>
 
             {user && (
               <>
-                <MobileNavLink to="/orders" label="Orders" />
-                <MobileNavLink to="/my-sell-requests" label="My Sales" />
+                <Link to="/orders">Orders</Link>
+                <Link to="/my-sell-requests">My Sales</Link>
               </>
             )}
 
             {user ? (
-              <button
-                onClick={handleLogout}
-                className="block w-full text-left text-gray-600 hover:text-black"
-              >
+              <button onClick={handleLogout} className="block text-left w-full">
                 Logout
               </button>
             ) : (
               <Link
                 to="/auth"
-                className="block w-full text-center bg-black text-white py-2.5 rounded-full"
+                className="block text-center bg-black text-white py-3 rounded-full"
               >
                 Sign In
               </Link>

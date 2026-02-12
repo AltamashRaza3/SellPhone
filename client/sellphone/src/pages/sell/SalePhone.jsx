@@ -107,9 +107,7 @@ const SalePhone = () => {
 
       images.forEach((img) => formData.append("images", img));
 
-      await api.post("/sell-requests", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      await api.post("/sell-requests", formData);
 
       toast.success("Sell request submitted successfully");
 
@@ -138,103 +136,163 @@ const SalePhone = () => {
 
   /* ================= UI ================= */
   return (
-    <div className="appContainer py-12">
-      <div className="max-w-3xl mx-auto glass-card space-y-6">
-        <h1 className="text-2xl font-bold text-white">Sell Your Phone</h1>
-
-        <form onSubmit={handleSubmit} className="grid md:grid-cols-2 gap-4">
-          {[
-            ["brand", "Brand *"],
-            ["model", "Model *"],
-            ["storage", "Storage (e.g. 128GB)"],
-            ["ram", "RAM (e.g. 8GB)"],
-            ["color", "Color"],
-          ].map(([name, label]) => (
-            <input
-              key={name}
-              className="input"
-              name={name}
-              placeholder={label}
-              value={form[name]}
-              onChange={handleChange}
-            />
-          ))}
-
-          <select
-            className="input"
-            name="condition"
-            value={form.condition}
-            onChange={handleChange}
-          >
-            <option value="Excellent">Excellent</option>
-            <option value="Good">Good</option>
-            <option value="Fair">Fair</option>
-          </select>
-
-          <input
-            className="input"
-            type="number"
-            name="purchaseYear"
-            placeholder="Purchase Year *"
-            value={form.purchaseYear}
-            onChange={handleChange}
-          />
-
-          <input
-            className="input"
-            name="phone"
-            placeholder="Mobile Number *"
-            value={form.phone}
-            onChange={handleChange}
-          />
-
-          {/* IMAGES */}
-          <div className="md:col-span-2">
-            <label className="text-sm text-gray-300">
-              Phone Images (min 3)
-            </label>
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={handleImages}
-              className="input"
-            />
-
-            <div className="grid grid-cols-3 gap-3 mt-2">
-              {previews.map((src, i) => (
-                <img
-                  key={i}
-                  src={src}
-                  className="h-24 w-full object-cover rounded-lg"
-                />
-              ))}
-            </div>
+    <div className="bg-[#f5f5f7] min-h-screen py-24">
+      {/* TRUE CENTER WRAPPER */}
+      <div className="w-full flex justify-center">
+        <div className="w-full max-w-2xl px-6 space-y-16">
+          {/* HEADER */}
+          <div className="text-center space-y-4">
+            <h1 className="text-5xl font-semibold tracking-tight text-gray-900">
+              Sell Your Phone
+            </h1>
+            <p className="text-gray-500 text-lg max-w-lg mx-auto">
+              Get the best value for your device. Free pickup. Instant
+              evaluation.
+            </p>
           </div>
 
-          <textarea
-            className="input md:col-span-2"
-            name="fullAddress"
-            placeholder="Full Address *"
-            value={form.fullAddress}
-            onChange={handleChange}
-          />
+          {/* FORM CARD */}
+          <div className="bg-white rounded-[40px] shadow-[0_30px_100px_rgba(0,0,0,0.06)] p-12 md:p-14 space-y-12">
+            <form onSubmit={handleSubmit} className="space-y-14">
+              {/* DEVICE DETAILS */}
+              <div className="space-y-8">
+                <h2 className="text-xl font-semibold text-gray-900">
+                  Device Details
+                </h2>
 
-          {["city", "state", "pincode"].map((k) => (
-            <input
-              key={k}
-              className="input"
-              name={k}
-              placeholder={`${k[0].toUpperCase()}${k.slice(1)} *`}
-              value={form[k]}
-              onChange={handleChange}
-            />
-          ))}
+                <div className="grid md:grid-cols-2 gap-8">
+                  {[
+                    ["brand", "Brand *"],
+                    ["model", "Model *"],
+                    ["storage", "Storage (e.g. 128GB)"],
+                    ["ram", "RAM (e.g. 8GB)"],
+                    ["color", "Color"],
+                  ].map(([name, label]) => (
+                    <input
+                      key={name}
+                      name={name}
+                      placeholder={label}
+                      value={form[name]}
+                      onChange={handleChange}
+                      className="apple-input"
+                    />
+                  ))}
 
-          <button disabled={loading} className="btn-primary md:col-span-2 py-3">
-            {loading ? "Submitting…" : "Submit Sell Request"}
-          </button>
-        </form>
+                  <select
+                    name="condition"
+                    value={form.condition}
+                    onChange={handleChange}
+                    className="apple-input"
+                  >
+                    <option value="Excellent">Excellent</option>
+                    <option value="Good">Good</option>
+                    <option value="Fair">Fair</option>
+                  </select>
+
+                  <input
+                    type="number"
+                    name="purchaseYear"
+                    placeholder="Purchase Year *"
+                    value={form.purchaseYear}
+                    onChange={handleChange}
+                    className="apple-input"
+                  />
+                </div>
+              </div>
+
+              {/* IMAGES */}
+              <div className="space-y-6">
+                <h2 className="text-xl font-semibold text-gray-900">
+                  Upload Images
+                </h2>
+
+                <div className="border-2 border-dashed border-gray-200 rounded-3xl p-10 text-center bg-gray-50 hover:bg-gray-100 transition">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleImages}
+                    className="hidden"
+                    id="upload"
+                  />
+                  <label
+                    htmlFor="upload"
+                    className="cursor-pointer text-gray-500 text-sm"
+                  >
+                    Click to upload up to 5 images (min 3 required)
+                  </label>
+                </div>
+
+                {previews.length > 0 && (
+                  <div className="grid grid-cols-3 gap-4">
+                    {previews.map((src, i) => (
+                      <img
+                        key={i}
+                        src={src}
+                        className="h-28 w-full object-cover rounded-2xl shadow-sm"
+                        alt="preview"
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* PICKUP DETAILS */}
+              <div className="space-y-8">
+                <h2 className="text-xl font-semibold text-gray-900">
+                  Pickup Details
+                </h2>
+
+                <div className="grid md:grid-cols-2 gap-8">
+                  <input
+                    name="phone"
+                    placeholder="Mobile Number *"
+                    value={form.phone}
+                    onChange={handleChange}
+                    className="apple-input"
+                  />
+                  <input
+                    name="city"
+                    placeholder="City *"
+                    value={form.city}
+                    onChange={handleChange}
+                    className="apple-input"
+                  />
+                  <input
+                    name="state"
+                    placeholder="State *"
+                    value={form.state}
+                    onChange={handleChange}
+                    className="apple-input"
+                  />
+                  <input
+                    name="pincode"
+                    placeholder="Pincode *"
+                    value={form.pincode}
+                    onChange={handleChange}
+                    className="apple-input"
+                  />
+                </div>
+
+                <textarea
+                  name="fullAddress"
+                  placeholder="Full Address *"
+                  value={form.fullAddress}
+                  onChange={handleChange}
+                  className="apple-input min-h-[120px]"
+                />
+              </div>
+
+              {/* SUBMIT */}
+              <button
+                disabled={loading}
+                className="w-full py-4 rounded-full bg-black text-white font-medium text-lg hover:scale-[1.02] transition disabled:opacity-50"
+              >
+                {loading ? "Submitting…" : "Submit Sell Request"}
+              </button>
+            </form>
+          </div>
+        </div>
       </div>
     </div>
   );

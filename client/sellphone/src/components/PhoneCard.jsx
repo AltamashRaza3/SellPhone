@@ -13,9 +13,25 @@ const PhoneCard = ({ phone }) => {
 
   const imageSrc = resolveImageUrl(phone.images?.[0] || phone.image) || noImage;
 
+  const price = Number(phone.price) || 0;
+  const originalPrice = Number(phone.originalPrice) || null;
+
+  const hasDiscount = originalPrice && originalPrice > price;
+
+  const discountPercent = hasDiscount
+    ? Math.round(((originalPrice - price) / originalPrice) * 100)
+    : null;
+
+  const inStock = phone.stock === undefined || phone.stock > 0;
+
   const handleAddToCart = (e) => {
     e.preventDefault();
     e.stopPropagation();
+
+    if (!inStock) {
+      toast.error("This product is out of stock");
+      return;
+    }
 
     dispatch(addToCart(phone));
 
@@ -31,19 +47,36 @@ const PhoneCard = ({ phone }) => {
   return (
     <Link to={`/phone/${phone._id}`} className="group block h-full">
       <div
-        className="bg-white rounded-2xl p-5
-        border border-gray-100
-        shadow-sm
-        transition-all duration-300
-        hover:shadow-lg hover:-translate-y-1
-        flex flex-col h-full"
+        className="
+          relative
+          bg-white
+          rounded-[28px]
+          p-6
+          border border-gray-100
+          shadow-[0_10px_40px_rgba(0,0,0,0.04)]
+          transition-all duration-500
+          hover:shadow-[0_25px_70px_rgba(0,0,0,0.08)]
+          hover:-translate-y-1
+          flex flex-col h-full
+        "
       >
+        {/* DISCOUNT BADGE (REAL ONLY) */}
+        {hasDiscount && (
+          <div className="absolute top-4 left-4 text-[10px] font-medium bg-green-100 text-green-700 px-2.5 py-1 rounded-full">
+            {discountPercent}% OFF
+          </div>
+        )}
+
         {/* IMAGE */}
-        <div className="h-40 flex items-center justify-center mb-5">
+        <div className="h-44 flex items-center justify-center mb-6">
           <img
             src={imageSrc}
             alt={`${phone.brand} ${phone.model}`}
-            className="max-h-full object-contain transition-transform duration-300 group-hover:scale-105"
+            className="
+              max-h-full object-contain
+              transition-all duration-500
+              group-hover:scale-105
+            "
             loading="lazy"
             onError={(e) => {
               e.currentTarget.src = noImage;
@@ -52,29 +85,66 @@ const PhoneCard = ({ phone }) => {
         </div>
 
         {/* INFO */}
-        <div className="flex-1 text-center">
-          <h3 className="text-base font-semibold text-gray-900">
+        <div className="flex-1 text-center space-y-2">
+          <h3 className="text-[15px] font-semibold text-gray-900 tracking-tight">
             {phone.brand} {phone.model}
           </h3>
 
-          <p className="text-xs text-gray-500 mt-1">
-            {phone.storage} • {phone.condition}
+          <p className="text-xs text-gray-500">
+            {phone.storage}
+            {phone.ram && ` • ${phone.ram}`}
+            {phone.condition && ` • ${phone.condition}`}
           </p>
 
-          <p className="text-lg font-semibold text-gray-900 mt-3">
-            ₹{Number(phone.price).toLocaleString("en-IN")}
-          </p>
+          {/* PRICE */}
+          <div className="pt-3 space-y-1">
+            <p className="text-lg font-semibold text-gray-900">
+              ₹{price.toLocaleString("en-IN")}
+            </p>
+
+            {hasDiscount && (
+              <p className="text-xs text-gray-400 line-through">
+                ₹{originalPrice.toLocaleString("en-IN")}
+              </p>
+            )}
+          </div>
+
+          {/* STOCK STATUS */}
+          {phone.stock !== undefined && (
+            <>
+              {phone.stock === 0 && (
+                <p className="text-xs text-red-500 pt-1">Out of Stock</p>
+              )}
+
+              {phone.stock > 0 && phone.stock <= 3 && (
+                <p className="text-xs text-orange-500 pt-1">
+                  Only {phone.stock} left
+                </p>
+              )}
+            </>
+          )}
         </div>
 
         {/* CTA */}
         <button
           onClick={handleAddToCart}
-          className="mt-4 w-full py-2.5 rounded-full text-sm font-medium
-          bg-black text-white
-          transition-all duration-300
-          hover:opacity-90"
+          disabled={!inStock}
+          className={`
+            mt-6
+            w-full
+            py-3
+            rounded-full
+            text-sm
+            font-medium
+            transition-all duration-300
+            ${
+              inStock
+                ? "bg-black text-white hover:scale-[1.02] active:scale-[0.98]"
+                : "bg-gray-200 text-gray-500 cursor-not-allowed"
+            }
+          `}
         >
-          Add to Cart
+          {inStock ? "Add to Cart" : "Unavailable"}
         </button>
       </div>
     </Link>

@@ -88,127 +88,196 @@ const SellRequestDetails = () => {
 
   /* ================= RENDER ================= */
   return (
-    <div className="max-w-5xl mx-auto px-6 py-20 space-y-10">
-      {/* BACK */}
-      <button
-        onClick={() => navigate(-1)}
-        className="text-sm text-gray-500 hover:text-black transition"
-      >
-        ← Back
-      </button>
+    <div className="bg-[#f2f2f7] min-h-screen py-28">
+      <div className="w-full flex justify-center">
+        <div className="w-full max-w-4xl px-6 space-y-16">
+          {/* BACK */}
+          <button
+            onClick={() => navigate(-1)}
+            className="text-sm text-gray-500 hover:text-black transition"
+          >
+            ← Back
+          </button>
 
-      {/* HEADER */}
-      <div className="space-y-3">
-        <h1 className="text-4xl font-semibold tracking-tight text-gray-900">
-          {phone.brand} {phone.model}
-        </h1>
-        <p className="text-gray-500 text-sm">
-          {phone.storage} • {phone.declaredCondition}
-        </p>
-      </div>
+          {/* HEADER */}
+          <div className="text-center space-y-4">
+            <h1 className="text-5xl font-semibold tracking-tight text-gray-900">
+              {phone.brand} {phone.model}
+            </h1>
 
-      {/* SUMMARY CARD */}
-      <div className="bg-white border border-gray-100 rounded-3xl p-8 space-y-4">
-        <div className="flex justify-between text-sm text-gray-500">
-          <span>Request ID</span>
-          <span>#{request._id.slice(-6)}</span>
-        </div>
-
-        <div className="border-t pt-4 space-y-2">
-          <p className="text-gray-500 text-sm">Estimated Price</p>
-          <p className="text-lg font-medium text-gray-900">
-            ₹{pricing.basePrice.toLocaleString("en-IN")}
-          </p>
-        </div>
-
-        {verification?.finalPrice && (
-          <div className="border-t pt-4 space-y-2">
-            <p className="text-gray-500 text-sm">Final Price Offered</p>
-            <p className="text-2xl font-semibold text-green-600">
-              ₹{verification.finalPrice.toLocaleString("en-IN")}
+            <p className="text-lg text-gray-500">
+              {phone.storage} • {phone.declaredCondition}
             </p>
           </div>
-        )}
-      </div>
 
-      {/* RIDER INFO */}
-      {assignedRider && pickup?.status === "Scheduled" && (
-        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-6">
-          <p className="text-sm font-medium text-blue-700">Pickup Scheduled</p>
-          <p className="text-gray-700 mt-2">Rider: {assignedRider.riderName}</p>
-          {assignedRider.riderPhone && (
-            <p className="text-gray-600 text-sm">
-              Phone: {assignedRider.riderPhone}
-            </p>
+          {/* SUMMARY PANEL */}
+          <div
+            className="
+          bg-white
+          rounded-3xl
+          px-14
+          py-12
+          shadow-[0_15px_50px_rgba(0,0,0,0.05)]
+          space-y-8
+        "
+          >
+            <div className="flex justify-between text-sm text-gray-400 uppercase tracking-widest">
+              <span>Request</span>
+              <span>#{request._id.slice(-6)}</span>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-sm text-gray-500">Estimated Price</p>
+              <p className="text-2xl font-medium text-gray-900">
+                ₹{pricing.basePrice.toLocaleString("en-IN")}
+              </p>
+            </div>
+
+            {verification?.finalPrice && (
+              <div className="pt-6 border-t border-gray-100 space-y-2">
+                <p className="text-sm text-gray-500">Final Price Offered</p>
+                <p className="text-3xl font-semibold text-green-600">
+                  ₹{verification.finalPrice.toLocaleString("en-IN")}
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* RIDER INFO */}
+          {assignedRider && pickup?.status === "Scheduled" && (
+            <div
+              className="
+            bg-white
+            rounded-3xl
+            px-14
+            py-10
+            shadow-[0_10px_40px_rgba(0,0,0,0.04)]
+            space-y-3
+          "
+            >
+              <p className="text-sm font-medium text-blue-600 uppercase tracking-wide">
+                Pickup Scheduled
+              </p>
+              <p className="text-lg text-gray-900">
+                Rider: {assignedRider.riderName}
+              </p>
+              {assignedRider.riderPhone && (
+                <p className="text-gray-500">{assignedRider.riderPhone}</p>
+              )}
+            </div>
           )}
-        </div>
-      )}
 
-      {/* VERIFICATION IMAGES */}
-      {verification?.images?.length > 0 && (
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
-            Verification Images
-          </h3>
+          {/* VERIFICATION IMAGES */}
+          {verification?.images?.length > 0 && (
+            <div className="space-y-6">
+              <h3 className="text-2xl font-semibold text-gray-900 text-center">
+                Verification Images
+              </h3>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            {verification.images.map((img, i) => (
-              <img
-                key={i}
-                src={`${import.meta.env.VITE_API_BASE_URL}${img.url}`}
-                alt="Verification"
-                className="rounded-2xl object-cover w-full h-40 border border-gray-100"
-                loading="lazy"
-              />
-            ))}
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+                {verification.images.map((img, i) => (
+                  <img
+                    key={i}
+                    src={`${import.meta.env.VITE_API_BASE_URL}${img.url}`}
+                    alt="Verification"
+                    className="rounded-3xl object-cover w-full h-48 shadow-sm"
+                    loading="lazy"
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* SELLER DECISION */}
+          {verification?.finalPrice && verification.userAccepted === null && (
+            <SellerDecision
+              requestId={request._id}
+              finalPrice={verification.finalPrice}
+              onDecision={fetchRequest}
+            />
+          )}
+
+          {verification?.userAccepted === true && (
+            <div
+              className="
+            bg-white
+            rounded-3xl
+            py-10
+            text-center
+            shadow-[0_10px_40px_rgba(0,0,0,0.04)]
+          "
+            >
+              <p className="text-green-600 text-lg font-medium">
+                You accepted the final price.
+              </p>
+              <p className="text-gray-500 mt-2">
+                Pickup will be completed shortly.
+              </p>
+            </div>
+          )}
+
+          {verification?.userAccepted === false && (
+            <div
+              className="
+            bg-white
+            rounded-3xl
+            py-10
+            text-center
+            shadow-[0_10px_40px_rgba(0,0,0,0.04)]
+          "
+            >
+              <p className="text-red-600 text-lg font-medium">
+                You rejected the final price.
+              </p>
+              <p className="text-gray-500 mt-2">This request is now closed.</p>
+            </div>
+          )}
+
+          {/* ACTION BUTTONS */}
+          <div className="flex flex-col md:flex-row justify-center gap-6 pt-8">
+            {canCancel && (
+              <button
+                onClick={cancelRequest}
+                disabled={cancelling}
+                className="
+                px-10 py-4
+                rounded-full
+                text-base
+                font-medium
+                bg-red-600
+                hover:bg-red-700
+                text-white
+                transition
+                disabled:opacity-50
+              "
+              >
+                {cancelling ? "Cancelling…" : "Cancel Sell Request"}
+              </button>
+            )}
+
+            {pickup?.status === "Completed" && (
+              <button
+                onClick={downloadInvoice}
+                className="
+                px-10 py-4
+                rounded-full
+                text-base
+                font-medium
+                bg-black
+                text-white
+                hover:opacity-90
+                transition
+              "
+              >
+                Download Invoice
+              </button>
+            )}
           </div>
         </div>
-      )}
-
-      {/* SELLER DECISION */}
-      {verification?.finalPrice && verification.userAccepted === null && (
-        <SellerDecision
-          requestId={request._id}
-          finalPrice={verification.finalPrice}
-          onDecision={fetchRequest}
-        />
-      )}
-
-      {verification?.userAccepted === true && (
-        <div className="bg-green-50 border border-green-100 rounded-2xl p-6 text-green-700 font-medium text-center">
-          You accepted the final price. Pickup will be completed shortly.
-        </div>
-      )}
-
-      {verification?.userAccepted === false && (
-        <div className="bg-red-50 border border-red-100 rounded-2xl p-6 text-red-700 font-medium text-center">
-          You rejected the final price. This request is closed.
-        </div>
-      )}
-
-      {/* ACTION BUTTONS */}
-      <div className="flex flex-col md:flex-row gap-4">
-        {canCancel && (
-          <button
-            onClick={cancelRequest}
-            disabled={cancelling}
-            className="px-6 py-3 rounded-full bg-red-600 hover:bg-red-700 text-white font-medium disabled:opacity-50 transition"
-          >
-            {cancelling ? "Cancelling…" : "Cancel Sell Request"}
-          </button>
-        )}
-
-        {pickup?.status === "Completed" && (
-          <button
-            onClick={downloadInvoice}
-            className="px-6 py-3 rounded-full bg-black text-white hover:opacity-90 font-medium transition"
-          >
-            Download Invoice (PDF)
-          </button>
-        )}
       </div>
     </div>
   );
+
 };
 
 export default SellRequestDetails;

@@ -7,8 +7,6 @@ const firebaseConfig = {
   apiKey: "AIzaSyCtJakCbYPt6sYqUvJzdSwfnpeDtiOJyqw",
   authDomain: "salephone-cf695.firebaseapp.com",
   projectId: "salephone-cf695",
-
-  // ✅ CORRECT BUCKET (DO NOT CHANGE)
   storageBucket: "salephone-cf695.appspot.com",
 
   messagingSenderId: "1096112512954",

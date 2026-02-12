@@ -4,7 +4,6 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { clearCart } from "../redux/slices/cartSlice";
 import axios from "../utils/axios";
-import AppContainer from "../components/AppContainer";
 
 const Checkout = () => {
   const dispatch = useDispatch();
@@ -77,9 +76,6 @@ const Checkout = () => {
         productId: item.phone._id,
         price: item.phone.price,
         quantity: item.quantity || 1,
-        ...(item.phone.inventoryId && {
-          inventoryId: item.phone.inventoryId,
-        }),
       }));
 
       const res = await axios.post(
@@ -93,9 +89,18 @@ const Checkout = () => {
         { withCredentials: true },
       );
 
+      // 🔥 SAFE RESPONSE HANDLING (FIXED)
+      const createdOrder = res.data?.order || res.data;
+
+      if (!createdOrder?._id) {
+        toast.error("Order created but ID missing");
+        return;
+      }
+
       dispatch(clearCart());
       toast.success("Order placed successfully");
-      navigate(`/order-success/${res.data._id}`);
+
+      navigate(`/order-success/${createdOrder._id}`);
     } catch (err) {
       toast.error(err?.response?.data?.message || "Failed to place order");
     } finally {
@@ -103,39 +108,49 @@ const Checkout = () => {
     }
   };
 
+  if (!cartItems.length) {
+    return (
+      <div className="min-h-[75vh] flex items-center justify-center bg-[#f5f5f7] text-gray-500">
+        Your cart is empty
+      </div>
+    );
+  }
+
   return (
-    <AppContainer>
-      <div className="max-w-6xl mx-auto px-4 md:px-6 py-16">
+    <div className="bg-[#f5f5f7] min-h-screen py-24">
+      <div className="max-w-6xl mx-auto px-6 space-y-24">
         {/* HEADER */}
-        <div className="text-center mb-14">
-          <h1 className="text-4xl font-semibold tracking-tight text-gray-900">
+        <div className="text-center space-y-4">
+          <h1 className="text-5xl font-semibold tracking-tight text-gray-900">
             Checkout
           </h1>
-          <p className="text-gray-500 mt-3">Complete your purchase securely</p>
+          <p className="text-lg text-gray-500">
+            Secure payment. Fast delivery across India.
+          </p>
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-16">
-          {/* ================= LEFT: ADDRESS FORM ================= */}
-          <div className="lg:col-span-2 space-y-10">
-            <div className="bg-white border border-gray-100 rounded-3xl p-10 space-y-8">
-              <h2 className="text-xl font-semibold text-gray-900">
+        <div className="grid lg:grid-cols-3 gap-20 items-start">
+          {/* ================= LEFT: FORM ================= */}
+          <div className="lg:col-span-2">
+            <div className="bg-white rounded-[40px] shadow-[0_30px_100px_rgba(0,0,0,0.06)] p-14 space-y-10">
+              <h2 className="text-2xl font-semibold text-gray-900">
                 Delivery Information
               </h2>
 
-              <div className="grid md:grid-cols-2 gap-6">
+              <div className="grid md:grid-cols-2 gap-8">
                 <input
                   name="name"
                   placeholder="Full Name *"
                   value={address.name}
                   onChange={handleChange}
-                  className="input"
+                  className="apple-input"
                 />
                 <input
                   name="phone"
                   placeholder="Phone Number *"
                   value={address.phone}
                   onChange={handleChange}
-                  className="input"
+                  className="apple-input"
                 />
               </div>
 
@@ -144,7 +159,7 @@ const Checkout = () => {
                 placeholder="House No, Street, Area *"
                 value={address.line1}
                 onChange={handleChange}
-                className="input"
+                className="apple-input"
               />
 
               <input
@@ -152,42 +167,42 @@ const Checkout = () => {
                 placeholder="Landmark (Optional)"
                 value={address.line2}
                 onChange={handleChange}
-                className="input"
+                className="apple-input"
               />
 
-              <div className="grid md:grid-cols-3 gap-6">
+              <div className="grid md:grid-cols-3 gap-8">
                 <input
                   name="city"
                   placeholder="City *"
                   value={address.city}
                   onChange={handleChange}
-                  className="input"
+                  className="apple-input"
                 />
                 <input
                   name="state"
                   placeholder="State *"
                   value={address.state}
                   onChange={handleChange}
-                  className="input"
+                  className="apple-input"
                 />
                 <input
                   name="pincode"
                   placeholder="Pincode *"
                   value={address.pincode}
                   onChange={handleChange}
-                  className="input"
+                  className="apple-input"
                 />
               </div>
             </div>
           </div>
 
           {/* ================= RIGHT: SUMMARY ================= */}
-          <div className="bg-white border border-gray-100 rounded-3xl p-10 space-y-8 h-fit sticky top-28">
+          <div className="bg-white rounded-[48px] shadow-[0_40px_120px_rgba(0,0,0,0.08)] p-14 space-y-10 sticky top-32">
             <h2 className="text-xl font-semibold text-gray-900">
               Order Summary
             </h2>
 
-            <div className="space-y-4 text-sm text-gray-600">
+            <div className="space-y-6 text-sm text-gray-600">
               {cartItems.map((item) => (
                 <div key={item.phone._id} className="flex justify-between">
                   <span>
@@ -201,7 +216,7 @@ const Checkout = () => {
               ))}
             </div>
 
-            <div className="border-t border-gray-100 pt-6 flex justify-between text-lg font-semibold text-gray-900">
+            <div className="border-t border-gray-200 pt-6 flex justify-between text-xl font-semibold text-gray-900">
               <span>Total</span>
               <span>₹{totalAmount.toLocaleString("en-IN")}</span>
             </div>
@@ -209,14 +224,20 @@ const Checkout = () => {
             <button
               onClick={handlePlaceOrder}
               disabled={loading}
-              className="w-full py-4 rounded-full bg-black text-white font-medium hover:opacity-90 transition disabled:opacity-50"
+              className="w-full py-4 rounded-full bg-black text-white text-base font-medium hover:scale-[1.02] transition disabled:opacity-50"
             >
-              {loading ? "Placing Order..." : "Place Order (Cash on Delivery)"}
+              {loading ? "Placing Order..." : "Place Order"}
             </button>
+
+            <div className="text-gray-400 text-xs text-center space-y-1">
+              <p>🔒 100% Secure Payments</p>
+              <p>🚚 Fast Delivery</p>
+              <p>🛡 Warranty Included</p>
+            </div>
           </div>
         </div>
       </div>
-    </AppContainer>
+    </div>
   );
 };
 
