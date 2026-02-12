@@ -5,7 +5,6 @@ import { getAuth } from "firebase/auth";
 const SellerDecision = ({ requestId, finalPrice, onDecision }) => {
   const [loading, setLoading] = useState(false);
 
-  // ✅ FIXED GUARD (DO NOT USE !finalPrice)
   if (!requestId || finalPrice === null || finalPrice === undefined) {
     return null;
   }
@@ -48,7 +47,6 @@ const SellerDecision = ({ requestId, finalPrice, onDecision }) => {
       }
 
       toast.success(accept ? "Final price accepted" : "Final price rejected");
-
       onDecision?.();
     } catch (err) {
       toast.error(err.message || "Failed to submit decision");
@@ -57,35 +55,40 @@ const SellerDecision = ({ requestId, finalPrice, onDecision }) => {
     }
   };
 
-
   return (
-    <div className="rounded-2xl bg-zinc-900 border border-white/10 p-4 space-y-4">
-      <h3 className="text-lg font-semibold text-white">
-        Final Price Confirmation
-      </h3>
+    <div className="bg-white border border-gray-100 rounded-3xl p-8 space-y-6">
+      {/* Title */}
+      <div className="space-y-2">
+        <h3 className="text-xl font-semibold tracking-tight text-gray-900">
+          Final Price Confirmation
+        </h3>
+        <p className="text-sm text-gray-500">
+          The rider has verified your device. Please confirm the final price.
+        </p>
+      </div>
 
-      <p className="text-sm text-zinc-400">
-        The rider has verified your device. Please accept or reject the final
-        price.
-      </p>
+      {/* Price */}
+      <div className="bg-gray-50 rounded-2xl p-6 text-center">
+        <p className="text-sm text-gray-500 mb-1">Final Price Offered</p>
+        <p className="text-3xl font-semibold text-green-600">
+          ₹{finalPrice.toLocaleString("en-IN")}
+        </p>
+      </div>
 
-      <p className="text-2xl font-bold text-green-400">
-        ₹{finalPrice.toLocaleString("en-IN")}
-      </p>
-
-      <div className="flex gap-3">
+      {/* Buttons */}
+      <div className="flex flex-col sm:flex-row gap-4">
         <button
           onClick={() => submitDecision(true)}
           disabled={loading}
-          className="flex-1 h-11 rounded-xl bg-emerald-600 text-black font-semibold disabled:opacity-50"
+          className="flex-1 h-12 rounded-full bg-black text-white font-medium hover:opacity-90 transition disabled:opacity-50"
         >
-          Accept Price
+          {loading ? "Processing…" : "Accept Price"}
         </button>
 
         <button
           onClick={() => submitDecision(false)}
           disabled={loading}
-          className="flex-1 h-11 rounded-xl bg-red-600 text-white font-semibold disabled:opacity-50"
+          className="flex-1 h-12 rounded-full border border-gray-300 text-gray-900 font-medium hover:bg-gray-100 transition disabled:opacity-50"
         >
           Reject
         </button>
