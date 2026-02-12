@@ -7,27 +7,33 @@ const RequireRiderAuth = ({ children }) => {
   const [authenticated, setAuthenticated] = useState(false);
 
   useEffect(() => {
+    let mounted = true;
+
     const checkAuth = async () => {
       try {
-        const res = await riderApi.get("/pickups", {
+        await riderApi.get("/me", {
           withCredentials: true,
         });
-        setAuthenticated(true);
-      } catch (err) {
-        setAuthenticated(false);
+
+        if (mounted) setAuthenticated(true);
+      } catch {
+        if (mounted) setAuthenticated(false);
       } finally {
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
     };
 
     checkAuth();
-  }, []);
 
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-zinc-400">
-        Checking session…
+      <div className="min-h-screen flex items-center justify-center text-gray-400">
+        Checking session...
       </div>
     );
   }

@@ -4,7 +4,7 @@ import { getStorage } from "firebase/storage";
 import { getAnalytics } from "firebase/analytics";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDvzAIMb4m7gj38e7KdtPeZsuPfAHeNoV8",
+  apiKey: "AIzaSyCtJakCbYPt6sYqUvJzdSwfnpeDtiOJyqw",
   authDomain: "salephone-cf695.firebaseapp.com",
   projectId: "salephone-cf695",
 

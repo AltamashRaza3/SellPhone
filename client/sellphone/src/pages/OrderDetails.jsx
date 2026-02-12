@@ -84,115 +84,124 @@ const downloadInvoice = async () => {
 
 
   return (
-    <div className="flex justify-center px-4 py-10 bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 min-h-screen">
-      <div className="w-full lg:w-[70%] max-w-6xl space-y-8">
-        {/* BACK */}
-        <Link to="/orders" className="text-sm text-orange-400 hover:underline">
-          ← Back to My Orders
-        </Link>
+    <div className="max-w-5xl mx-auto px-6 py-20">
+      {/* BACK */}
+      <Link
+        to="/orders"
+        className="text-sm text-gray-500 hover:text-gray-900 transition"
+      >
+        ← Back to My Orders
+      </Link>
 
-        <h1 className="text-3xl font-semibold text-white">Order Details</h1>
+      <div className="mt-6 mb-12">
+        <h1 className="text-4xl font-semibold tracking-tight text-gray-900">
+          Order Details
+        </h1>
+      </div>
 
-        {/* ================= ORDER INFO ================= */}
-        <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur p-6 space-y-4">
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-            <div className="text-sm text-gray-300 space-y-1">
-              <p>
-                <span className="text-gray-400">Order ID:</span> {order._id}
-              </p>
-              <p>
-                <span className="text-gray-400">Placed on:</span>{" "}
-                {new Date(order.createdAt).toLocaleString()}
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2 text-sm">
-              <span className="text-gray-400">Status:</span>
-              <OrderStatusBadge status={order.status} />
-            </div>
+      {/* ================= ORDER META ================= */}
+      <div className="bg-white border border-gray-100 rounded-3xl p-8 mb-10 space-y-6">
+        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-6">
+          <div className="space-y-1 text-sm text-gray-500">
+            <p>
+              <span className="text-gray-400">Order ID:</span> {order._id}
+            </p>
+            <p>
+              <span className="text-gray-400">Placed on:</span>{" "}
+              {new Date(order.createdAt).toLocaleString()}
+            </p>
           </div>
 
-          <OrderTimeline status={order.status} />
-
-          {order.status === "Pending" && (
-            <button
-              onClick={handleCancelOrder}
-              className="mt-4 inline-flex px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm"
-            >
-              Cancel Order
-            </button>
-          )}
+          <OrderStatusBadge status={order.status} />
         </div>
 
-        {/* ================= ITEMS ================= */}
-        <div className="space-y-4">
-          <h2 className="text-xl font-medium text-white">Ordered Items</h2>
+        <OrderTimeline status={order.status} />
 
+        {order.status === "Pending" && (
+          <button
+            onClick={handleCancelOrder}
+            className="mt-4 px-6 py-3 rounded-full text-sm font-medium border border-red-200 text-red-600 hover:bg-red-50 transition"
+          >
+            Cancel Order
+          </button>
+        )}
+      </div>
+
+      {/* ================= ITEMS ================= */}
+      <div className="mb-10">
+        <h2 className="text-2xl font-semibold text-gray-900 mb-6">
+          Ordered Items
+        </h2>
+
+        <div className="space-y-6">
           {order.items.map((item, idx) => {
             const product = item.productId || {};
 
             return (
               <div
                 key={idx}
-                className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur p-5 flex flex-col sm:flex-row gap-6"
+                className="bg-white border border-gray-100 rounded-3xl p-6 flex flex-col md:flex-row gap-8"
               >
                 <img
                   src={resolveImageUrl(product.images?.[0])}
                   alt={product.model || "Product"}
-                  className="w-24 h-24 object-contain rounded-xl border border-white/10 bg-black/20"
+                  className="w-28 h-28 object-contain rounded-2xl bg-gray-50 border border-gray-100"
                   onError={(e) => (e.currentTarget.src = noImage)}
                 />
 
-                <div className="flex-1">
-                  <p className="text-lg font-semibold text-white">
+                <div className="flex-1 space-y-2">
+                  <p className="text-lg font-semibold text-gray-900">
                     {product.brand} {product.model}
                   </p>
 
-                  <div className="mt-2 space-y-1 text-sm text-gray-400">
+                  <div className="text-sm text-gray-500 space-y-1">
                     {product.color && <p>Color: {product.color}</p>}
                     {product.storage && <p>Storage: {product.storage}</p>}
                     {product.ram && <p>RAM: {product.ram}</p>}
                   </div>
                 </div>
 
-                <div className="text-right text-sm text-gray-300 space-y-1">
-                  <p>Qty: {item.quantity}</p>
-                  <p>₹{item.price}</p>
-                  <p className="text-lg font-semibold text-white">
-                    ₹{item.price * item.quantity}
+                <div className="text-right space-y-1">
+                  <p className="text-sm text-gray-500">Qty: {item.quantity}</p>
+                  <p className="text-sm text-gray-500">
+                    ₹{Number(item.price).toLocaleString("en-IN")}
+                  </p>
+                  <p className="text-lg font-semibold text-gray-900">
+                    ₹{(item.price * item.quantity).toLocaleString("en-IN")}
                   </p>
                 </div>
               </div>
             );
           })}
         </div>
+      </div>
 
-        {/* ================= SUMMARY ================= */}
-        <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur p-6 flex justify-between items-center">
-          <span className="text-lg text-gray-300">Total Amount</span>
-          <span className="text-2xl font-semibold text-white">
-            ₹{order.totalAmount}
-          </span>
-        </div>
+      {/* ================= TOTAL ================= */}
+      <div className="bg-white border border-gray-100 rounded-3xl p-8 flex justify-between items-center mb-10">
+        <span className="text-lg text-gray-600">Total Amount</span>
+        <span className="text-2xl font-semibold text-gray-900">
+          ₹{Number(order.totalAmount).toLocaleString("en-IN")}
+        </span>
+      </div>
 
-        {/* ================= INVOICE ================= */}
-        <div className="flex justify-end">
-          {order.status === "Delivered" ? (
-            <button
-              onClick={downloadInvoice}
-              className="px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-sm font-medium"
-            >
-              Download Invoice
-            </button>
-          ) : (
-            <p className="text-sm text-gray-400">
-              Invoice will be available after delivery
-            </p>
-          )}
-        </div>
+      {/* ================= INVOICE ================= */}
+      <div className="flex justify-end">
+        {order.status === "Delivered" ? (
+          <button
+            onClick={downloadInvoice}
+            className="px-8 py-3 rounded-full bg-black text-white text-sm font-medium hover:opacity-90 transition"
+          >
+            Download Invoice
+          </button>
+        ) : (
+          <p className="text-sm text-gray-400">
+            Invoice will be available after delivery
+          </p>
+        )}
       </div>
     </div>
   );
+
 };
 
 export default OrderDetails;

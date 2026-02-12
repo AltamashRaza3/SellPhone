@@ -48,114 +48,116 @@ const PhoneDetails = () => {
   const images = Array.isArray(phone.images) ? phone.images : [];
 
   return (
-    <div className="space-y-14">
-      {/* ================= TOP ================= */}
-      <div className="grid lg:grid-cols-2 gap-12 items-start">
-        {/* ================= IMAGE GALLERY ================= */}
-        <div className="glass-card flex flex-col items-center">
-          {/* MAIN IMAGE */}
-          <div className="flex items-center justify-center w-full min-h-[420px]">
+    <div className="max-w-7xl mx-auto px-6 py-20">
+      <div className="grid lg:grid-cols-2 gap-20">
+        {/* ================= IMAGE SECTION ================= */}
+        <div className="space-y-8">
+          <div className="bg-white rounded-3xl border border-gray-100 p-10 flex items-center justify-center min-h-[500px]">
             <img
               src={activeImage ? resolveImageUrl(activeImage) : noImage}
               alt={`${phone.brand} ${phone.model}`}
-              className="max-h-[380px] object-contain"
+              className="max-h-[420px] object-contain"
               onError={(e) => (e.currentTarget.src = noImage)}
             />
           </div>
 
-          {/* THUMBNAILS */}
           {images.length > 1 && (
-            <div className="flex gap-4 mt-6">
+            <div className="flex gap-4 justify-center flex-wrap">
               {images.map((img, i) => (
-                <img
+                <button
                   key={i}
-                  src={resolveImageUrl(img)}
                   onClick={() => setActiveImage(img)}
-                  className={`h-20 w-20 object-contain rounded-lg cursor-pointer border transition
-                    ${
-                      activeImage === img
-                        ? "border-orange-500 ring-2 ring-orange-500/30"
-                        : "border-zinc-700 hover:border-zinc-500"
-                    }`}
-                  onError={(e) => (e.currentTarget.src = noImage)}
-                  alt=""
-                />
+                  className={`p-2 rounded-xl border transition ${
+                    activeImage === img
+                      ? "border-black ring-2 ring-black/10"
+                      : "border-gray-200 hover:border-gray-400"
+                  }`}
+                >
+                  <img
+                    src={resolveImageUrl(img)}
+                    className="h-16 w-16 object-contain"
+                    onError={(e) => (e.currentTarget.src = noImage)}
+                    alt=""
+                  />
+                </button>
               ))}
             </div>
           )}
         </div>
 
-        {/* ================= DETAILS ================= */}
-        <div className="space-y-8 pl-2 lg:pl-8">
+        {/* ================= PRODUCT INFO ================= */}
+        <div className="space-y-10">
           {/* TITLE */}
-          <h1 className="text-3xl font-semibold text-white">
-            {phone.brand} {phone.model}
-          </h1>
+          <div className="space-y-4">
+            <h1 className="text-5xl font-semibold tracking-tight text-gray-900">
+              {phone.brand} {phone.model}
+            </h1>
 
-          {/* SPECS */}
-          <div className="space-y-2 text-gray-300">
-            <p>
-              Storage: <span className="text-white">{phone.storage}</span>
-            </p>
-            {phone.ram && (
-              <p>
-                RAM: <span className="text-white">{phone.ram}</span>
-              </p>
-            )}
-            {phone.color && (
-              <p>
-                Color: <span className="text-white">{phone.color}</span>
-              </p>
-            )}
-            <p>
-              Condition:{" "}
-              <span className="text-green-400 font-medium">
-                {phone.condition}
-              </span>
+            <p className="text-gray-500 text-base">
+              {phone.storage}
+              {phone.ram && ` • ${phone.ram}`}
+              {phone.color && ` • ${phone.color}`}
             </p>
           </div>
 
           {/* TRUST BADGES */}
-          <div className="flex flex-wrap gap-3 pt-1">
-            <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-500/10 text-green-400 border border-green-500/20">
-              ✅ Verified Device
+          <div className="flex flex-wrap gap-3">
+            <span className="px-4 py-1.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+              Verified Device
             </span>
-            <span className="px-3 py-1 rounded-full text-xs font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20">
-              🔁 Refurbished & Tested
+            <span className="px-4 py-1.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+              Professionally Refurbished
             </span>
-            <span className="px-3 py-1 rounded-full text-xs font-medium bg-purple-500/10 text-purple-400 border border-purple-500/20">
-              🛡️ Warranty Included
+            <span className="px-4 py-1.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+              Warranty Included
             </span>
           </div>
 
-          {/* PRICE */}
-          <div className="glass-card">
-            <p className="text-3xl font-bold text-orange-400">₹{phone.price}</p>
-            <p className="text-sm text-gray-400 mt-1">Inclusive of all taxes</p>
+          {/* CONDITION */}
+          <div>
+            <p className="text-sm text-gray-500">Condition</p>
+            <p className="text-lg font-medium text-gray-900 mt-1">
+              {phone.condition}
+            </p>
+          </div>
+
+          {/* PRICE + CTA CARD */}
+          <div className="sticky top-28 bg-white rounded-3xl border border-gray-100 p-8 space-y-6">
+            <div>
+              <p className="text-4xl font-semibold text-gray-900">
+                ₹{Number(phone.price).toLocaleString("en-IN")}
+              </p>
+              <p className="text-sm text-gray-500 mt-1">
+                Inclusive of all taxes
+              </p>
+            </div>
+
+            <button
+              onClick={() => {
+                dispatch(addToCart(phone));
+                toast.success("Added to cart");
+              }}
+              className="w-full py-4 rounded-full text-base font-medium bg-black text-white hover:opacity-90 transition"
+            >
+              Add to Cart
+            </button>
+
+            <p className="text-xs text-gray-400 text-center">
+              Secure checkout. Fast delivery across India.
+            </p>
           </div>
 
           {/* DESCRIPTION */}
           {phone.description && (
-            <div className="glass-card">
-              <h2 className="text-lg font-semibold text-white mb-3">
-                Product Description
+            <div className="pt-8 border-t border-gray-100">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                About this device
               </h2>
-              <p className="text-gray-300 leading-relaxed">
+              <p className="text-gray-600 leading-relaxed text-base">
                 {phone.description}
               </p>
             </div>
           )}
-
-          {/* CTA */}
-          <button
-            onClick={() => {
-              dispatch(addToCart(phone));
-              toast.success("Added to cart");
-            }}
-            className="btn-primary w-full py-4 text-lg"
-          >
-            Add to Cart
-          </button>
         </div>
       </div>
     </div>

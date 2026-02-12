@@ -31,7 +31,6 @@ const Cart = () => {
       return;
     }
 
-    // 🔐 LOGIN REQUIRED ONLY HERE
     if (!user) {
       navigate("/auth?redirect=/checkout");
       return;
@@ -44,17 +43,24 @@ const Cart = () => {
   if (cartItems.length === 0) {
     return (
       <AppContainer>
-        <div className="min-h-[60vh] flex flex-col items-center justify-center text-center space-y-4">
-          <img
-            src="/assets/empty-cart.png"
-            alt="Empty Cart"
-            className="w-40 h-40 opacity-80"
-          />
-          <h2 className="text-3xl font-bold">Your cart is empty</h2>
-          <p className="text-gray-400">
-            Looks like you haven’t added anything yet.
+        <div className="min-h-[60vh] flex flex-col items-center justify-center text-center space-y-6">
+          <div className="w-24 h-24 rounded-full bg-gray-100 flex items-center justify-center text-3xl">
+            🛒
+          </div>
+
+          <h2 className="text-3xl font-semibold text-gray-900">
+            Your cart is empty
+          </h2>
+
+          <p className="text-gray-500 max-w-md">
+            Looks like you haven’t added anything yet. Start exploring premium
+            refurbished devices.
           </p>
-          <Link to="/" className="btn-primary mt-4">
+
+          <Link
+            to="/phones"
+            className="px-6 py-3 rounded-full bg-black text-white text-sm font-medium hover:opacity-90 transition"
+          >
             Browse Phones
           </Link>
         </div>
@@ -64,47 +70,54 @@ const Cart = () => {
 
   return (
     <AppContainer>
-      <div className="space-y-8">
+      <div className="max-w-6xl mx-auto px-4 md:px-6 py-16 space-y-16">
         {/* ================= HEADER ================= */}
-        <div className="glass-card text-center">
-          <h1 className="text-3xl font-bold text-white">Your Cart</h1>
-          <p className="text-gray-400 mt-2">
-            Review your selected phones before checkout
+        <div className="text-center space-y-3">
+          <h1 className="text-4xl font-semibold tracking-tight text-gray-900">
+            Your Cart
+          </h1>
+          <p className="text-gray-500">
+            Review your selected devices before checkout.
           </p>
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-8">
+        <div className="grid lg:grid-cols-3 gap-14">
           {/* ================= CART ITEMS ================= */}
-          <div className="lg:col-span-2 space-y-4">
-            {cartItems.map((item) => {
-              return (
-                <div
-                  key={item.phone._id}
-                  className="glass-card flex gap-6 items-center"
-                >
+          <div className="lg:col-span-2 space-y-8">
+            {cartItems.map((item) => (
+              <div
+                key={item.phone._id}
+                className="bg-white rounded-3xl border border-gray-100 p-8 flex flex-col md:flex-row gap-8 transition hover:shadow-sm"
+              >
+                {/* IMAGE */}
+                <div className="flex items-center justify-center bg-gray-50 rounded-2xl p-6 w-full md:w-48">
                   <img
                     src={resolveImageUrl(item.phone.images?.[0])}
                     alt={`${item.phone.brand} ${item.phone.model}`}
-                    className="w-28 h-28 object-contain rounded-xl bg-black/20 border border-white/10"
+                    className="h-28 object-contain"
                     onError={(e) => (e.currentTarget.src = noImage)}
                   />
+                </div>
 
-                  <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-white">
+                {/* INFO */}
+                <div className="flex-1 flex flex-col justify-between">
+                  <div>
+                    <h3 className="text-xl font-semibold text-gray-900">
                       {item.phone.brand} {item.phone.model}
                     </h3>
 
-                    <p className="text-sm text-gray-400 mt-1">
-                      Storage: {item.phone.storage} · Condition:{" "}
-                      {item.phone.condition}
+                    <p className="text-sm text-gray-500 mt-2">
+                      {item.phone.storage} · {item.phone.condition}
                     </p>
 
-                    <p className="text-lg font-bold text-white mt-2">
+                    <p className="text-xl font-semibold text-gray-900 mt-6">
                       ₹{item.phone.price.toLocaleString("en-IN")}
                     </p>
+                  </div>
 
-                    {/* ================= QUANTITY ================= */}
-                    <div className="flex items-center gap-3 mt-3">
+                  {/* QUANTITY */}
+                  <div className="flex items-center gap-6 mt-6">
+                    <div className="flex items-center border border-gray-200 rounded-full overflow-hidden">
                       <button
                         onClick={() =>
                           dispatch(
@@ -114,12 +127,14 @@ const Cart = () => {
                             }),
                           )
                         }
-                        className="px-3 py-1 border border-white/20 rounded hover:bg-white/10"
+                        className="px-4 py-2 text-gray-600 hover:bg-gray-100 transition"
                       >
                         −
                       </button>
 
-                      <span className="font-medium">{item.quantity}</span>
+                      <span className="px-5 text-gray-900 font-medium">
+                        {item.quantity}
+                      </span>
 
                       <button
                         onClick={() =>
@@ -130,59 +145,57 @@ const Cart = () => {
                             }),
                           )
                         }
-                        className="px-3 py-1 border border-white/20 rounded hover:bg-white/10"
+                        className="px-4 py-2 text-gray-600 hover:bg-gray-100 transition"
                       >
                         +
                       </button>
-
-                      <button
-                        onClick={() => dispatch(removeFromCart(item.phone._id))}
-                        className="ml-auto text-sm text-red-400 hover:underline"
-                      >
-                        Remove
-                      </button>
                     </div>
+
+                    <button
+                      onClick={() => dispatch(removeFromCart(item.phone._id))}
+                      className="text-sm text-gray-400 hover:text-red-500 transition"
+                    >
+                      Remove
+                    </button>
                   </div>
                 </div>
-              );
-            })}
+              </div>
+            ))}
           </div>
 
-          {/* ================= PRICE SUMMARY ================= */}
-          <div className="glass-card sticky top-24 h-fit space-y-4">
-            <h3 className="text-xl font-semibold text-white">Price Details</h3>
+          {/* ================= SUMMARY ================= */}
+          <div className="bg-white rounded-3xl border border-gray-100 p-10 space-y-8 h-fit sticky top-28">
+            <h3 className="text-xl font-semibold text-gray-900">
+              Order Summary
+            </h3>
 
-            <div className="flex justify-between text-gray-400">
-              <span>Subtotal</span>
-              <span>₹{totalAmount.toLocaleString("en-IN")}</span>
+            <div className="space-y-4 text-gray-600 text-sm">
+              <div className="flex justify-between">
+                <span>Subtotal</span>
+                <span>₹{totalAmount.toLocaleString("en-IN")}</span>
+              </div>
+
+              <div className="flex justify-between">
+                <span>Platform Fee</span>
+                <span className="text-gray-900">Free</span>
+              </div>
             </div>
 
-            <div className="flex justify-between text-gray-400">
-              <span>Platform Fee</span>
-              <span className="text-green-400">FREE</span>
-            </div>
-
-            <hr className="border-white/10" />
-
-            <div className="flex justify-between text-lg font-bold text-white">
+            <div className="border-t border-gray-100 pt-6 flex justify-between text-lg font-semibold text-gray-900">
               <span>Total</span>
               <span>₹{totalAmount.toLocaleString("en-IN")}</span>
             </div>
 
-            <button onClick={handleCheckout} className="btn-primary w-full">
+            <button
+              onClick={handleCheckout}
+              className="w-full py-4 rounded-full bg-black text-white text-base font-medium hover:opacity-90 transition"
+            >
               Proceed to Checkout
             </button>
 
             <button
-              onClick={() => navigate("/sale")}
-              className="w-full bg-green-500 hover:bg-green-600 text-white py-3 rounded-xl font-medium"
-            >
-              Sell Your Phone
-            </button>
-
-            <button
               onClick={() => dispatch(clearCart())}
-              className="w-full text-sm text-red-400 hover:underline"
+              className="w-full text-sm text-gray-400 hover:text-red-500 transition"
             >
               Clear Cart
             </button>
@@ -191,33 +204,34 @@ const Cart = () => {
 
         {/* ================= SUGGESTED ================= */}
         {suggestedPhones.length > 0 && (
-          <div>
-            <h2 className="text-2xl font-bold mb-4">You may also like</h2>
+          <div className="space-y-10">
+            <h2 className="text-2xl font-semibold text-gray-900 text-center">
+              You May Also Like
+            </h2>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-              {suggestedPhones.map((phone) => {
-                return (
-                  <Link
-                    to={`/phone/${phone._id}`}
-                    key={phone._id}
-                    className="glass-card flex flex-col items-center hover:scale-[1.02] transition"
-                  >
-                    <img
-                      src={resolveImageUrl(phone.images?.[0])}
-                      alt={`${phone.brand} ${phone.model}`}
-                      className="h-28 object-contain mb-3"
-                      onError={(e) => (e.currentTarget.src = noImage)}
-                    />
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+              {suggestedPhones.map((phone) => (
+                <Link
+                  to={`/phone/${phone._id}`}
+                  key={phone._id}
+                  className="bg-white rounded-3xl border border-gray-100 p-6 text-center transition hover:shadow-sm"
+                >
+                  <img
+                    src={resolveImageUrl(phone.images?.[0])}
+                    alt={`${phone.brand} ${phone.model}`}
+                    className="h-28 object-contain mx-auto mb-6"
+                    onError={(e) => (e.currentTarget.src = noImage)}
+                  />
 
-                    <h4 className="font-semibold text-sm text-center">
-                      {phone.brand} {phone.model}
-                    </h4>
-                    <p className="text-orange-400 font-bold mt-1">
-                      ₹{phone.price.toLocaleString("en-IN")}
-                    </p>
-                  </Link>
-                );
-              })}
+                  <h4 className="text-sm font-medium text-gray-900">
+                    {phone.brand} {phone.model}
+                  </h4>
+
+                  <p className="text-lg font-semibold text-gray-900 mt-3">
+                    ₹{phone.price.toLocaleString("en-IN")}
+                  </p>
+                </Link>
+              ))}
             </div>
           </div>
         )}

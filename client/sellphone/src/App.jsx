@@ -27,7 +27,8 @@ import Footer from "./components/Footer";
 import AppContainer from "./components/AppContainer";
 
 /* ================= USER PAGES ================= */
-import Home from "./pages/Home";
+import Landing from "./pages/Landing";
+import Phones from "./pages/Phones";
 import SalePhone from "./pages/sell/SalePhone";
 import PhoneDetails from "./pages/PhoneDetails";
 import Cart from "./pages/Cart";
@@ -55,10 +56,10 @@ import AdminEditProduct from "./pages/Admin/AdminEditProduct";
 import AdminSellPhones from "./pages/Admin/AdminSellPhones";
 import AdminTimeline from "./pages/Admin/AdminTimeline";
 import AdminInventory from "./pages/Admin/AdminInventory";
+import AdminRiders from "./pages/Admin/AdminRider";
 
 /* ================= UI ================= */
 import { Toaster } from "react-hot-toast";
-import AdminRiders from "./pages/Admin/AdminRider";
 
 const App = () => {
   const dispatch = useDispatch();
@@ -103,6 +104,7 @@ const App = () => {
 
     const isPublic =
       location.pathname === "/" ||
+      location.pathname === "/phones" ||
       location.pathname.startsWith("/phone/") ||
       location.pathname === "/auth" ||
       location.pathname === "/cart";
@@ -180,80 +182,126 @@ const App = () => {
       <Toaster position="top-right" />
 
       {!isAdminRoute ? (
-        <AppContainer>
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/phone/:id" element={<PhoneDetails />} />
+        <Routes>
+          {/* FULL WIDTH LANDING */}
+          <Route path="/" element={<Landing />} />
 
-            <Route path="/cart" element={<Cart />} />
+          {/* APP PAGES (CENTERED) */}
+          <Route
+            path="/phones"
+            element={
+              <AppContainer>
+                <Phones />
+              </AppContainer>
+            }
+          />
 
-            <Route
-              path="/checkout"
-              element={
+          <Route
+            path="/auth"
+            element={
+              <AppContainer>
+                <Auth />
+              </AppContainer>
+            }
+          />
+
+          <Route
+            path="/phone/:id"
+            element={
+              <AppContainer>
+                <PhoneDetails />
+              </AppContainer>
+            }
+          />
+
+          <Route
+            path="/cart"
+            element={
+              <AppContainer>
+                <Cart />
+              </AppContainer>
+            }
+          />
+
+          <Route
+            path="/checkout"
+            element={
+              <AppContainer>
                 <ProtectedRoute>
                   <Checkout />
                 </ProtectedRoute>
-              }
-            />
+              </AppContainer>
+            }
+          />
 
-            <Route
-              path="/orders"
-              element={
+          <Route
+            path="/orders"
+            element={
+              <AppContainer>
                 <ProtectedRoute>
                   <MyOrders />
                 </ProtectedRoute>
-              }
-            />
+              </AppContainer>
+            }
+          />
 
-            <Route
-              path="/order/:id"
-              element={
+          <Route
+            path="/order/:id"
+            element={
+              <AppContainer>
                 <ProtectedRoute>
                   <OrderDetails />
                 </ProtectedRoute>
-              }
-            />
+              </AppContainer>
+            }
+          />
 
-            <Route
-              path="/order-success/:orderId"
-              element={
+          <Route
+            path="/order-success/:orderId"
+            element={
+              <AppContainer>
                 <ProtectedRoute>
                   <OrderSuccess />
                 </ProtectedRoute>
-              }
-            />
+              </AppContainer>
+            }
+          />
 
-            <Route
-              path="/my-sell-requests"
-              element={
+          <Route
+            path="/my-sell-requests"
+            element={
+              <AppContainer>
                 <ProtectedRoute>
                   <SellRequestList />
                 </ProtectedRoute>
-              }
-            />
+              </AppContainer>
+            }
+          />
 
-            <Route
-              path="/my-sell-requests/:id"
-              element={
+          <Route
+            path="/my-sell-requests/:id"
+            element={
+              <AppContainer>
                 <ProtectedRoute>
                   <SellRequestDetails />
                 </ProtectedRoute>
-              }
-            />
+              </AppContainer>
+            }
+          />
 
-            <Route
-              path="/sale"
-              element={
+          <Route
+            path="/sale"
+            element={
+              <AppContainer>
                 <ProtectedRoute>
                   <SalePhone />
                 </ProtectedRoute>
-              }
-            />
+              </AppContainer>
+            }
+          />
 
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </AppContainer>
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
       ) : (
         <Routes>
           <Route path="/admin/login" element={<AdminLogin />} />
@@ -277,9 +325,7 @@ const App = () => {
             <Route path="products" element={<AdminProducts />} />
             <Route path="products/add" element={<AdminAddProduct />} />
             <Route path="products/edit/:id" element={<AdminEditProduct />} />
-            <Route path="riders" element={<AdminRiders/>} />
-
-            {/* ✅ INVENTORY */}
+            <Route path="riders" element={<AdminRiders />} />
             <Route path="inventory" element={<AdminInventory />} />
           </Route>
         </Routes>

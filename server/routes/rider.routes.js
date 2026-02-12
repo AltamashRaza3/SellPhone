@@ -2,14 +2,13 @@ import express from "express";
 import multer from "multer";
 import fs from "fs";
 import path from "path";
-
+import mongoose from "mongoose";
 import SellRequest from "../src/models/SellRequest.js";
 import InventoryItem from "../models/InventoryItem.js";
 
 import riderAuth from "../middleware/riderAuth.js";
 import { sendOtp, verifyOtp } from "../controllers/riderAuth.controller.js";
 import { calculateFinalPrice } from "../utils/priceRules.js";
-import { generateInvoice } from "../utils/generateSellInvoice.js";
 
 const router = express.Router();
 
@@ -38,6 +37,13 @@ const upload = multer({ storage });
 /* ================= AUTH ================= */
 router.post("/auth/send-otp", sendOtp);
 router.post("/auth/verify-otp", verifyOtp);
+/* ================= SESSION CHECK ================= */
+router.get("/me", riderAuth, async (req, res) => {
+  res.json({
+    success: true,
+    rider: req.rider,
+  });
+});
 
 /* ================= PICKUPS LIST ================= */
 router.get("/pickups", riderAuth, async (req, res) => {
@@ -64,8 +70,6 @@ router.get("/pickups/:id", riderAuth, async (req, res) => {
     return res.status(404).json({ message: "Pickup not found" });
   }
 const data = pickup.toObject();
-
-  // 🔥 CRITICAL FIX: expose user images to rider UI
   data.phone.images =
     data.phone.images?.length > 0
       ? data.phone.images
@@ -170,28 +174,58 @@ router.put("/pickups/:id/verify", riderAuth, async (req, res) => {
 });
 
 /* ================= COMPLETE PICKUP (🔥 INVENTORY + PAYOUT) ================= */
-router.put("/pickups/:id/complete", riderAuth, async (req, res) => {
-  try {
-    console.log("=== COMPLETE PICKUP START ===");
 
+router.put("/pickups/:id/complete", riderAuth, async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
     const request = await SellRequest.findOne({
       _id: req.params.id,
       "assignedRider.riderId": req.rider.riderId,
-      "pickup.status": "Picked",
-      "verification.userAccepted": true,
-    });
+    }).session(session);
 
     if (!request) {
-      console.log("❌ Request not found or user not accepted");
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(404).json({ message: "Pickup not found" });
+    }
+
+    if (request.pickup.status === "Completed") {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(409).json({ message: "Pickup already completed" });
+    }
+
+    if (
+      request.pickup.status !== "Picked" ||
+      request.verification.userAccepted !== true
+    ) {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(409).json({
-        message: "User acceptance required",
+        message: "User acceptance required before completion",
       });
     }
 
-    console.log("✅ SellRequest found:", request._id);
+    if (!request.verification?.finalPrice) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({
+        message: "Final price missing",
+      });
+    }
+
+    /* ================= SAFE CONDITION ================= */
+    const validConditions = ["Like New", "Excellent", "Good", "Fair"];
+    const condition = validConditions.includes(
+      request.phone.declaredCondition
+    )
+      ? request.phone.declaredCondition
+      : "Good";
 
     /* ================= INVENTORY ================= */
-    const inventory = await InventoryItem.findOneAndUpdate(
+    await InventoryItem.findOneAndUpdate(
       { sellRequestId: request._id },
       {
         sellRequestId: request._id,
@@ -201,21 +235,19 @@ router.put("/pickups/:id/complete", riderAuth, async (req, res) => {
           storage: request.phone.storage,
           ram: request.phone.ram,
           color: request.phone.color,
-          condition: request.phone.declaredCondition,
+          condition,
           images: [],
         },
         purchasePrice: request.verification.finalPrice,
         status: "InStock",
       },
-      { upsert: true, new: true, runValidators: true }
+      { upsert: true, new: true, runValidators: true, session }
     );
-
-    console.log("✅ Inventory created/updated:", inventory._id);
 
     /* ================= RIDER PAYOUT ================= */
     if (!request.riderPayout?.amount) {
       request.riderPayout = {
-        amount: RIDER_PAYOUT_AMOUNT,
+        amount: 150,
         calculatedAt: new Date(),
       };
     }
@@ -226,12 +258,13 @@ router.put("/pickups/:id/complete", riderAuth, async (req, res) => {
     request.statusHistory.push({
       status: "Pickup Completed",
       changedBy: "rider",
-      note: `Inventory created | Rider payout ₹${RIDER_PAYOUT_AMOUNT}`,
+      note: "Inventory created & payout calculated",
     });
 
-    await request.save();
+    await request.save({ session });
 
-    console.log("✅ SellRequest updated successfully");
+    await session.commitTransaction();
+    session.endSession();
 
     res.json({
       success: true,
@@ -239,12 +272,14 @@ router.put("/pickups/:id/complete", riderAuth, async (req, res) => {
     });
 
   } catch (error) {
-    console.error("🔥 COMPLETE PICKUP ERROR FULL:", error);
-    res.status(500).json({
-      message: error.message,
-    });
+    await session.abortTransaction();
+    session.endSession();
+
+    console.error("🔥 COMPLETE PICKUP ERROR:", error);
+    res.status(500).json({ message: error.message });
   }
 });
+
 
 
 /* ================= RIDER EARNINGS ================= */
