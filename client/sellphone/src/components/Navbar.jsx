@@ -24,14 +24,17 @@ const Navbar = () => {
   const [desktopCartOpen, setDesktopCartOpen] = useState(false);
 
   const cartRef = useRef(null);
+  const mobileMenuRef = useRef(null);
 
   const isAuthPage = location.pathname.startsWith("/auth");
 
+  // Close menus on route change
   useEffect(() => {
     setMobileMenuOpen(false);
     setDesktopCartOpen(false);
   }, [location.pathname]);
 
+  // Desktop cart click outside handler
   useEffect(() => {
     const handler = (e) => {
       if (cartRef.current && !cartRef.current.contains(e.target)) {
@@ -41,6 +44,22 @@ const Navbar = () => {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  // Mobile menu click outside handler
+  useEffect(() => {
+    const handler = (e) => {
+      if (
+        mobileMenuOpen &&
+        mobileMenuRef.current &&
+        !mobileMenuRef.current.contains(e.target) &&
+        !e.target.closest("[data-hamburger]")
+      ) {
+        setMobileMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [mobileMenuOpen]);
 
   const handleLogout = async () => {
     await auth.signOut();
@@ -59,32 +78,35 @@ const Navbar = () => {
     return (
       <Link
         to={to}
-        className="relative text-sm font-medium text-gray-600 hover:text-black transition duration-300"
+        className={`
+          relative text-sm font-medium text-neutral-700 hover:text-black transition-all duration-200 ease-out
+          after:absolute after:bottom-0 after:left-0 after:h-[2px] after:bg-black 
+          after:transition-all after:duration-200 after:ease-out
+          ${
+            isActive
+              ? "after:w-full text-black"
+              : "after:w-0 hover:after:w-full"
+          }
+        `}
       >
         {label}
-        <span
-          className={`
-            absolute left-0 -bottom-2 h-[1.5px] bg-black transition-all duration-300
-            ${isActive ? "w-full" : "w-0"}
-          `}
-        />
       </Link>
     );
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full backdrop-blur-2xl bg-white/70 border-b border-white/40">
-      <div className="max-w-7xl mx-auto px-8 h-16 flex items-center justify-between">
-        {/* LOGO */}
+    <header className="sticky top-0 z-50 w-full border-b border-neutral-200/50 bg-white/80 backdrop-blur-xl supports-[backdrop-filter:blur(20px)]:bg-white/90">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        {/* LOGO - Apple style */}
         <div
           onClick={() => navigate("/")}
-          className="cursor-pointer text-xl font-semibold tracking-tight text-gray-900"
+          className="cursor-pointer text-xl font-semibold tracking-tight text-black hover:opacity-80 transition-opacity duration-200 select-none"
         >
           SalePhone
         </div>
 
         {/* DESKTOP NAV */}
-        <div className="hidden lg:flex items-center gap-12">
+        <nav className="hidden lg:flex items-center gap-10">
           <NavLink to="/phones" label="Browse Phones" />
           <NavLink to="/sale" label="Sell Phone" />
 
@@ -95,64 +117,67 @@ const Navbar = () => {
             </>
           )}
 
-          {/* CART */}
+          {/* DESKTOP CART */}
           <div className="relative" ref={cartRef}>
             <button
               onClick={() => setDesktopCartOpen((v) => !v)}
-              className="relative p-2 hover:opacity-70 transition"
+              className="relative p-1.5 hover:bg-neutral-100 rounded-full transition-all duration-200"
+              data-testid="desktop-cart"
             >
-              <FiShoppingCart size={20} />
+              <FiShoppingCart className="w-5.5 h-5.5 text-neutral-700" />
               {cartCount > 0 && (
-                <span className="absolute -top-2 -right-2 w-5 h-5 bg-black text-white text-[11px] rounded-full flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 w-5 h-5 bg-black text-white text-xs rounded-full flex items-center justify-center font-medium">
                   {cartCount}
                 </span>
               )}
             </button>
 
+            {/* Desktop Cart Dropdown */}
             {desktopCartOpen && (
-              <div
-                className="
-                absolute right-0 mt-5 w-96
-                bg-white/90 backdrop-blur-xl
-                rounded-3xl
-                shadow-[0_30px_80px_rgba(0,0,0,0.08)]
-                p-8
-                space-y-6
-              "
-              >
+              <div className="absolute right-0 mt-2 w-80 bg-white/95 backdrop-blur-xl border border-neutral-200 rounded-2xl shadow-xl p-6 space-y-4 origin-top-right animate-in slide-in-from-top-2 duration-200">
                 {cartItems.length === 0 ? (
-                  <p className="text-gray-500 text-sm text-center">
-                    Your cart is empty
-                  </p>
+                  <div className="text-center py-8">
+                    <div className="w-12 h-12 mx-auto mb-3 bg-neutral-100 rounded-xl flex items-center justify-center">
+                      <FiShoppingCart className="w-6 h-6 text-neutral-400" />
+                    </div>
+                    <p className="text-neutral-500 text-sm font-medium">
+                      Your cart is empty
+                    </p>
+                  </div>
                 ) : (
                   <>
-                    {cartItems.map((item) => (
-                      <div
-                        key={item.phone._id}
-                        className="flex justify-between items-start text-sm"
-                      >
-                        <div>
-                          <p className="font-medium text-gray-900">
-                            {item.phone.brand}
-                          </p>
-                          <p className="text-gray-500">{item.phone.model}</p>
-                        </div>
-                        <button
-                          onClick={() =>
-                            dispatch(removeFromCart(item.phone._id))
-                          }
-                          className="text-xs text-gray-400 hover:text-red-500 transition"
+                    <div className="space-y-3 max-h-64 overflow-y-auto">
+                      {cartItems.map((item) => (
+                        <div
+                          key={item.phone._id}
+                          className="flex items-start justify-between gap-3 p-3 hover:bg-neutral-50 rounded-xl transition-colors"
                         >
-                          Remove
-                        </button>
-                      </div>
-                    ))}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-neutral-900 truncate">
+                              {item.phone.brand}
+                            </p>
+                            <p className="text-neutral-500 text-sm truncate">
+                              {item.phone.model}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() =>
+                              dispatch(removeFromCart(item.phone._id))
+                            }
+                            className="text-xs text-neutral-400 hover:text-red-500 font-medium px-2 py-1 hover:bg-red-50 rounded-lg transition-all duration-150"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))}
+                    </div>
 
                     <Link
                       to="/cart"
-                      className="block text-center bg-black text-white py-3 rounded-full text-sm font-medium hover:opacity-90 transition"
+                      className="block w-full bg-black text-white py-3 rounded-xl text-sm font-semibold text-center hover:bg-neutral-900 transition-all duration-200"
+                      onClick={() => setDesktopCartOpen(false)}
                     >
-                      View Cart
+                      View Cart ({cartCount})
                     </Link>
                   </>
                 )}
@@ -160,68 +185,115 @@ const Navbar = () => {
             )}
           </div>
 
-          {/* AUTH */}
+          {/* AUTH BUTTONS */}
           {user ? (
             <button
               onClick={handleLogout}
-              className="text-sm text-gray-600 hover:text-black transition"
+              className="text-sm font-medium text-neutral-700 hover:text-black px-4 py-2 hover:bg-neutral-100 rounded-full transition-all duration-200"
             >
               Logout
             </button>
           ) : (
             <Link
               to="/auth"
-              className="px-6 py-2.5 rounded-full bg-black text-white text-sm font-medium hover:opacity-90 transition"
+              className="px-6 py-2.5 bg-black text-white text-sm font-semibold rounded-full hover:bg-neutral-900 hover:shadow-lg hover:shadow-black/10 transition-all duration-200 active:scale-[0.98]"
             >
               Sign In
             </Link>
           )}
-        </div>
+        </nav>
 
-        {/* MOBILE */}
-        <div className="lg:hidden flex items-center gap-5">
-          <button onClick={() => navigate("/cart")} className="relative">
-            <FiShoppingCart size={22} />
+        {/* MOBILE ACTIONS */}
+        <div className="lg:hidden flex items-center gap-4">
+          <button
+            onClick={() => navigate("/cart")}
+            className="relative p-1.5 hover:bg-neutral-100 rounded-full transition-all duration-200"
+            data-testid="mobile-cart"
+          >
+            <FiShoppingCart className="w-6 h-6 text-neutral-700" />
             {cartCount > 0 && (
-              <span className="absolute -top-2 -right-2 w-5 h-5 bg-black text-white text-[11px] rounded-full flex items-center justify-center">
+              <span className="absolute -top-1 -right-1 w-5 h-5 bg-black text-white text-xs rounded-full flex items-center justify-center font-medium">
                 {cartCount}
               </span>
             )}
           </button>
 
-          <button onClick={() => setMobileMenuOpen((v) => !v)}>
-            {mobileMenuOpen ? <FiX size={22} /> : <FiMenu size={22} />}
+          {/* HAMBURGER BUTTON - FIXED */}
+          <button
+            ref={(el) => el && el.setAttribute("data-hamburger", "true")}
+            onClick={() => setMobileMenuOpen((v) => !v)}
+            className="p-1.5 hover:bg-neutral-100 rounded-full transition-all duration-200 lg:hidden z-50"
+            data-testid="hamburger"
+          >
+            {mobileMenuOpen ? (
+              <FiX className="w-6 h-6 text-neutral-700" />
+            ) : (
+              <FiMenu className="w-6 h-6 text-neutral-700" />
+            )}
           </button>
         </div>
       </div>
 
-      {/* MOBILE MENU */}
+      {/* MOBILE MENU - FIXED & APPLE-STYLED */}
       {mobileMenuOpen && (
-        <div className="lg:hidden bg-white/95 backdrop-blur-xl border-t border-gray-100">
-          <div className="px-8 py-8 space-y-6 text-base font-medium text-gray-700">
-            <Link to="/phones">Browse Phones</Link>
-            <Link to="/sale">Sell Phone</Link>
+        <div
+          ref={mobileMenuRef}
+          className="lg:hidden absolute top-full left-0 right-0 z-40 bg-white/95 backdrop-blur-2xl border-t border-neutral-200 shadow-xl animate-in slide-in-from-top-4 duration-200"
+        >
+          <nav className="px-6 pb-8 pt-6 space-y-2">
+            <Link
+              to="/phones"
+              className="block py-4 px-4 text-base font-semibold text-neutral-900 hover:bg-neutral-100 rounded-xl transition-all duration-200"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              Browse Phones
+            </Link>
+            <Link
+              to="/sale"
+              className="block py-4 px-4 text-base font-semibold text-neutral-900 hover:bg-neutral-100 rounded-xl transition-all duration-200"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              Sell Phone
+            </Link>
 
             {user && (
               <>
-                <Link to="/orders">Orders</Link>
-                <Link to="/my-sell-requests">My Sales</Link>
+                <Link
+                  to="/orders"
+                  className="block py-4 px-4 text-base font-semibold text-neutral-900 hover:bg-neutral-100 rounded-xl transition-all duration-200"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Orders
+                </Link>
+                <Link
+                  to="/my-sell-requests"
+                  className="block py-4 px-4 text-base font-semibold text-neutral-900 hover:bg-neutral-100 rounded-xl transition-all duration-200"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  My Sales
+                </Link>
               </>
             )}
 
-            {user ? (
-              <button onClick={handleLogout} className="block text-left w-full">
-                Logout
-              </button>
-            ) : (
-              <Link
-                to="/auth"
-                className="block text-center bg-black text-white py-3 rounded-full"
-              >
-                Sign In
-              </Link>
-            )}
-          </div>
+            <div className="pt-4 mt-4 border-t border-neutral-200">
+              {user ? (
+                <button
+                  onClick={handleLogout}
+                  className="w-full text-left py-4 px-4 text-base font-semibold text-neutral-900 hover:bg-neutral-100 rounded-xl transition-all duration-200"
+                >
+                  Logout
+                </button>
+              ) : (
+                <Link
+                  to="/auth"
+                  className="block w-full bg-black text-white py-4 px-6 rounded-xl text-base font-semibold text-center hover:bg-neutral-900 hover:shadow-lg hover:shadow-black/20 transition-all duration-200"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Sign In
+                </Link>
+              )}
+            </div>
+          </nav>
         </div>
       )}
     </header>
