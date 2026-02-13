@@ -2,39 +2,41 @@ import { Link } from "react-router-dom";
 
 const Footer = () => {
   return (
-    <footer className="bg-white border-t border-gray-200 mt-24">
-      <div className="max-w-6xl mx-auto px-5 md:px-6 py-16">
-        {/* GRID */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-12">
+    <footer className="bg-[#f5f5f7] border-t border-neutral-200">
+      <div className="max-w-7xl mx-auto px-6 lg:px-8 py-24">
+        {/* CENTERED GRID */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-20 text-center">
           {/* BRAND */}
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-4 tracking-tight">
+          <div className="flex flex-col items-center space-y-5">
+            <h2 className="text-lg font-semibold tracking-tight text-black">
               SalePhone
             </h2>
-            <p className="text-sm text-gray-500 leading-relaxed">
+
+            <p className="text-sm text-neutral-500 leading-relaxed max-w-xs">
               Buy and sell refurbished smartphones with confidence. Verified
-              devices, secure payments, fast delivery.
+              devices, secure payments and fast delivery.
             </p>
           </div>
 
           {/* SHOP */}
-          <div>
-            <h3 className="text-xs font-semibold text-gray-900 uppercase tracking-wider mb-4">
+          <div className="flex flex-col items-center space-y-5">
+            <h3 className="text-xs font-semibold uppercase tracking-widest text-neutral-900">
               Shop
             </h3>
-            <ul className="space-y-3 text-sm text-gray-500">
+
+            <ul className="space-y-3 text-sm text-neutral-500">
               <li>
-                <Link to="/" className="hover:text-gray-900 transition">
+                <Link to="/" className="hover:text-black transition">
                   Home
                 </Link>
               </li>
               <li>
-                <Link to="/phones" className="hover:text-gray-900 transition">
+                <Link to="/phones" className="hover:text-black transition">
                   Browse Phones
                 </Link>
               </li>
               <li>
-                <Link to="/cart" className="hover:text-gray-900 transition">
+                <Link to="/cart" className="hover:text-black transition">
                   Cart
                 </Link>
               </li>
@@ -42,47 +44,55 @@ const Footer = () => {
           </div>
 
           {/* SUPPORT */}
-          <div>
-            <h3 className="text-xs font-semibold text-gray-900 uppercase tracking-wider mb-4">
+          <div className="flex flex-col items-center space-y-5">
+            <h3 className="text-xs font-semibold uppercase tracking-widest text-neutral-900">
               Support
             </h3>
-            <ul className="space-y-3 text-sm text-gray-500">
-              <li className="hover:text-gray-900 transition cursor-pointer">
+
+            <ul className="space-y-3 text-sm text-neutral-500">
+              <li className="hover:text-black transition cursor-pointer">
                 Contact Us
               </li>
-              <li className="hover:text-gray-900 transition cursor-pointer">
+              <li className="hover:text-black transition cursor-pointer">
                 FAQs
               </li>
-              <li className="hover:text-gray-900 transition cursor-pointer">
+              <li className="hover:text-black transition cursor-pointer">
                 Terms & Conditions
               </li>
-              <li className="hover:text-gray-900 transition cursor-pointer">
+              <li className="hover:text-black transition cursor-pointer">
                 Privacy Policy
               </li>
             </ul>
           </div>
 
-          {/* SOCIAL */}
-          <div>
-            <h3 className="text-xs font-semibold text-gray-900 uppercase tracking-wider mb-4">
+          {/* FOLLOW */}
+          <div className="flex flex-col items-center space-y-5">
+            <h3 className="text-xs font-semibold uppercase tracking-widest text-neutral-900">
               Follow
             </h3>
-            <div className="flex gap-6 text-sm text-gray-500">
-              <a href="#" className="hover:text-gray-900 transition">
-                Instagram
-              </a>
-              <a href="#" className="hover:text-gray-900 transition">
-                Twitter
-              </a>
-              <a href="#" className="hover:text-gray-900 transition">
-                Facebook
-              </a>
-            </div>
+
+            <ul className="space-y-3 text-sm text-neutral-500">
+              <li>
+                <a href="#" className="hover:text-black transition">
+                  Instagram
+                </a>
+              </li>
+              <li>
+                <a href="#" className="hover:text-black transition">
+                  Twitter
+                </a>
+              </li>
+              <li>
+                <a href="#" className="hover:text-black transition">
+                  Facebook
+                </a>
+              </li>
+            </ul>
           </div>
         </div>
 
-        {/* BOTTOM */}
-        <div className="mt-16 pt-8 border-t border-gray-100 text-center text-xs text-gray-400">
+        {/* COPYRIGHT */}
+        <div className="mt-20 pt-8 border-t border-neutral-200 text-center text-xs text-neutral-400">
           © {new Date().getFullYear()} SalePhone. All rights reserved.
         </div>
       </div>
