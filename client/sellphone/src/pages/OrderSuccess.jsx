@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { CheckCircle2 } from "lucide-react";
+import { getAuth } from "firebase/auth";
 import API_BASE_URL from "../config/api";
 
 const OrderSuccess = () => {
@@ -16,31 +17,41 @@ const OrderSuccess = () => {
       return;
     }
 
-    const fetchOrder = async () => {
+    const auth = getAuth();
+
+    const unsubscribe = auth.onAuthStateChanged(async (user) => {
       try {
+        if (!user) throw new Error("User not authenticated");
+
+        const token = await user.getIdToken(true);
+
         const res = await fetch(`${API_BASE_URL}/api/orders/${orderId}`, {
-          credentials: "include",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
         });
 
+        if (!res.ok) {
+          throw new Error(`Failed with status ${res.status}`);
+        }
+
         const data = await res.json();
-
-        if (!res.ok) throw new Error("Order not found");
-
-        setOrder(data.order || data);
+        setOrder(data);
       } catch (err) {
         console.error("Order fetch failed:", err);
         setError(true);
       } finally {
         setLoading(false);
       }
-    };
+    });
 
-    fetchOrder();
+    return () => unsubscribe();
   }, [orderId]);
 
   if (loading) {
     return (
-      <div className="min-h-[70vh] flex items-center justify-center bg-[#f5f5f7] text-gray-400">
+      <div className="min-h-[100dvh] grid place-items-center bg-[#f5f5f7] text-gray-500">
         Loading order details…
       </div>
     );
@@ -48,7 +59,7 @@ const OrderSuccess = () => {
 
   if (error || !order) {
     return (
-      <div className="min-h-[70vh] flex flex-col items-center justify-center bg-[#f5f5f7] space-y-6 text-center">
+      <div className="min-h-[100dvh] grid place-items-center bg-[#f5f5f7] text-center space-y-6">
         <h2 className="text-3xl font-semibold text-gray-900">
           Unable to load order
         </h2>
@@ -65,42 +76,64 @@ const OrderSuccess = () => {
   const a = order.shippingAddress;
 
   return (
-    <div className="bg-[#f5f5f7] min-h-screen py-24">
-      <div className="max-w-4xl mx-auto px-6 space-y-24">
-        {/* ================= SUCCESS HEADER ================= */}
-        <div className="text-center space-y-8">
-          <div className="mx-auto w-28 h-28 rounded-full bg-green-50 flex items-center justify-center shadow-[0_20px_60px_rgba(0,0,0,0.05)]">
-            <CheckCircle2 className="text-green-500" size={56} />
+    <div className="relative min-h-[100dvh] grid place-items-center overflow-hidden bg-[#f5f5f7]">
+      {/* Ambient Background Glow */}
+      <div className="absolute inset-0 -z-10">
+        <div
+          className="absolute top-1/2 left-1/2 w-[900px] h-[900px]
+                        -translate-x-1/2 -translate-y-1/2
+                        bg-gradient-to-br from-blue-200 via-purple-200 to-pink-200
+                        opacity-40 blur-3xl rounded-full"
+        />
+      </div>
+
+      {/* Slight Upward Visual Balance */}
+      <div className="w-full max-w-3xl px-6 py-16 space-y-16 -translate-y-12">
+        {/* Success Header */}
+        <div className="flex flex-col items-center text-center space-y-6">
+          <div
+            className="w-24 h-24 rounded-full bg-white/60 backdrop-blur-md
+                          flex items-center justify-center shadow-xl
+                          border border-white/40"
+          >
+            <CheckCircle2 className="text-green-500" size={48} />
           </div>
 
-          <div className="space-y-4">
-            <h1 className="text-5xl font-semibold tracking-tight text-gray-900">
-              Order Confirmed
-            </h1>
+          <h1 className="text-4xl md:text-5xl font-semibold tracking-tight text-gray-900">
+            Order Confirmed
+          </h1>
 
-            <p className="text-lg text-gray-500 max-w-lg mx-auto leading-relaxed">
+          <div className="max-w-lg">
+            <p className="text-gray-500 leading-relaxed text-center">
               Thank you for your purchase. Your device is being prepared and
               will be shipped soon.
             </p>
           </div>
 
-          <div className="inline-flex items-center px-6 py-3 rounded-full bg-white shadow-[0_20px_60px_rgba(0,0,0,0.05)] text-sm text-gray-600">
+          <div
+            className="inline-flex items-center px-5 py-2 rounded-full
+                          bg-white/70 backdrop-blur-md border border-white/40
+                          shadow text-sm text-gray-700"
+          >
             Order ID:
-            <span className="ml-3 font-medium text-gray-900 break-all">
+            <span className="ml-2 font-medium text-gray-900 break-all">
               {order._id}
             </span>
           </div>
         </div>
 
-        {/* ================= ORDER DETAILS ================= */}
-        <div className="bg-white rounded-[40px] shadow-[0_30px_100px_rgba(0,0,0,0.06)] p-14 space-y-14">
-          {/* DELIVERY */}
+        {/* Glass Order Card */}
+        <div
+          className="bg-white/60 backdrop-blur-2xl border border-white/40
+                        rounded-3xl shadow-[0_30px_80px_rgba(0,0,0,0.08)]
+                        p-10 space-y-10"
+        >
           <div>
-            <h3 className="text-xs uppercase tracking-wide text-gray-400 mb-6">
+            <h3 className="text-xs uppercase tracking-wide text-gray-500 mb-4">
               Delivery Address
             </h3>
 
-            <p className="text-gray-700 text-base leading-relaxed">
+            <p className="text-gray-800 leading-relaxed">
               {a.name}
               <br />
               {a.line1}
@@ -111,46 +144,45 @@ const OrderSuccess = () => {
             </p>
           </div>
 
-          <div className="border-t border-gray-100" />
+          <div className="border-t border-white/40" />
 
-          {/* ITEMS */}
-          <div className="space-y-8">
+          <div className="space-y-6">
             {order.items.map((item, i) => (
               <div key={i} className="flex justify-between items-start">
                 <div>
                   <div className="text-lg font-medium text-gray-900">
                     {item.productId?.brand} {item.productId?.model}
                   </div>
-                  <div className="text-sm text-gray-400 mt-2">
+                  <div className="text-sm text-gray-500 mt-1">
                     Quantity: {item.quantity}
                   </div>
                 </div>
 
-                <div className="text-lg font-medium text-gray-900">
+                <div className="text-lg font-semibold text-gray-900">
                   ₹{(item.price * item.quantity).toLocaleString("en-IN")}
                 </div>
               </div>
             ))}
           </div>
 
-          <div className="border-t border-gray-100 pt-8 flex justify-between text-2xl font-semibold text-gray-900">
+          <div className="border-t border-white/40 pt-6 flex justify-between text-xl font-semibold text-gray-900">
             <span>Total Paid</span>
             <span>₹{Number(order.totalAmount).toLocaleString("en-IN")}</span>
           </div>
         </div>
 
-        {/* ================= ACTIONS ================= */}
-        <div className="flex justify-center gap-8 flex-wrap">
+        {/* Actions */}
+        <div className="flex justify-center gap-6 flex-wrap">
           <Link
             to="/orders"
-            className="px-10 py-4 rounded-full bg-black text-white font-medium hover:scale-[1.02] transition"
+            className="px-8 py-3 rounded-full bg-black text-white font-medium hover:scale-[1.02] transition"
           >
             View My Orders
           </Link>
 
           <Link
             to="/phones"
-            className="px-10 py-4 rounded-full border border-gray-300 text-gray-700 font-medium hover:bg-gray-100 transition"
+            className="px-8 py-3 rounded-full border border-gray-300 text-gray-800 font-medium hover:bg-white/40 backdrop-blur-md transition"
           >
             Continue Shopping
           </Link>

@@ -91,16 +91,15 @@ const Phones = () => {
               <div className="flex flex-col lg:flex-row gap-6 lg:items-center lg:justify-between">
                 {/* SEARCH */}
                 <div className="relative w-full lg:max-w-md">
-                  <div className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400">
-                    🔍
-                  </div>
-
                   <input
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder="Search by brand or model"
                     className="w-full bg-[#f2f2f4] rounded-full pl-12 pr-6 py-3.5 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-black/10 transition"
                   />
+                  <div className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400">
+                    🔍
+                  </div>
                 </div>
 
                 {/* SORT */}

@@ -126,20 +126,24 @@ export const getUserOrders = async (req, res) => {
 ====================================================== */
 export const getOrderById = async (req, res) => {
   try {
-    const order = await Order.findById(req.params.id)
-    .populate("items.productId")
-    .lean();
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
 
+    const requestUid = req.user.uid || req.user.id;
+
+    const order = await Order.findById(req.params.id)
+      .populate("items.productId")
+      .lean();
 
     if (!order) {
       return res.status(404).json({ message: "Order not found" });
     }
 
-    if (req.user.role !== "admin" && order.user.uid !== req.user.uid) {
+    if (req.user.role !== "admin" && order.user.uid !== requestUid) {
       return res.status(403).json({ message: "Access denied" });
     }
 
-    // 🔒 Hide invoice until delivered
     if (order.status !== "Delivered") {
       delete order.invoiceUrl;
       delete order.invoiceNumber;
