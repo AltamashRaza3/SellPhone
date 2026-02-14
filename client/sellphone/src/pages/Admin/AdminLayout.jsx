@@ -1,26 +1,44 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { clearAdmin } from "../../redux/slices/adminSlice";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FiMenu, FiX } from "react-icons/fi";
 import API_BASE_URL from "../../config/api";
 
 /* ================== STYLES ================== */
 const baseLink =
-  "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition";
+  "flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition";
 
 const inactive = "text-gray-400 hover:text-white hover:bg-white/10";
 
 const active =
   "bg-gradient-to-r from-orange-500/30 to-orange-600/10 text-orange-400 ring-1 ring-orange-500/30";
 
-/* ================== COMPONENT ================== */
 const AdminLayout = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
-  /* 🔐 ADMIN LOGOUT (JWT BASED) */
+  /* ================= LOAD ALERT COUNT ================= */
+  useEffect(() => {
+    const fetchCount = async () => {
+      try {
+        const res = await fetch(
+          `${API_BASE_URL}/api/admin/alerts/unread-count`,
+          { credentials: "include" },
+        );
+        const data = await res.json();
+        if (data.success) setUnreadCount(data.count);
+      } catch {}
+    };
+
+    fetchCount();
+    const interval = setInterval(fetchCount, 15000);
+    return () => clearInterval(interval);
+  }, []);
+
+  /* ================= LOGOUT ================= */
   const handleLogout = async () => {
     try {
       await fetch(`${API_BASE_URL}/api/admin/logout`, {
@@ -71,8 +89,8 @@ const AdminLayout = () => {
           </button>
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 px-4 py-6 space-y-1">
+        {/* ================= NAVIGATION ================= */}
+        <nav className="flex-1 px-4 py-6 space-y-2">
           <NavLink
             to="/admin"
             end
@@ -81,7 +99,7 @@ const AdminLayout = () => {
               `${baseLink} ${isActive ? active : inactive}`
             }
           >
-            📊 Dashboard
+            <span>📊 Dashboard</span>
           </NavLink>
 
           <NavLink
@@ -91,7 +109,7 @@ const AdminLayout = () => {
               `${baseLink} ${isActive ? active : inactive}`
             }
           >
-            📦 Orders
+            <span>📦 Orders</span>
           </NavLink>
 
           <NavLink
@@ -101,7 +119,7 @@ const AdminLayout = () => {
               `${baseLink} ${isActive ? active : inactive}`
             }
           >
-            📱 Products
+            <span>📱 Products</span>
           </NavLink>
 
           <NavLink
@@ -111,7 +129,7 @@ const AdminLayout = () => {
               `${baseLink} ${isActive ? active : inactive}`
             }
           >
-            🔁 Sale Requests
+            <span>🔁 Sale Requests</span>
           </NavLink>
 
           <NavLink
@@ -121,18 +139,49 @@ const AdminLayout = () => {
               `${baseLink} ${isActive ? active : inactive}`
             }
           >
-            📦 Inventory
+            <span>📦 Inventory</span>
+          </NavLink>
+
+          <NavLink
+            to="/admin/riders"
+            onClick={() => setSidebarOpen(false)}
+            className={({ isActive }) =>
+              `${baseLink} ${isActive ? active : inactive}`
+            }
+          >
+            <span>🛵 Riders</span>
+          </NavLink>
+
+          {/* NEW: Rider Performance */}
+          <NavLink
+            to="/admin/rider-performance"
+            onClick={() => setSidebarOpen(false)}
+            className={({ isActive }) =>
+              `${baseLink} ${isActive ? active : inactive}`
+            }
+          >
+            <span>📈 Rider Performance</span>
+          </NavLink>
+
+          {/* NEW: Alerts */}
+          <NavLink
+            to="/admin/alerts"
+            onClick={() => setSidebarOpen(false)}
+            className={({ isActive }) =>
+              `${baseLink} ${isActive ? active : inactive}`
+            }
+          >
+            <span>🚨 Alerts</span>
+
+            {unreadCount > 0 && (
+              <span className="text-xs bg-red-600 text-white px-2 py-0.5 rounded-full">
+                {unreadCount}
+              </span>
+            )}
           </NavLink>
         </nav>
-        <NavLink
-          to="/admin/riders"
-          className={({ isActive }) =>
-            `${baseLink} ${isActive ? active : inactive}`
-          }
-        >
-          🛵 Riders
-        </NavLink>
-        {/* Logout */}
+
+        {/* ================= LOGOUT ================= */}
         <div className="px-4 py-6 border-t border-white/10">
           <button
             onClick={handleLogout}
@@ -145,9 +194,8 @@ const AdminLayout = () => {
         </div>
       </aside>
 
-      {/* ================= MAIN CONTENT ================= */}
+      {/* ================= MAIN ================= */}
       <div className="flex-1 flex flex-col">
-        {/* Mobile Top Bar */}
         <header className="md:hidden flex items-center gap-4 px-6 py-4 border-b border-white/10 bg-black/50 backdrop-blur">
           <button
             onClick={() => setSidebarOpen(true)}
@@ -160,7 +208,6 @@ const AdminLayout = () => {
           </h2>
         </header>
 
-        {/* Page Content */}
         <main className="flex-1 p-6 md:p-10 overflow-y-auto">
           <Outlet />
         </main>

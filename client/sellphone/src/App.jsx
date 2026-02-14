@@ -57,6 +57,8 @@ import AdminSellPhones from "./pages/Admin/AdminSellPhones";
 import AdminTimeline from "./pages/Admin/AdminTimeline";
 import AdminInventory from "./pages/Admin/AdminInventory";
 import AdminRiders from "./pages/Admin/AdminRider";
+import AdminAlerts from "./pages/Admin/AdminAlerts";
+import RiderPerformance from "./pages/Admin/RiderPerformance";
 
 /* ================= UI ================= */
 import { Toaster } from "react-hot-toast";
@@ -328,6 +330,11 @@ const App = () => {
             <Route path="riders" element={<AdminRiders />} />
             <Route path="inventory" element={<AdminInventory />} />
           </Route>
+          <Route path="/admin/alerts" element={<AdminAlerts />} />
+          <Route
+            path="/admin/rider-performance"
+            element={<RiderPerformance />}
+          />
         </Routes>
       )}
 
