@@ -22,6 +22,7 @@ import adminRoutes from "../routes/adminRoutes.js";
 import adminOrderRoutes from "../routes/adminOrderRoutes.js";
 import adminSellRequestRoutes from "../routes/adminSellRequest.routes.js";
 import adminRiderRoutes from "../routes/adminRider.routes.js";
+import adminAlertRoutes from "../routes/adminAlert.routes.js";
 import adminInventoryRoutes from "../routes/admin.inventory.routes.js";
 
 import riderRoutes from "../routes/rider.routes.js";
@@ -99,6 +100,8 @@ app.use("/api/admin/riders", adminRiderRoutes);
 app.use("/api/admin/inventory", adminInventoryRoutes);
 app.use("/api/admin", adminProductsRoutes);
 app.use("/api/invoices", adminInvoiceRoutes);
+app.use("/api/admin/alerts", adminAlertRoutes);
+
 /* ================= RIDER ================= */
 app.use("/api/rider", riderRoutes);
 
