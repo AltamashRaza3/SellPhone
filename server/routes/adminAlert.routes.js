@@ -7,6 +7,7 @@ import {
 } from "../controllers/adminAlert.controller.js";
 
 const router = express.Router();
+console.log("🔥 Admin Alert Routes Loaded");
 
 /* ================= ADMIN ALERTS ================= */
 router.get("/", adminAuth, getAdminAlerts);

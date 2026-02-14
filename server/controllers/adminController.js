@@ -1,14 +1,17 @@
 import Admin from "../models/Admin.js";
 import jwt from "jsonwebtoken";
 
-/* ================= JWT ================= */
-const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: "7d",
-  });
+const generateToken = (admin) => {
+  return jwt.sign(
+    {
+      id: admin._id,
+      role: "admin",
+    },
+    process.env.JWT_SECRET,
+    { expiresIn: "7d" }
+  );
 };
 
-/* ================= ADMIN LOGIN ================= */
 export const adminLogin = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -23,19 +26,14 @@ export const adminLogin = async (req, res) => {
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
-    const token = jwt.sign(
-      {
-        id: admin._id,
-        role: "admin",
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: "7d" }
-    );
+    const token = generateToken(admin);
+
+    const isProduction = process.env.NODE_ENV === "production";
 
     res.cookie("admin_token", token, {
       httpOnly: true,
-      secure: true,
-      sameSite: "none",
+      secure: isProduction,
+      sameSite: isProduction ? "none" : "lax",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
@@ -55,11 +53,14 @@ export const adminLogin = async (req, res) => {
 
 /* ================= ADMIN LOGOUT ================= */
 export const adminLogout = (req, res) => {
+  const isProduction = process.env.NODE_ENV === "production";
+
   res.clearCookie("admin_token", {
-  httpOnly: true,
-  secure: true,
-  sameSite: "none",
-});
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? "none" : "lax",
+  });
+
   res.json({ message: "Admin logged out successfully" });
 };
 

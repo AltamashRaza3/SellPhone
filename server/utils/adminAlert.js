@@ -4,10 +4,18 @@ export const createAdminAlert = async ({
   sellRequestId,
   message,
   type = "pickup_rejected",
+  severity = "medium",
 }) => {
-  await AdminAlert.create({
-    type,
-    sellRequestId,
-    message,
-  });
+  try {
+    await AdminAlert.create({
+      type,
+      sellRequestId,
+      message,
+      severity,
+    });
+  } catch (error) {
+    console.error("ADMIN ALERT ERROR:", error);
+  }
 };
+
+

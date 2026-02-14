@@ -5,6 +5,7 @@ import path from "path";
 import mongoose from "mongoose";
 import SellRequest from "../src/models/SellRequest.js";
 import InventoryItem from "../models/InventoryItem.js";
+import { createAdminAlert } from "../utils/adminAlert.js";
 
 import riderAuth from "../middleware/riderAuth.js";
 import { sendOtp, verifyOtp } from "../controllers/riderAuth.controller.js";
@@ -215,6 +216,55 @@ router.put("/pickups/:id/complete", riderAuth, async (req, res) => {
         message: "Final price missing",
       });
     }
+/* ================= REJECT PICKUP ================= */
+router.put("/pickups/:id/reject", riderAuth, async (req, res) => {
+  try {
+    const { reason } = req.body;
+
+    if (!reason || !reason.trim()) {
+      return res.status(400).json({
+        message: "Reject reason is required",
+      });
+    }
+
+    const request = await SellRequest.findOne({
+      _id: req.params.id,
+      "assignedRider.riderId": req.rider.riderId,
+      "pickup.status": { $in: ["Scheduled", "Picked"] },
+    });
+
+    if (!request) {
+      return res.status(404).json({ message: "Pickup not found" });
+    }
+
+    request.pickup.status = "Rejected";
+    request.pickup.rejectReason = reason;
+    request.pickup.rejectedAt = new Date();
+
+    request.statusHistory.push({
+      status: "Pickup Rejected",
+      changedBy: "rider",
+      note: reason,
+    });
+
+    await request.save();
+
+    /* ================= ADMIN ALERT ================= */
+    await createAdminAlert({
+      sellRequestId: request._id,
+      message: `Pickup rejected by rider: ${reason}`,
+      type: "pickup_rejected",
+    });
+
+    res.json({
+      success: true,
+      message: "Pickup rejected successfully",
+    });
+  } catch (err) {
+    console.error("REJECT PICKUP ERROR:", err);
+    res.status(500).json({ message: "Failed to reject pickup" });
+  }
+});
 
     /* ================= SAFE CONDITION ================= */
     const validConditions = ["Like New", "Excellent", "Good", "Fair"];
