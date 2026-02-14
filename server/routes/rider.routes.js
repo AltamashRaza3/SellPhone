@@ -174,48 +174,6 @@ router.put("/pickups/:id/verify", riderAuth, async (req, res) => {
   }
 });
 
-/* ================= COMPLETE PICKUP (🔥 INVENTORY + PAYOUT) ================= */
-
-router.put("/pickups/:id/complete", riderAuth, async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
-  try {
-    const request = await SellRequest.findOne({
-      _id: req.params.id,
-      "assignedRider.riderId": req.rider.riderId,
-    }).session(session);
-
-    if (!request) {
-      await session.abortTransaction();
-      session.endSession();
-      return res.status(404).json({ message: "Pickup not found" });
-    }
-
-    if (request.pickup.status === "Completed") {
-      await session.abortTransaction();
-      session.endSession();
-      return res.status(409).json({ message: "Pickup already completed" });
-    }
-
-    if (
-      request.pickup.status !== "Picked" ||
-      request.verification.userAccepted !== true
-    ) {
-      await session.abortTransaction();
-      session.endSession();
-      return res.status(409).json({
-        message: "User acceptance required before completion",
-      });
-    }
-
-    if (!request.verification?.finalPrice) {
-      await session.abortTransaction();
-      session.endSession();
-      return res.status(400).json({
-        message: "Final price missing",
-      });
-    }
 /* ================= REJECT PICKUP ================= */
 router.put("/pickups/:id/reject", riderAuth, async (req, res) => {
   try {
@@ -265,6 +223,49 @@ router.put("/pickups/:id/reject", riderAuth, async (req, res) => {
     res.status(500).json({ message: "Failed to reject pickup" });
   }
 });
+
+/* ================= COMPLETE PICKUP (🔥 INVENTORY + PAYOUT) ================= */
+
+router.put("/pickups/:id/complete", riderAuth, async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const request = await SellRequest.findOne({
+      _id: req.params.id,
+      "assignedRider.riderId": req.rider.riderId,
+    }).session(session);
+
+    if (!request) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(404).json({ message: "Pickup not found" });
+    }
+
+    if (request.pickup.status === "Completed") {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(409).json({ message: "Pickup already completed" });
+    }
+
+    if (
+      request.pickup.status !== "Picked" ||
+      request.verification.userAccepted !== true
+    ) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(409).json({
+        message: "User acceptance required before completion",
+      });
+    }
+
+    if (!request.verification?.finalPrice) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({
+        message: "Final price missing",
+      });
+    }
 
     /* ================= SAFE CONDITION ================= */
     const validConditions = ["Like New", "Excellent", "Good", "Fair"];
