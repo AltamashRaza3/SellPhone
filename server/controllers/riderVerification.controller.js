@@ -34,7 +34,7 @@ export const verifyDevice = async (req, res) => {
     /* ================= ADMIN APPROVAL CHECK ================= */
     if (sellRequest.admin?.status !== "Approved") {
       return res.status(409).json({
-        message: "Admin approval required before device verification",
+        message: "Admin approval required before verification",
       });
     }
 
@@ -62,11 +62,57 @@ export const verifyDevice = async (req, res) => {
       });
     }
 
+    /* ================= MINIMUM 3 IMAGE RULE ================= */
+    const images = sellRequest.verification?.images || [];
+    if (images.length < 3) {
+      return res.status(400).json({
+        message: "Minimum 3 verification images required",
+      });
+    }
+
+    /* ================= CHECKLIST LOGIC ================= */
+    const values = Object.values(checks);
+    const allChecked = values.every(Boolean);
+    const allUnchecked = values.every(v => !v);
+
+    /* AUTO REJECT IF ALL FAILED */
+    if (allUnchecked) {
+      sellRequest.pickup.status = "Rejected";
+      sellRequest.pickup.rejectReason =
+        "Device failed all verification checks";
+
+      sellRequest.statusHistory.push({
+        status: "Auto Rejected",
+        changedBy: "system",
+        note: "All verification checks failed",
+        changedAt: new Date(),
+      });
+
+      await sellRequest.save();
+
+      await createAdminAlert({
+        sellRequestId: sellRequest._id,
+        message: "Device auto-rejected (all checks failed)",
+      });
+
+      return res.status(400).json({
+        message: "Device auto-rejected due to failed checks",
+      });
+    }
+
+    /* IF PARTIAL FAILURE → FORCE RIDER TO REJECT */
+    if (!allChecked) {
+      return res.status(400).json({
+        message:
+          "All checklist items must be confirmed. Reject if condition fails.",
+      });
+    }
+
     /* ================= BASE PRICE CHECK ================= */
     const basePrice = sellRequest.pricing?.basePrice;
     if (typeof basePrice !== "number") {
       return res.status(500).json({
-        message: "Base price missing for this request",
+        message: "Base price missing",
       });
     }
 
@@ -79,6 +125,7 @@ export const verifyDevice = async (req, res) => {
 
     /* ================= SAVE VERIFICATION ================= */
     sellRequest.verification = {
+      ...sellRequest.verification,
       checks,
       deductions,
       totalDeduction,
@@ -99,7 +146,7 @@ export const verifyDevice = async (req, res) => {
 
     await sellRequest.save();
 
-    /* ================= USER NOTIFICATION (NON-BLOCKING) ================= */
+    /* ================= USER NOTIFICATION ================= */
     notifyUser({
       user: sellRequest.user,
       type: "FINAL_PRICE_READY",
@@ -115,6 +162,7 @@ export const verifyDevice = async (req, res) => {
       finalPrice,
       deductions,
     });
+
   } catch (error) {
     console.error("RIDER VERIFY ERROR:", error);
     return res.status(500).json({
@@ -122,3 +170,4 @@ export const verifyDevice = async (req, res) => {
     });
   }
 };
+

@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import riderApi from "../api/riderApi";
+import API_BASE_URL from "../config/api";
 import { FiPhoneCall, FiMapPin } from "react-icons/fi";
 import { FaWhatsapp } from "react-icons/fa";
-import API_BASE_URL from "../config/api";
 
-/* ================= VERIFICATION CHECKLIST ================= */
+/* ================= CHECKLIST ================= */
 const VERIFICATION_CHECKS = {
   screenIntact: "Screen intact",
   noBodyDent: "No body dents",
@@ -37,7 +37,7 @@ const PickupDetails = () => {
 
   const [rejectReason, setRejectReason] = useState("");
 
-  /* ================= LOAD PICKUP ================= */
+  /* ================= LOAD ================= */
   const loadPickup = async (silent = false) => {
     try {
       const res = await riderApi.get(`/pickups/${id}`);
@@ -49,33 +49,24 @@ const PickupDetails = () => {
     }
   };
 
-  /* ================= POLLING ================= */
   useEffect(() => {
     loadPickup();
-
-    const interval = setInterval(() => {
-      loadPickup(true);
-    }, 5000);
-
+    const interval = setInterval(() => loadPickup(true), 5000);
     return () => clearInterval(interval);
   }, [id]);
 
-  /* ================= LOADING STATES ================= */
-  if (loading) {
+  if (loading)
     return (
       <div className="py-24 text-center text-gray-500 text-sm">
         Loading pickup…
       </div>
     );
-  }
 
-  if (!pickup) {
+  if (!pickup)
     return (
       <div className="py-24 text-center text-gray-500">Pickup not found</div>
     );
-  }
 
-  /* ================= SAFE DATA ================= */
   const {
     phone = {},
     pickup: p = {},
@@ -94,20 +85,18 @@ const PickupDetails = () => {
   const isVerified = Boolean(verification?.finalPrice);
   const userAccepted = verification?.userAccepted === true;
 
-  const hasVerificationImages =
+  const canWork = !isRejected && !isCompleted && !isVerified;
+
+  const hasImages =
     Array.isArray(verification?.images) && verification.images.length > 0;
 
-  const hasChecksSelected = Object.values(checks).some(Boolean);
+  const canVerify = canWork && hasImages && Object.values(checks).some(Boolean);
 
-  const canUpload = !isRejected && (isScheduled || isPicked) && !isVerified;
-  const canVerify = canUpload && hasVerificationImages && hasChecksSelected;
+  const canComplete = isPicked && isVerified && userAccepted;
 
-  const canComplete = !isRejected && isPicked && isVerified && userAccepted;
-
-  /* ================= IMAGE HANDLING ================= */
+  /* ================= FILE UPLOAD ================= */
   const handleFileSelect = (e) => {
-    const files = Array.from(e.target.files || []);
-    setImages(files);
+    setImages(Array.from(e.target.files || []));
   };
 
   const uploadImages = async () => {
@@ -128,16 +117,7 @@ const PickupDetails = () => {
 
   const resolveImageUrl = (img) => {
     if (!img) return "";
-
-    if (typeof img === "string") {
-      return img.startsWith("http") ? img : `${API_BASE_URL}${img}`;
-    }
-
-    if (typeof img === "object" && img.url) {
-      return img.url.startsWith("http") ? img.url : `${API_BASE_URL}${img.url}`;
-    }
-
-    return "";
+    return img.startsWith("http") ? img : `${API_BASE_URL}${img}`;
   };
 
   /* ================= ACTIONS ================= */
@@ -146,7 +126,9 @@ const PickupDetails = () => {
 
     setVerifying(true);
     try {
-      await riderApi.put(`/pickups/${id}/verify`, { checks });
+      await riderApi.put(`/pickups/${id}/verify`, {
+        checks,
+      });
       await loadPickup();
     } finally {
       setVerifying(false);
@@ -155,14 +137,13 @@ const PickupDetails = () => {
 
   const completePickup = async () => {
     if (!canComplete) return;
-
     await riderApi.put(`/pickups/${id}/complete`);
     navigate("/pickups");
   };
 
   const rejectPickup = async () => {
     if (!rejectReason.trim()) return;
-    if (!window.confirm("Escalate this issue to admin?")) return;
+    if (!window.confirm("Escalate to admin?")) return;
 
     setRejecting(true);
     try {
@@ -176,7 +157,7 @@ const PickupDetails = () => {
   };
 
   const mapQuery = encodeURIComponent(
-    `${p.address?.line1 || ""} ${p.address?.city || ""} ${p.address?.pincode || ""}`,
+    `${p.address?.line1 || ""} ${p.address?.city || ""}`,
   );
 
   /* ================= UI ================= */
@@ -185,47 +166,147 @@ const PickupDetails = () => {
       {/* BACK */}
       <button
         onClick={() => navigate("/pickups")}
-        className="text-sm text-gray-500 hover:text-gray-900 transition"
+        className="text-sm text-gray-500"
       >
         ← Back to pickups
       </button>
 
       {/* DEVICE CARD */}
-      <div className="bg-white rounded-3xl p-8 shadow-sm space-y-6">
-        <div>
-          <h2 className="text-xl font-semibold text-gray-900">
-            {phone.brand} {phone.model}
-          </h2>
-          <p className="text-sm text-gray-500 mt-2">
-            {phone.storage} • {phone.color} • {phone.declaredCondition}
-          </p>
-        </div>
+      <div className="bg-white rounded-3xl p-8 shadow-sm space-y-4">
+        <h2 className="text-xl font-semibold">
+          {phone.brand} {phone.model}
+        </h2>
+        <p className="text-sm text-gray-500">
+          {phone.storage} • {phone.color} • {phone.declaredCondition}
+        </p>
 
-        <div className="pt-6 border-t border-gray-100">
-          <p className="text-xs text-gray-400 uppercase tracking-wider">
-            Base Price
-          </p>
-          <p className="text-2xl font-semibold text-gray-900 mt-1">
-            ₹{pricing.basePrice?.toLocaleString("en-IN")}
-          </p>
-
-          {verification?.finalPrice && (
-            <>
-              <p className="text-xs text-gray-400 uppercase tracking-wider mt-4">
-                Final Price
-              </p>
-              <p className="text-2xl font-semibold text-green-600 mt-1">
-                ₹{verification.finalPrice.toLocaleString("en-IN")}
-              </p>
-            </>
-          )}
-        </div>
+        <p className="text-sm text-gray-400 uppercase">Base Price</p>
+        <p className="text-2xl font-semibold">
+          ₹{pricing.basePrice?.toLocaleString("en-IN")}
+        </p>
       </div>
 
-      {/* WAITING STATE */}
-      {isVerified && verification?.userAccepted === null && (
-        <div className="bg-blue-50 border border-blue-200 rounded-3xl p-6 text-center text-blue-600 font-medium">
-          Waiting for user to accept the final price...
+      {/* CONTACT ACTIONS */}
+      <div className="grid grid-cols-3 gap-4">
+        <a
+          href={`https://www.google.com/maps/search/?api=1&query=${mapQuery}`}
+          target="_blank"
+          className="flex items-center justify-center gap-2 bg-gray-100 rounded-xl py-3"
+        >
+          <FiMapPin /> Map
+        </a>
+
+        <a
+          href={`tel:${contact?.phone}`}
+          className="flex items-center justify-center gap-2 bg-gray-100 rounded-xl py-3"
+        >
+          <FiPhoneCall /> Call
+        </a>
+
+        <a
+          href={`https://wa.me/${contact?.phone}`}
+          target="_blank"
+          className="flex items-center justify-center gap-2 bg-green-100 rounded-xl py-3 text-green-700"
+        >
+          <FaWhatsapp /> WhatsApp
+        </a>
+      </div>
+
+      {/* REJECTED */}
+      {isRejected && (
+        <div className="bg-red-50 border border-red-200 rounded-3xl p-6 text-red-600">
+          Rejected: {p.rejectReason}
+        </div>
+      )}
+
+      {/* VERIFICATION */}
+      {canWork && (
+        <div className="bg-white rounded-3xl p-8 shadow-sm space-y-6">
+          <h3 className="text-lg font-semibold">Verification</h3>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept="image/*"
+            onChange={handleFileSelect}
+            className="hidden"
+          />
+
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="w-full h-12 border rounded-xl"
+          >
+            Select Images
+          </button>
+
+          {images.length > 0 && (
+            <button
+              onClick={uploadImages}
+              disabled={uploading}
+              className="w-full h-12 bg-blue-600 text-white rounded-xl"
+            >
+              {uploading ? "Uploading..." : "Upload"}
+            </button>
+          )}
+
+          {hasImages && (
+            <div className="grid grid-cols-3 gap-3">
+              {verification.images.map((img, i) => (
+                <img
+                  key={i}
+                  src={resolveImageUrl(img)}
+                  className="h-24 w-full object-cover rounded-xl"
+                />
+              ))}
+            </div>
+          )}
+
+          {Object.entries(VERIFICATION_CHECKS).map(([key, label]) => (
+            <label key={key} className="flex gap-3">
+              <input
+                type="checkbox"
+                checked={checks[key]}
+                onChange={() =>
+                  setChecks((prev) => ({
+                    ...prev,
+                    [key]: !prev[key],
+                  }))
+                }
+              />
+              {label}
+            </label>
+          ))}
+
+          <button
+            onClick={verifyDevice}
+            disabled={!canVerify || verifying}
+            className="w-full h-14 bg-black text-white rounded-2xl"
+          >
+            {verifying ? "Verifying..." : "Verify Device"}
+          </button>
+
+          <textarea
+            placeholder="Reject reason"
+            value={rejectReason}
+            onChange={(e) => setRejectReason(e.target.value)}
+            className="w-full border rounded-xl p-3"
+          />
+
+          <button
+            onClick={rejectPickup}
+            disabled={rejecting}
+            className="w-full h-12 bg-red-600 text-white rounded-xl"
+          >
+            Reject
+          </button>
+        </div>
+      )}
+
+      {/* WAITING */}
+      {isVerified && !userAccepted && (
+        <div className="bg-blue-50 border border-blue-200 rounded-3xl p-6 text-blue-600 text-center">
+          Waiting for user acceptance...
         </div>
       )}
 
@@ -233,15 +314,14 @@ const PickupDetails = () => {
       {canComplete && (
         <button
           onClick={completePickup}
-          className="w-full h-14 rounded-2xl bg-green-600 text-white font-semibold hover:bg-green-700 transition"
+          className="w-full h-14 bg-green-600 text-white rounded-2xl"
         >
           Complete Pickup
         </button>
       )}
 
-      {/* COMPLETED */}
       {isCompleted && (
-        <div className="bg-green-50 border border-green-200 rounded-3xl p-6 text-center text-green-600 font-medium">
+        <div className="bg-green-50 border border-green-200 rounded-3xl p-6 text-green-600 text-center">
           Pickup Completed Successfully
         </div>
       )}
