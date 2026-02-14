@@ -1,6 +1,6 @@
 import express from "express";
 import Rider from "../models/Rider.js";
-import SellRequest from "../models/SellRequest.js";
+import SellRequest from "../src/models/SellRequest.js";
 import adminAuth from "../middleware/adminAuth.js";
 
 const router = express.Router();
