@@ -329,12 +329,14 @@ const App = () => {
             <Route path="products/edit/:id" element={<AdminEditProduct />} />
             <Route path="riders" element={<AdminRiders />} />
             <Route path="inventory" element={<AdminInventory />} />
+
+            {/* ✅ Correct nested routes */}
+            <Route path="alerts" element={<AdminAlerts />} />
+            <Route path="rider-performance" element={<RiderPerformance />} />
           </Route>
-          <Route path="/admin/alerts" element={<AdminAlerts />} />
-          <Route
-            path="/admin/rider-performance"
-            element={<RiderPerformance />}
-          />
+
+          {/* Fallback */}
+          <Route path="*" element={<Navigate to="/admin" replace />} />
         </Routes>
       )}
 

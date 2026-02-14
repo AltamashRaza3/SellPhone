@@ -1,14 +1,22 @@
 import { useEffect, useState, useMemo } from "react";
 import API_BASE_URL from "../../config/api";
 
+const getCurrentMonth = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+};
+
 const RiderPerformance = () => {
   const [riders, setRiders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [minEarnings, setMinEarnings] = useState(0);
+  const [search, setSearch] = useState("");
+  const [selectedRider, setSelectedRider] = useState("all");
+  const [month, setMonth] = useState(getCurrentMonth());
 
-  /* ================= LOAD DATA ================= */
   const loadPerformance = async () => {
     try {
+      setLoading(true);
+
       const res = await fetch(`${API_BASE_URL}/api/admin/riders/performance`, {
         credentials: "include",
       });
@@ -19,7 +27,7 @@ const RiderPerformance = () => {
         setRiders(data.riders || []);
       }
     } catch (err) {
-      console.error("Performance load failed:", err);
+      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -29,159 +37,139 @@ const RiderPerformance = () => {
     loadPerformance();
   }, []);
 
-  /* ================= FILTERED RIDERS ================= */
-  const filteredRiders = useMemo(() => {
-    return riders.filter((rider) => (rider.totalEarnings || 0) >= minEarnings);
-  }, [riders, minEarnings]);
+  const riderNames = useMemo(() => {
+    return riders.map((r) => r.riderName);
+  }, [riders]);
 
-  /* ================= GLOBAL TOTALS ================= */
+  const filteredRiders = useMemo(() => {
+    return riders.filter((r) => {
+      const matchSearch = r.riderName
+        ?.toLowerCase()
+        .includes(search.toLowerCase());
+
+      const matchDropdown =
+        selectedRider === "all" || r.riderName === selectedRider;
+
+      return matchSearch && matchDropdown;
+    });
+  }, [riders, search, selectedRider]);
+
   const totals = useMemo(() => {
     return filteredRiders.reduce(
-      (acc, rider) => {
-        acc.totalPickups += rider.totalPickups || 0;
-        acc.completed += rider.completedPickups || 0;
-        acc.rejected += rider.rejectedPickups || 0;
-        acc.earnings += rider.totalEarnings || 0;
+      (acc, r) => {
+        acc.totalPickups += r.totalPickups || 0;
+        acc.completed += r.completedPickups || 0;
+        acc.rejected += r.rejectedPickups || 0;
+        acc.earnings += r.totalEarnings || 0;
         return acc;
       },
       { totalPickups: 0, completed: 0, rejected: 0, earnings: 0 },
     );
   }, [filteredRiders]);
 
-  if (loading) {
-    return (
-      <div className="text-gray-400 text-lg">Loading Rider Performance...</div>
-    );
-  }
-
   return (
     <div className="space-y-10">
-      {/* ================= HEADER ================= */}
-      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-6">
+      {/* HEADER */}
+      <div className="flex flex-col lg:flex-row justify-between gap-6">
         <div>
           <h1 className="text-3xl font-bold text-white">
             🛵 Rider Performance Dashboard
           </h1>
           <p className="text-gray-400 mt-2">
-            Monitor rider efficiency, rejection rates, and payouts.
+            Track productivity, rejections & payouts.
           </p>
         </div>
 
-        {/* ================= EARNINGS FILTER ================= */}
-        <div>
-          <label className="text-gray-400 text-sm block mb-2">
-            Filter by Minimum Earnings
-          </label>
+        <div className="flex gap-4">
+          <input
+            type="text"
+            placeholder="Search rider..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="bg-black/40 border border-white/10 px-4 py-2 rounded-xl text-white"
+          />
+
           <select
-            value={minEarnings}
-            onChange={(e) => setMinEarnings(Number(e.target.value))}
-            className="bg-black/40 border border-white/10 text-white px-4 py-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500"
+            value={selectedRider}
+            onChange={(e) => setSelectedRider(e.target.value)}
+            className="bg-black/40 border border-white/10 px-4 py-2 rounded-xl text-white"
           >
-            <option value={0}>All Riders</option>
-            <option value={500}>₹500+</option>
-            <option value={1000}>₹1,000+</option>
-            <option value={3000}>₹3,000+</option>
-            <option value={5000}>₹5,000+</option>
+            <option value="all">All Riders</option>
+            {riderNames.map((name) => (
+              <option key={name}>{name}</option>
+            ))}
           </select>
         </div>
       </div>
 
-      {/* ================= KPI SUMMARY ================= */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-        <div className="bg-white/5 border border-white/10 p-6 rounded-2xl">
-          <p className="text-gray-400 text-sm">Total Pickups</p>
-          <p className="text-2xl font-bold text-white">{totals.totalPickups}</p>
-        </div>
-
-        <div className="bg-white/5 border border-white/10 p-6 rounded-2xl">
-          <p className="text-gray-400 text-sm">Completed</p>
-          <p className="text-2xl font-bold text-green-400">
-            {totals.completed}
-          </p>
-        </div>
-
-        <div className="bg-white/5 border border-white/10 p-6 rounded-2xl">
-          <p className="text-gray-400 text-sm">Rejected</p>
-          <p className="text-2xl font-bold text-red-400">{totals.rejected}</p>
-        </div>
-
-        <div className="bg-white/5 border border-white/10 p-6 rounded-2xl">
-          <p className="text-gray-400 text-sm">Total Earnings</p>
-          <p className="text-2xl font-bold text-white">
-            ₹{totals.earnings.toLocaleString()}
-          </p>
-        </div>
+      {/* KPI ROW */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
+        <KPI label="Total Riders" value={riders.length} />
+        <KPI label="Total Pickups" value={totals.totalPickups} />
+        <KPI
+          label="Completed"
+          value={totals.completed}
+          color="text-green-400"
+        />
+        <KPI label="Rejected" value={totals.rejected} color="text-red-400" />
+        <KPI label="Total Earnings" value={`₹${totals.earnings}`} />
       </div>
 
-      {/* ================= RIDER CARDS ================= */}
-      {filteredRiders.length === 0 ? (
-        <div className="text-gray-400">
-          No riders match this earnings filter.
-        </div>
-      ) : (
-        <div className="space-y-6">
-          {filteredRiders.map((rider) => {
-            const rejectionRate = rider.rejectionRate || 0;
+      {/* TABLE */}
+      <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
+        <table className="w-full text-sm text-center">
+          <thead className="bg-black/40 text-gray-400 uppercase text-xs tracking-wide">
+            <tr>
+              <th className="py-4 text-left pl-6">Rider</th>
+              <th>Total</th>
+              <th>Completed</th>
+              <th>Rejected</th>
+              <th>Rejection %</th>
+              <th>Earnings</th>
+            </tr>
+          </thead>
 
-            return (
-              <div
-                key={rider._id}
-                className="bg-white/5 backdrop-blur border border-white/10 p-6 rounded-2xl transition hover:border-orange-500/40"
+          <tbody>
+            {filteredRiders.map((r) => (
+              <tr
+                key={r._id}
+                className="border-t border-white/10 hover:bg-white/5 transition"
               >
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-lg font-semibold text-white">
-                    {rider.riderName || "Unknown Rider"}
-                  </h3>
+                <td className="py-4 pl-6 text-left text-white font-medium">
+                  {r.riderName}
+                </td>
 
-                  <span
-                    className={`text-xs px-4 py-1 rounded-full font-medium ${
-                      rejectionRate > 40
-                        ? "bg-red-600 text-white"
-                        : rejectionRate > 20
-                          ? "bg-yellow-600 text-white"
-                          : "bg-green-600 text-white"
-                    }`}
-                  >
-                    {rejectionRate.toFixed(1)}% Rejection
+                <td>{r.totalPickups}</td>
+                <td className="text-green-400">{r.completedPickups}</td>
+                <td className="text-red-400">{r.rejectedPickups}</td>
+
+                <td>
+                  <span className="px-3 py-1 rounded-full bg-orange-500/20 text-orange-400 text-xs font-semibold">
+                    {r.rejectionRate?.toFixed(1)}%
                   </span>
-                </div>
+                </td>
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                  <div className="bg-black/30 p-4 rounded-xl">
-                    <p className="text-gray-400">Total</p>
-                    <p className="text-white font-semibold">
-                      {rider.totalPickups}
-                    </p>
-                  </div>
+                <td>₹{r.totalEarnings}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
 
-                  <div className="bg-black/30 p-4 rounded-xl">
-                    <p className="text-gray-400">Completed</p>
-                    <p className="text-green-400 font-semibold">
-                      {rider.completedPickups}
-                    </p>
-                  </div>
-
-                  <div className="bg-black/30 p-4 rounded-xl">
-                    <p className="text-gray-400">Rejected</p>
-                    <p className="text-red-400 font-semibold">
-                      {rider.rejectedPickups}
-                    </p>
-                  </div>
-
-                  <div className="bg-black/30 p-4 rounded-xl">
-                    <p className="text-gray-400">Earnings</p>
-                    <p className="text-white font-semibold">
-                      ₹{(rider.totalEarnings || 0).toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+        {!loading && filteredRiders.length === 0 && (
+          <div className="text-center py-8 text-gray-400">
+            No rider data available.
+          </div>
+        )}
+      </div>
     </div>
   );
 };
+
+const KPI = ({ label, value, color = "text-white" }) => (
+  <div className="bg-white/5 border border-white/10 p-6 rounded-2xl text-center">
+    <p className="text-gray-400 text-sm">{label}</p>
+    <p className={`text-2xl font-bold mt-2 ${color}`}>{value}</p>
+  </div>
+);
 
 export default RiderPerformance;

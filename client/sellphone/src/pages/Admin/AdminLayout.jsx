@@ -151,8 +151,7 @@ const AdminLayout = () => {
           >
             <span>🛵 Riders</span>
           </NavLink>
-
-          {/* NEW: Rider Performance */}
+          
           <NavLink
             to="/admin/rider-performance"
             onClick={() => setSidebarOpen(false)}

@@ -11,7 +11,9 @@ const router = express.Router();
 ====================================================== */
 router.get("/performance", adminAuth, async (req, res) => {
   try {
-    const result = await SellRequest.aggregate([
+    const allRiders = await Rider.find({}).lean();
+
+    const performance = await SellRequest.aggregate([
       {
         $match: {
           "pickup.status": { $in: ["Completed", "Rejected"] },
@@ -20,7 +22,6 @@ router.get("/performance", adminAuth, async (req, res) => {
       {
         $group: {
           _id: "$assignedRider.riderId",
-          riderName: { $first: "$assignedRider.riderName" },
           totalPickups: { $sum: 1 },
           completedPickups: {
             $sum: {
@@ -37,36 +38,40 @@ router.get("/performance", adminAuth, async (req, res) => {
           },
         },
       },
-      {
-        $project: {
-          riderName: 1,
-          totalPickups: 1,
-          completedPickups: 1,
-          rejectedPickups: 1,
-          totalEarnings: 1,
-          rejectionRate: {
-            $cond: [
-              { $eq: ["$totalPickups", 0] },
-              0,
-              {
-                $multiply: [
-                  { $divide: ["$rejectedPickups", "$totalPickups"] },
-                  100,
-                ],
-              },
-            ],
-          },
-        },
-      },
-      { $sort: { completedPickups: -1 } },
     ]);
 
-    res.json({ success: true, riders: result });
+    const performanceMap = {};
+    performance.forEach((p) => {
+      performanceMap[p._id.toString()] = p;
+    });
+
+    const merged = allRiders.map((rider) => {
+      const stats = performanceMap[rider._id.toString()] || {};
+
+      const totalPickups = stats.totalPickups || 0;
+      const completedPickups = stats.completedPickups || 0;
+      const rejectedPickups = stats.rejectedPickups || 0;
+
+      return {
+        _id: rider._id,
+        riderName: rider.name,
+        totalPickups,
+        completedPickups,
+        rejectedPickups,
+        totalEarnings: stats.totalEarnings || 0,
+        rejectionRate:
+          totalPickups === 0
+            ? 0
+            : (rejectedPickups / totalPickups) * 100,
+      };
+    });
+
+    merged.sort((a, b) => b.completedPickups - a.completedPickups);
+
+    res.json({ success: true, riders: merged });
   } catch (err) {
     console.error("RIDER PERFORMANCE ERROR:", err);
-    res.status(500).json({
-      message: "Failed to load rider performance",
-    });
+    res.status(500).json({ message: "Failed to load rider performance" });
   }
 });
 
@@ -89,7 +94,9 @@ router.get("/performance/monthly", adminAuth, async (req, res) => {
     const startDate = new Date(year, monthNumber - 1, 1);
     const endDate = new Date(year, monthNumber, 1);
 
-    const result = await SellRequest.aggregate([
+    const allRiders = await Rider.find({}).lean();
+
+    const performance = await SellRequest.aggregate([
       {
         $match: {
           "pickup.status": { $in: ["Completed", "Rejected"] },
@@ -102,7 +109,6 @@ router.get("/performance/monthly", adminAuth, async (req, res) => {
       {
         $group: {
           _id: "$assignedRider.riderId",
-          riderName: { $first: "$assignedRider.riderName" },
           totalPickups: { $sum: 1 },
           completedPickups: {
             $sum: {
@@ -119,34 +125,40 @@ router.get("/performance/monthly", adminAuth, async (req, res) => {
           },
         },
       },
-      {
-        $project: {
-          riderName: 1,
-          totalPickups: 1,
-          completedPickups: 1,
-          rejectedPickups: 1,
-          totalEarnings: 1,
-          rejectionRate: {
-            $cond: [
-              { $eq: ["$totalPickups", 0] },
-              0,
-              {
-                $multiply: [
-                  { $divide: ["$rejectedPickups", "$totalPickups"] },
-                  100,
-                ],
-              },
-            ],
-          },
-        },
-      },
-      { $sort: { completedPickups: -1 } },
     ]);
+
+    const performanceMap = {};
+    performance.forEach((p) => {
+      performanceMap[p._id.toString()] = p;
+    });
+
+    const merged = allRiders.map((rider) => {
+      const stats = performanceMap[rider._id.toString()] || {};
+
+      const totalPickups = stats.totalPickups || 0;
+      const completedPickups = stats.completedPickups || 0;
+      const rejectedPickups = stats.rejectedPickups || 0;
+
+      return {
+        _id: rider._id,
+        riderName: rider.name,
+        totalPickups,
+        completedPickups,
+        rejectedPickups,
+        totalEarnings: stats.totalEarnings || 0,
+        rejectionRate:
+          totalPickups === 0
+            ? 0
+            : (rejectedPickups / totalPickups) * 100,
+      };
+    });
+
+    merged.sort((a, b) => b.completedPickups - a.completedPickups);
 
     res.json({
       success: true,
       month,
-      riders: result,
+      riders: merged,
     });
   } catch (err) {
     console.error("MONTHLY PERFORMANCE ERROR:", err);
@@ -158,7 +170,6 @@ router.get("/performance/monthly", adminAuth, async (req, res) => {
 
 /* ======================================================
    GET ALL RIDERS
-   GET /api/admin/riders?status=active|inactive
 ====================================================== */
 router.get("/", adminAuth, async (req, res) => {
   try {
@@ -174,107 +185,6 @@ router.get("/", adminAuth, async (req, res) => {
   } catch (err) {
     console.error("FETCH RIDERS ERROR:", err);
     res.status(500).json({ message: "Failed to fetch riders" });
-  }
-});
-
-/* ======================================================
-   CREATE RIDER
-====================================================== */
-router.post("/", adminAuth, async (req, res) => {
-  try {
-    const { name, phone, city } = req.body;
-
-    if (!name || !phone) {
-      return res.status(400).json({
-        message: "Name and phone are required",
-      });
-    }
-
-    if (!/^\d{10}$/.test(phone)) {
-      return res.status(400).json({
-        message: "Phone must be 10 digits",
-      });
-    }
-
-    const existing = await Rider.findOne({ phone });
-    if (existing) {
-      return res.status(409).json({
-        message: "Rider already exists",
-      });
-    }
-
-    const rider = await Rider.create({
-      name: name.trim(),
-      phone: phone.trim(),
-      city: city?.trim(),
-      status: "active",
-      createdBy: req.admin?._id,
-    });
-
-    res.status(201).json({ success: true, rider });
-  } catch (err) {
-    console.error("CREATE RIDER ERROR:", err);
-    res.status(500).json({ message: "Failed to create rider" });
-  }
-});
-
-/* ======================================================
-   UPDATE RIDER
-====================================================== */
-router.put("/:id", adminAuth, async (req, res) => {
-  try {
-    const rider = await Rider.findById(req.params.id);
-
-    if (!rider) {
-      return res.status(404).json({ message: "Rider not found" });
-    }
-
-    if (req.body.name !== undefined)
-      rider.name = req.body.name.trim();
-
-    if (req.body.city !== undefined)
-      rider.city = req.body.city.trim();
-
-    await rider.save();
-
-    res.json({ success: true, rider });
-  } catch (err) {
-    console.error("UPDATE RIDER ERROR:", err);
-    res.status(500).json({ message: "Failed to update rider" });
-  }
-});
-
-/* ======================================================
-   UPDATE RIDER STATUS
-====================================================== */
-router.patch("/:id/status", adminAuth, async (req, res) => {
-  try {
-    const { status } = req.body;
-
-    if (!["active", "inactive"].includes(status)) {
-      return res.status(400).json({ message: "Invalid status" });
-    }
-
-    const rider = await Rider.findByIdAndUpdate(
-      req.params.id,
-      {
-        status,
-        statusUpdatedAt: new Date(),
-        statusUpdatedBy: req.admin?._id,
-      },
-      { new: true }
-    );
-
-    if (!rider) {
-      return res.status(404).json({ message: "Rider not found" });
-    }
-
-    res.json({ success: true, rider });
-  } catch (err) {
-    console.error("UPDATE RIDER STATUS ERROR:", err);
-    res.status(500).json({
-      message: "Failed to update rider status",
-    });
   }
 });
 
