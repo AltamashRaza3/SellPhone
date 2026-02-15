@@ -5,7 +5,7 @@ const verificationImageSchema = new mongoose.Schema(
   {
     url: { type: String, required: true },
     uploadedAt: { type: Date, default: Date.now },
-    uploadedBy: { type: String }, // riderId (string)
+    uploadedBy: { type: String },
   },
   { _id: false }
 );
@@ -13,6 +13,24 @@ const verificationImageSchema = new mongoose.Schema(
 /* ================= MAIN SCHEMA ================= */
 const sellRequestSchema = new mongoose.Schema(
   {
+    /* ================= MASTER WORKFLOW STATUS ================= */
+    workflowStatus: {
+      type: String,
+      enum: [
+        "CREATED",
+        "ADMIN_APPROVED",
+        "ASSIGNED_TO_RIDER",
+        "UNDER_VERIFICATION",
+        "REJECTED_BY_RIDER",
+        "ESCALATED",
+        "USER_ACCEPTED",
+        "COMPLETED",
+        "CANCELLED",
+      ],
+      default: "CREATED",
+      index: true,
+    },
+
     /* ================= USER ================= */
     user: {
       uid: { type: String, required: true, index: true },
@@ -40,16 +58,18 @@ const sellRequestSchema = new mongoose.Schema(
     pricing: {
       basePrice: Number,
     },
+
+    /* ================= ADMIN ================= */
     admin: {
-    status: {
-      type: String,
-      enum: ["Pending", "Approved", "Rejected"],
-      default: "Pending",
-      index: true,
+      status: {
+        type: String,
+        enum: ["Pending", "Approved", "Rejected"],
+        default: "Pending",
+        index: true,
+      },
+      remarks: String,
+      approvedAt: Date,
     },
-    remarks: String,
-    approvedAt: Date,
-},
 
     /* ================= ASSIGNED RIDER ================= */
     assignedRider: {
@@ -89,12 +109,12 @@ const sellRequestSchema = new mongoose.Schema(
       images: { type: [verificationImageSchema], default: [] },
     },
 
-      /* ================= RIDER PAYOUT ================= */
+    /* ================= RIDER PAYOUT ================= */
     riderPayout: {
       amount: { type: Number, default: 0 },
       calculatedAt: Date,
     },
-    
+
     /* ================= STATUS HISTORY ================= */
     statusHistory: [
       {
@@ -111,20 +131,51 @@ const sellRequestSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+/* ===========================================================
+   SAFE STATUS TRANSITION METHOD (MANDATORY FOR PRODUCTION)
+   =========================================================== */
+sellRequestSchema.methods.transitionStatus = function (
+  newStatus,
+  changedBy = "system",
+  note = ""
+) {
+  const validTransitions = {
+    CREATED: ["ADMIN_APPROVED", "CANCELLED"],
+    ADMIN_APPROVED: ["ASSIGNED_TO_RIDER", "CANCELLED"],
+    ASSIGNED_TO_RIDER: ["UNDER_VERIFICATION", "CANCELLED"],
+    UNDER_VERIFICATION: ["REJECTED_BY_RIDER", "USER_ACCEPTED"],
+    REJECTED_BY_RIDER: ["ESCALATED"],
+    ESCALATED: ["USER_ACCEPTED", "CANCELLED"],
+    USER_ACCEPTED: ["COMPLETED"],
+    COMPLETED: [],
+    CANCELLED: [],
+  };
+
+  const allowedNext = validTransitions[this.workflowStatus] || [];
+
+  if (!allowedNext.includes(newStatus)) {
+    throw new Error(
+      `Invalid status transition from ${this.workflowStatus} to ${newStatus}`
+    );
+  }
+
+  this.workflowStatus = newStatus;
+
+  this.statusHistory.push({
+    status: newStatus,
+    changedBy,
+    note,
+  });
+};
+
 /* ================= HELPERS ================= */
+
 sellRequestSchema.methods.canVerify = function () {
-  return (
-    ["Scheduled", "Picked"].includes(this.pickup.status) &&
-    !this.verification.finalPrice
-  );
+  return this.workflowStatus === "UNDER_VERIFICATION";
 };
 
 sellRequestSchema.methods.canComplete = function () {
-  return (
-    this.pickup.status === "Picked" &&
-    !!this.verification.finalPrice &&
-    this.verification.userAccepted === true
-  );
+  return this.workflowStatus === "USER_ACCEPTED";
 };
 
 export default mongoose.model("SellRequest", sellRequestSchema);

@@ -2,11 +2,8 @@ import SellRequest from "../models/SellRequest.js";
 
 /**
  * RIDER COMPLETE PICKUP
- * ====================
- * - Rider can complete pickup ONLY after:
- *   1. Device verified (Picked)
- *   2. User accepted final price
- * - Prevents invalid lifecycle jumps
+ * =====================
+ * Production-safe lifecycle control
  */
 export const completePickup = async (req, res) => {
   try {
@@ -25,37 +22,31 @@ export const completePickup = async (req, res) => {
       });
     }
 
-    /* ================= STATE GUARD ================= */
-    if (sellRequest.pickup.status !== "Picked") {
+    /* ================= WORKFLOW STATE GUARD ================= */
+    if (sellRequest.workflowStatus !== "USER_ACCEPTED") {
       return res.status(400).json({
-        message: "Pickup must be picked before completion",
-      });
-    }
-
-    /* ================= USER ACCEPTANCE ================= */
-    if (sellRequest.verification.userAccepted !== true) {
-      return res.status(400).json({
-        message: "User must accept final price before completing pickup",
+        message:
+          "Pickup cannot be completed unless user has accepted the final price",
       });
     }
 
     /* ================= DUPLICATE PROTECTION ================= */
-    if (sellRequest.pickup.status === "Completed") {
+    if (sellRequest.workflowStatus === "COMPLETED") {
       return res.status(409).json({
         message: "Pickup already completed",
       });
     }
 
-    /* ================= COMPLETE ================= */
+    /* ================= COMPLETE PICKUP ================= */
     sellRequest.pickup.status = "Completed";
     sellRequest.pickup.completedAt = new Date();
 
-    sellRequest.statusHistory.push({
-      status: "Pickup Completed",
-      changedBy: "rider",
-      note: "Pickup completed after verification and user acceptance",
-      changedAt: new Date(),
-    });
+    // 🔥 CRITICAL FIX — Update master workflow
+    sellRequest.transitionStatus(
+      "COMPLETED",
+      "rider",
+      "Pickup completed after verification and user acceptance"
+    );
 
     await sellRequest.save();
 
@@ -66,7 +57,7 @@ export const completePickup = async (req, res) => {
   } catch (error) {
     console.error("COMPLETE PICKUP ERROR:", error);
     return res.status(500).json({
-      message: "Failed to complete pickup",
+      message: error.message || "Failed to complete pickup",
     });
   }
 };

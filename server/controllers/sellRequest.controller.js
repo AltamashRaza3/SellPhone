@@ -7,14 +7,12 @@ import { calculateBasePrice } from "../utils/priceRules.js";
 ====================================================== */
 export const createSellRequest = async (req, res) => {
   try {
-    /* ================= IMAGE VALIDATION ================= */
     if (!req.files || req.files.length < 3) {
       return res.status(400).json({
         message: "At least 3 phone images are required",
       });
     }
 
-    /* ================= BODY ================= */
     const {
       brand,
       model,
@@ -30,38 +28,17 @@ export const createSellRequest = async (req, res) => {
       pincode,
     } = req.body;
 
-    /* ================= REQUIRED FIELD CHECK ================= */
-    if (
-      !brand ||
-      !model ||
-      !storage ||
-      !ram ||
-      !color ||
-      !declaredCondition ||
-      !purchaseYear ||
-      !phone ||
-      !fullAddress ||
-      !city ||
-      !state ||
-      !pincode
-    ) {
-      return res.status(400).json({
-        message: "Missing required sell request fields",
-      });
-    }
-
     const year = Number(purchaseYear);
     if (Number.isNaN(year)) {
       return res.status(400).json({
         message: "Invalid purchase year",
       });
     }
-    /* ================= IMAGE PATHS (SCHEMA SAFE) ================= */
-  const images = req.files.map(
-  (file) => `/uploads/sell/${file.filename}`
-  );
 
-    /* ================= PRICE CALC ================= */
+    const images = req.files.map(
+      (file) => `/uploads/sell/${file.filename}`
+    );
+
     const catalog = {
       baseMarketPrice: 22000,
       depreciationPerYear: 0.12,
@@ -74,18 +51,15 @@ export const createSellRequest = async (req, res) => {
       declaredCondition,
     });
 
-    /* ================= CREATE REQUEST ================= */
-    const sellRequest = await SellRequest.create({
+    const sellRequest = new SellRequest({
       user: {
         uid: req.user.uid,
         email: req.user.email,
       },
-
       contact: {
         phone,
         email: req.user.email,
       },
-
       phone: {
         brand,
         model,
@@ -94,13 +68,9 @@ export const createSellRequest = async (req, res) => {
         color,
         declaredCondition,
         purchaseYear: year,
-        images, 
+        images,
       },
-
-      pricing: {
-        basePrice,
-      },
-
+      pricing: { basePrice },
       pickup: {
         status: "Pending",
         address: {
@@ -110,21 +80,23 @@ export const createSellRequest = async (req, res) => {
           pincode,
         },
       },
-
-      statusHistory: [
-        {
-          status: "Submitted",
-          changedBy: "user",
-          changedAt: new Date(),
-        },
-      ],
     });
+
+    // 🔥 Proper lifecycle start
+    sellRequest.transitionStatus(
+      "CREATED",
+      "user",
+      "Sell request submitted"
+    );
+
+    await sellRequest.save();
 
     return res.status(201).json({
       success: true,
       message: "Sell request created successfully",
       data: sellRequest,
     });
+
   } catch (error) {
     console.error("CREATE SELL REQUEST ERROR:", error);
     return res.status(500).json({
@@ -140,12 +112,6 @@ export const assignRider = async (req, res) => {
   try {
     const { riderId, scheduledAt } = req.body;
 
-    if (!riderId) {
-      return res.status(400).json({
-        message: "Rider ID is required",
-      });
-    }
-
     const sellRequest = await SellRequest.findById(req.params.id);
     if (!sellRequest) {
       return res.status(404).json({
@@ -153,10 +119,10 @@ export const assignRider = async (req, res) => {
       });
     }
 
-    /* ================= STATE GUARD ================= */
-    if (["Picked", "Completed"].includes(sellRequest.pickup.status)) {
+    // 🔥 Use workflow guard, not pickup guard
+    if (sellRequest.workflowStatus !== "ADMIN_APPROVED") {
       return res.status(409).json({
-        message: "Cannot reassign rider after pickup",
+        message: "Sell request must be admin approved first",
       });
     }
 
@@ -179,11 +145,12 @@ export const assignRider = async (req, res) => {
       ? new Date(scheduledAt)
       : new Date();
 
-    sellRequest.statusHistory.push({
-      status: "RiderAssigned",
-      changedBy: "admin",
-      changedAt: new Date(),
-    });
+    // 🔥 Proper lifecycle transition
+    sellRequest.transitionStatus(
+      "ASSIGNED_TO_RIDER",
+      "admin",
+      "Rider assigned and pickup scheduled"
+    );
 
     await sellRequest.save();
 
@@ -191,6 +158,7 @@ export const assignRider = async (req, res) => {
       success: true,
       message: "Rider assigned successfully",
     });
+
   } catch (error) {
     console.error("ASSIGN RIDER ERROR:", error);
     return res.status(500).json({
@@ -213,25 +181,31 @@ export const acceptFinalPrice = async (req, res) => {
       return res.status(404).json({ message: "Sell request not found" });
     }
 
-    if (!sellRequest.verification?.finalPrice) {
-      return res.status(409).json({ message: "Final price not set yet" });
+    if (sellRequest.workflowStatus !== "UNDER_VERIFICATION") {
+      return res.status(409).json({
+        message: "Invalid lifecycle state",
+      });
     }
 
-    if (sellRequest.verification.userAccepted === true) {
-      return res.status(409).json({ message: "Already accepted" });
+    if (!sellRequest.verification?.finalPrice) {
+      return res.status(409).json({
+        message: "Final price not set yet",
+      });
     }
 
     sellRequest.verification.userAccepted = true;
 
-    sellRequest.statusHistory.push({
-      status: "User Accepted Final Price",
-      changedBy: "user",
-      changedAt: new Date(),
-    });
+    // 🔥 Proper lifecycle transition
+    sellRequest.transitionStatus(
+      "USER_ACCEPTED",
+      "user",
+      "User accepted final price"
+    );
 
     await sellRequest.save();
 
     res.json({ success: true });
+
   } catch (err) {
     console.error("ACCEPT FINAL PRICE ERROR:", err);
     res.status(500).json({ message: "Failed to accept price" });

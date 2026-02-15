@@ -3,35 +3,33 @@ import { Link } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import api from "../../utils/axios";
 
-/* ================= STATUS HELPERS ================= */
+/* ================= STATUS HELPERS (UI LAYER ONLY) ================= */
 const getStatusLabel = (req) => {
-  if (req.pickup?.status === "Completed") return "Pickup Completed";
-  if (req.pickup?.status === "Picked") return "Device Picked";
-  if (req.pickup?.status === "Scheduled") return "Pickup Scheduled";
-  if (req.pickup?.status === "Pending") return "Pickup Pending";
+  const status = req.workflowStatus;
 
-  if (req.verification?.finalPrice && req.verification.userAccepted == null) {
-    return "Action Required";
-  }
+  const map = {
+    CREATED: "Pending Review",
+    ADMIN_APPROVED: "Approved",
+    ASSIGNED_TO_RIDER: "Pickup Scheduled",
+    UNDER_VERIFICATION: "Under Review",
+    REJECTED_BY_RIDER: "Rejected",
+    USER_ACCEPTED: "Accepted",
+    COMPLETED: "Pickup Completed",
+    CANCELLED: "Cancelled",
+  };
 
-  if (req.verification?.userAccepted === false) {
-    return "Rejected by You";
-  }
-
-  if (req.admin?.status === "Rejected") return "Rejected by Admin";
-
-  return "Under Review";
+  return map[status] || "Under Review";
 };
 
 const badgeStyles = {
   "Pickup Completed": "bg-green-50 text-green-700",
   "Pickup Scheduled": "bg-blue-50 text-blue-700",
-  "Device Picked": "bg-indigo-50 text-indigo-700",
-  "Pickup Pending": "bg-yellow-50 text-yellow-700",
-  "Action Required": "bg-orange-50 text-orange-700",
-  "Rejected by You": "bg-red-50 text-red-700",
-  "Rejected by Admin": "bg-red-50 text-red-700",
+  Approved: "bg-yellow-50 text-yellow-700",
+  Accepted: "bg-green-50 text-green-700",
+  Rejected: "bg-red-50 text-red-700",
+  Cancelled: "bg-red-50 text-red-700",
   "Under Review": "bg-gray-100 text-gray-700",
+  "Pending Review": "bg-gray-100 text-gray-700",
 };
 
 const SellRequestsList = () => {
@@ -108,6 +106,7 @@ const SellRequestsList = () => {
             {requests.map((req) => {
               const label = getStatusLabel(req);
               const needsAction =
+                req.workflowStatus === "UNDER_VERIFICATION" &&
                 req.verification?.finalPrice &&
                 req.verification.userAccepted == null;
 
@@ -115,15 +114,15 @@ const SellRequestsList = () => {
                 <div
                   key={req._id}
                   className="
-          w-full
-          bg-white
-          rounded-3xl
-          px-20
-          py-16
-          shadow-[0_15px_50px_rgba(0,0,0,0.05)]
-          transition
-          hover:shadow-[0_25px_70px_rgba(0,0,0,0.08)]
-        "
+                    w-full
+                    bg-white
+                    rounded-3xl
+                    px-20
+                    py-16
+                    shadow-[0_15px_50px_rgba(0,0,0,0.05)]
+                    transition
+                    hover:shadow-[0_25px_70px_rgba(0,0,0,0.08)]
+                  "
                 >
                   <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-16">
                     {/* LEFT */}
@@ -161,12 +160,12 @@ const SellRequestsList = () => {
                     <div className="flex flex-col items-start lg:items-end gap-8">
                       <span
                         className={`
-                px-8 py-3
-                rounded-full
-                text-sm
-                font-medium
-                ${badgeStyles[label]}
-              `}
+                          px-8 py-3
+                          rounded-full
+                          text-sm
+                          font-medium
+                          ${badgeStyles[label]}
+                        `}
                       >
                         {label}
                       </span>
@@ -174,17 +173,17 @@ const SellRequestsList = () => {
                       <Link
                         to={`/my-sell-requests/${req._id}`}
                         className={`
-                px-12 py-4
-                rounded-full
-                text-base
-                font-medium
-                transition
-                ${
-                  needsAction
-                    ? "bg-orange-600 hover:bg-orange-700 text-white"
-                    : "bg-black text-white hover:opacity-90"
-                }
-              `}
+                          px-12 py-4
+                          rounded-full
+                          text-base
+                          font-medium
+                          transition
+                          ${
+                            needsAction
+                              ? "bg-orange-600 hover:bg-orange-700 text-white"
+                              : "bg-black text-white hover:opacity-90"
+                          }
+                        `}
                       >
                         View Details
                       </Link>

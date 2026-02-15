@@ -15,7 +15,7 @@ import API_BASE_URL from "../config/api";
 
 /* ================= VALIDATION ================= */
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/;
+const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/;
 const nameRegex = /^[A-Za-z ]{2,30}$/;
 
 const Auth = () => {

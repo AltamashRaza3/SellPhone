@@ -22,7 +22,7 @@ router.get("/", adminAuth, async (req, res) => {
 });
 
 /* ======================================================
-   UPDATE ADMIN STATUS (ONE-TIME DECISION)
+   ADMIN APPROVE / REJECT SELL REQUEST
 ====================================================== */
 router.put("/:id/status", adminAuth, async (req, res) => {
   try {
@@ -39,32 +39,38 @@ router.put("/:id/status", adminAuth, async (req, res) => {
       return res.status(404).json({ message: "Sell request not found" });
     }
 
-    /* 🔒 LOCK ONLY AFTER FINAL DECISION */
-if (["Approved", "Rejected"].includes(request.admin?.status)) {
-  return res.status(409).json({
-    message: "Admin decision already made",
-  });
-}
+    if (["Approved", "Rejected"].includes(request.admin?.status)) {
+      return res.status(409).json({
+        message: "Admin decision already made",
+      });
+    }
 
-    /* 🔒 NO CHANGE AFTER RIDER ASSIGNMENT */
     if (request.assignedRider?.riderId) {
       return res.status(409).json({
         message: "Cannot change admin status after rider assignment",
       });
     }
 
-    request.admin = {
-      status,
-      remarks,
-      approvedAt: status === "Approved" ? new Date() : null,
-    };
+    /* ================= ADMIN DECISION ================= */
+    request.admin.status = status;
+    request.admin.remarks = remarks;
+    request.admin.approvedAt =
+      status === "Approved" ? new Date() : null;
 
-    request.statusHistory.push({
-      status: `Admin ${status}`,
-      changedBy: "admin",
-      note: remarks || `Marked as ${status}`,
-      changedAt: new Date(),
-    });
+    // 🔥 CRITICAL FIX — Transition lifecycle
+    if (status === "Approved") {
+      request.transitionStatus(
+        "ADMIN_APPROVED",
+        "admin",
+        remarks || "Admin approved sell request"
+      );
+    } else {
+      request.transitionStatus(
+        "CANCELLED",
+        "admin",
+        remarks || "Admin rejected sell request"
+      );
+    }
 
     await request.save();
 
@@ -74,13 +80,12 @@ if (["Approved", "Rejected"].includes(request.admin?.status)) {
     });
   } catch (err) {
     console.error("ADMIN STATUS ERROR:", err);
-    res.status(500).json({ message: "Failed to update admin status" });
+    res.status(500).json({ message: err.message });
   }
 });
 
 /* ======================================================
    ASSIGN / REASSIGN RIDER (ADMIN)
-   Allowed until verification (before Picked)
 ====================================================== */
 router.put("/:id/assign-rider", adminAuth, async (req, res) => {
   try {
@@ -95,23 +100,19 @@ router.put("/:id/assign-rider", adminAuth, async (req, res) => {
       return res.status(404).json({ message: "Sell request not found" });
     }
 
-    /* 🔒 Admin must approve first */
-if (request.admin?.status !== "Approved") {
-  return res.status(409).json({
-    message: "Admin approval required before assigning rider",
-  });
-}
+    if (request.workflowStatus !== "ADMIN_APPROVED") {
+      return res.status(409).json({
+        message: "Admin approval required before assigning rider",
+      });
+    }
 
-
-
-    /* 🔒 HARD LOCK AFTER VERIFICATION */
     if (
-      request.pickup.status === "Picked" ||
-      request.pickup.status === "Completed" ||
-      request.verification?.finalPrice != null
+      ["UNDER_VERIFICATION", "USER_ACCEPTED", "COMPLETED"].includes(
+        request.workflowStatus
+      )
     ) {
       return res.status(409).json({
-        message: "Cannot reassign rider after device verification",
+        message: "Cannot reassign rider after verification",
       });
     }
 
@@ -134,12 +135,14 @@ if (request.admin?.status !== "Approved") {
       ? new Date(scheduledAt)
       : new Date();
 
-    request.statusHistory.push({
-      status: isReassignment ? "Rider Reassigned" : "Rider Assigned",
-      changedBy: "admin",
-      note: `Assigned to ${rider.name}`,
-      changedAt: new Date(),
-    });
+    // 🔥 CRITICAL FIX
+    request.transitionStatus(
+      "ASSIGNED_TO_RIDER",
+      "admin",
+      isReassignment
+        ? `Rider reassigned to ${rider.name}`
+        : `Rider assigned to ${rider.name}`
+    );
 
     await request.save();
 
@@ -147,11 +150,11 @@ if (request.admin?.status !== "Approved") {
       success: true,
       reassigned: isReassignment,
     });
+
   } catch (err) {
-    console.error("ASSIGN / REASSIGN RIDER ERROR:", err);
-    res.status(500).json({ message: "Failed to assign rider" });
+    console.error("ASSIGN RIDER ERROR:", err);
+    res.status(500).json({ message: err.message });
   }
 });
-
 
 export default router;

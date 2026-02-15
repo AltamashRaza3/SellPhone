@@ -4,34 +4,49 @@ import AssignRider from "../../components/Admin/AssignRider";
 
 /* ================= STATUS BADGE ================= */
 const getDisplayStatus = (req) => {
-  const pickup = req.pickup?.status;
-  const admin = req.admin?.status;
+  const status = req.workflowStatus;
 
-  if (pickup === "Completed")
-    return {
+  const map = {
+    CREATED: {
+      label: "Pending Review",
+      color: "bg-gray-500/20 text-gray-300",
+    },
+    ADMIN_APPROVED: {
+      label: "Approved",
+      color: "bg-yellow-500/20 text-yellow-400",
+    },
+    ASSIGNED_TO_RIDER: {
+      label: "Pickup Scheduled",
+      color: "bg-blue-500/20 text-blue-400",
+    },
+    UNDER_VERIFICATION: {
+      label: "Under Verification",
+      color: "bg-indigo-500/20 text-indigo-400",
+    },
+    REJECTED_BY_RIDER: {
+      label: "Rejected by Rider",
+      color: "bg-red-600/20 text-red-400",
+    },
+    USER_ACCEPTED: {
+      label: "User Accepted",
+      color: "bg-green-500/20 text-green-400",
+    },
+    COMPLETED: {
       label: "Pickup Completed",
       color: "bg-green-600/20 text-green-400",
-    };
+    },
+    CANCELLED: {
+      label: "Cancelled",
+      color: "bg-red-500/20 text-red-400",
+    },
+  };
 
-  if (pickup === "Picked")
-    return {
-      label: "Device Picked",
-      color: "bg-indigo-500/20 text-indigo-400",
-    };
-
-  if (pickup === "Scheduled")
-    return { label: "Pickup Scheduled", color: "bg-blue-500/20 text-blue-400" };
-
-  if (pickup === "Rejected")
-    return { label: "Escalated", color: "bg-red-600/20 text-red-400" };
-
-  if (admin === "Rejected")
-    return { label: "Rejected by Admin", color: "bg-red-500/20 text-red-400" };
-
-  if (admin === "Approved")
-    return { label: "Approved", color: "bg-yellow-500/20 text-yellow-400" };
-
-  return { label: "Pending Review", color: "bg-gray-500/20 text-gray-300" };
+  return (
+    map[status] || {
+      label: "Unknown",
+      color: "bg-gray-600/20 text-gray-400",
+    }
+  );
 };
 
 const AdminSellPhones = () => {
@@ -44,12 +59,14 @@ const AdminSellPhones = () => {
   const fetchRequests = async () => {
     try {
       setLoading(true);
+
       const res = await fetch(
         `${import.meta.env.VITE_API_BASE_URL}/api/admin/sell-requests`,
         { credentials: "include" },
       );
 
       if (!res.ok) throw new Error();
+
       const data = await res.json();
       setRequests(Array.isArray(data) ? data : []);
     } catch {
@@ -106,18 +123,12 @@ const AdminSellPhones = () => {
         const address = req.pickup?.address;
         const status = getDisplayStatus(req);
 
-        /* ================= UI LOGIC ================= */
-        const canApproveReject =
-          req.admin?.status === "Pending" &&
-          !req.assignedRider?.riderId &&
-          req.pickup?.status === "Pending";
+        /* ================= CLEAN WORKFLOW-BASED LOGIC ================= */
+        const canApproveReject = req.workflowStatus === "CREATED";
 
-        const canAssignRider =
-          req.admin?.status === "Approved" &&
-          req.pickup?.status === "Pending" &&
-          !req.assignedRider?.riderId;
+        const canAssignRider = req.workflowStatus === "ADMIN_APPROVED";
 
-        const isEscalated = req.pickup?.status === "Rejected";
+        const isEscalated = req.workflowStatus === "REJECTED_BY_RIDER";
 
         return (
           <div
@@ -147,7 +158,7 @@ const AdminSellPhones = () => {
               </span>
             </div>
 
-            {/* USER IMAGES (FINAL & CLEAN) */}
+            {/* USER IMAGES */}
             {Array.isArray(phone.images) && phone.images.length > 0 && (
               <div className="grid grid-cols-3 gap-3">
                 {phone.images.map((img, i) => (
@@ -195,7 +206,10 @@ const AdminSellPhones = () => {
                   placeholder="Remarks (optional)"
                   value={remarks[req._id] || ""}
                   onChange={(e) =>
-                    setRemarks({ ...remarks, [req._id]: e.target.value })
+                    setRemarks({
+                      ...remarks,
+                      [req._id]: e.target.value,
+                    })
                   }
                   className="w-full rounded-lg bg-black/40 border border-white/10 p-3 text-sm text-white"
                 />

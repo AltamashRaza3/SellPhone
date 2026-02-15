@@ -8,16 +8,17 @@ const SellRequestCard = ({ request, onUpdate }) => {
   const {
     phone,
     pricing,
-    admin,
     verification,
-    pickup,
     assignedRider,
     createdAt,
+    workflowStatus,
   } = request;
 
   /* ================= DECISION GUARD ================= */
   const canDecide =
-    verification?.finalPrice && verification.userAccepted == null;
+    workflowStatus === "UNDER_VERIFICATION" &&
+    verification?.finalPrice &&
+    verification.userAccepted == null;
 
   const handleDecision = async (accept) => {
     if (loading) return;
@@ -40,15 +41,20 @@ const SellRequestCard = ({ request, onUpdate }) => {
     }
   };
 
-  /* ================= STATUS LABEL ================= */
+  /* ================= STATUS LABEL (UI LAYER ONLY) ================= */
   const getStatus = () => {
-    if (pickup?.status === "Completed") return "Pickup Completed";
-    if (verification?.userAccepted === true) return "Price Accepted";
-    if (verification?.userAccepted === false) return "Price Rejected";
-    if (verification?.finalPrice) return "Action Required";
-    if (pickup?.status === "Scheduled") return "Pickup Scheduled";
-    if (admin?.status === "Rejected") return "Rejected by Admin";
-    return "Under Review";
+    const map = {
+      CREATED: "Pending Review",
+      ADMIN_APPROVED: "Approved",
+      ASSIGNED_TO_RIDER: "Pickup Scheduled",
+      UNDER_VERIFICATION: "Action Required",
+      USER_ACCEPTED: "Price Accepted",
+      REJECTED_BY_RIDER: "Rejected",
+      COMPLETED: "Pickup Completed",
+      CANCELLED: "Cancelled",
+    };
+
+    return map[workflowStatus] || "Under Review";
   };
 
   const status = getStatus();
@@ -56,10 +62,12 @@ const SellRequestCard = ({ request, onUpdate }) => {
   const badgeStyles = {
     "Pickup Completed": "bg-green-100 text-green-700",
     "Price Accepted": "bg-green-100 text-green-700",
-    "Price Rejected": "bg-red-100 text-red-700",
     "Action Required": "bg-orange-100 text-orange-700",
     "Pickup Scheduled": "bg-blue-100 text-blue-700",
-    "Rejected by Admin": "bg-red-100 text-red-700",
+    Approved: "bg-yellow-100 text-yellow-700",
+    Rejected: "bg-red-100 text-red-700",
+    Cancelled: "bg-red-100 text-red-700",
+    "Pending Review": "bg-gray-100 text-gray-700",
     "Under Review": "bg-gray-100 text-gray-700",
   };
 
@@ -112,7 +120,7 @@ const SellRequestCard = ({ request, onUpdate }) => {
       </div>
 
       {/* RIDER INFO */}
-      {assignedRider?.riderName && (
+      {workflowStatus === "ASSIGNED_TO_RIDER" && assignedRider?.riderName && (
         <div className="mt-6 bg-blue-50 border border-blue-100 rounded-2xl p-4">
           <p className="text-sm font-medium text-blue-700">Assigned Rider</p>
           <p className="text-sm text-gray-800 mt-1">
@@ -147,16 +155,16 @@ const SellRequestCard = ({ request, onUpdate }) => {
         </div>
       )}
 
-      {/* FINAL MESSAGES */}
-      {verification?.userAccepted === true && (
+      {/* FINAL STATES */}
+      {workflowStatus === "USER_ACCEPTED" && (
         <p className="mt-6 text-green-600 text-sm font-medium">
           You accepted the final price. Pickup will be completed.
         </p>
       )}
 
-      {verification?.userAccepted === false && (
+      {workflowStatus === "REJECTED_BY_RIDER" && (
         <p className="mt-6 text-red-600 text-sm font-medium">
-          You rejected the final price. This request is closed.
+          This request was rejected after verification.
         </p>
       )}
     </div>

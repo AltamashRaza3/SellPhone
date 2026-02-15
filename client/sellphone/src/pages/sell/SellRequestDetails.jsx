@@ -4,6 +4,22 @@ import { toast } from "react-hot-toast";
 import api from "../../utils/axios";
 import SellerDecision from "../../components/SellerDecision";
 
+/* ================= PRETTY STATUS (UI LAYER ONLY) ================= */
+const getPrettyStatus = (status) => {
+  const map = {
+    CREATED: "Pending Review",
+    ADMIN_APPROVED: "Approved",
+    ASSIGNED_TO_RIDER: "Pickup Scheduled",
+    UNDER_VERIFICATION: "Under Review",
+    REJECTED_BY_RIDER: "Rejected",
+    USER_ACCEPTED: "Accepted",
+    COMPLETED: "Completed",
+    CANCELLED: "Cancelled",
+  };
+
+  return map[status] || "Pending";
+};
+
 const SellRequestDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -12,7 +28,7 @@ const SellRequestDetails = () => {
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
 
-  /* ================= FETCH REQUEST ================= */
+  /* ================= FETCH ================= */
   const fetchRequest = async () => {
     try {
       const { data } = await api.get(`/sell-requests/${id}`);
@@ -27,7 +43,6 @@ const SellRequestDetails = () => {
 
   useEffect(() => {
     fetchRequest();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   if (loading) {
@@ -40,13 +55,19 @@ const SellRequestDetails = () => {
 
   if (!request) return null;
 
-  const { phone, pricing, verification, pickup, assignedRider } = request;
+  const { phone, pricing, verification, assignedRider, workflowStatus } =
+    request;
 
-  /* ================= CANCEL LOGIC ================= */
-  const canCancel =
-    pickup?.status === "Pending" &&
-    !assignedRider?.riderId &&
-    !verification?.finalPrice;
+  /* ================= WORKFLOW LOGIC ================= */
+  const canCancel = workflowStatus === "CREATED";
+  const showRiderInfo = workflowStatus === "ASSIGNED_TO_RIDER";
+  const showSellerDecision =
+    workflowStatus === "UNDER_VERIFICATION" &&
+    verification?.finalPrice &&
+    verification?.userAccepted === null;
+  const showAccepted = workflowStatus === "USER_ACCEPTED";
+  const showRejected = workflowStatus === "REJECTED_BY_RIDER";
+  const showCompleted = workflowStatus === "COMPLETED";
 
   const cancelRequest = async () => {
     if (!window.confirm("Do you want to cancel this sell request?")) return;
@@ -63,7 +84,6 @@ const SellRequestDetails = () => {
     }
   };
 
-  /* ================= DOWNLOAD INVOICE ================= */
   const downloadInvoice = async () => {
     try {
       const res = await api.get(`/invoices/sell/${request._id}`, {
@@ -86,7 +106,6 @@ const SellRequestDetails = () => {
     }
   };
 
-  /* ================= RENDER ================= */
   return (
     <div className="bg-[#f2f2f7] min-h-screen py-28">
       <div className="w-full flex justify-center">
@@ -111,19 +130,10 @@ const SellRequestDetails = () => {
           </div>
 
           {/* SUMMARY PANEL */}
-          <div
-            className="
-          bg-white
-          rounded-3xl
-          px-14
-          py-12
-          shadow-[0_15px_50px_rgba(0,0,0,0.05)]
-          space-y-8
-        "
-          >
+          <div className="bg-white rounded-3xl px-14 py-12 shadow-[0_15px_50px_rgba(0,0,0,0.05)] space-y-8">
             <div className="flex justify-between text-sm text-gray-400 uppercase tracking-widest">
-              <span>Request</span>
-              <span>#{request._id.slice(-6)}</span>
+              <span>Status</span>
+              <span>{getPrettyStatus(workflowStatus)}</span>
             </div>
 
             <div className="space-y-2">
@@ -144,17 +154,8 @@ const SellRequestDetails = () => {
           </div>
 
           {/* RIDER INFO */}
-          {assignedRider && pickup?.status === "Scheduled" && (
-            <div
-              className="
-            bg-white
-            rounded-3xl
-            px-14
-            py-10
-            shadow-[0_10px_40px_rgba(0,0,0,0.04)]
-            space-y-3
-          "
-            >
+          {showRiderInfo && assignedRider && (
+            <div className="bg-white rounded-3xl px-14 py-10 shadow-[0_10px_40px_rgba(0,0,0,0.04)] space-y-3">
               <p className="text-sm font-medium text-blue-600 uppercase tracking-wide">
                 Pickup Scheduled
               </p>
@@ -167,29 +168,8 @@ const SellRequestDetails = () => {
             </div>
           )}
 
-          {/* VERIFICATION IMAGES */}
-          {verification?.images?.length > 0 && (
-            <div className="space-y-6">
-              <h3 className="text-2xl font-semibold text-gray-900 text-center">
-                Verification Images
-              </h3>
-
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-                {verification.images.map((img, i) => (
-                  <img
-                    key={i}
-                    src={`${import.meta.env.VITE_API_BASE_URL}${img.url}`}
-                    alt="Verification"
-                    className="rounded-3xl object-cover w-full h-48 shadow-sm"
-                    loading="lazy"
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
           {/* SELLER DECISION */}
-          {verification?.finalPrice && verification.userAccepted === null && (
+          {showSellerDecision && (
             <SellerDecision
               requestId={request._id}
               finalPrice={verification.finalPrice}
@@ -197,16 +177,9 @@ const SellRequestDetails = () => {
             />
           )}
 
-          {verification?.userAccepted === true && (
-            <div
-              className="
-            bg-white
-            rounded-3xl
-            py-10
-            text-center
-            shadow-[0_10px_40px_rgba(0,0,0,0.04)]
-          "
-            >
+          {/* ACCEPTED */}
+          {showAccepted && (
+            <div className="bg-white rounded-3xl py-10 text-center shadow-[0_10px_40px_rgba(0,0,0,0.04)]">
               <p className="text-green-600 text-lg font-medium">
                 You accepted the final price.
               </p>
@@ -216,20 +189,15 @@ const SellRequestDetails = () => {
             </div>
           )}
 
-          {verification?.userAccepted === false && (
-            <div
-              className="
-            bg-white
-            rounded-3xl
-            py-10
-            text-center
-            shadow-[0_10px_40px_rgba(0,0,0,0.04)]
-          "
-            >
+          {/* REJECTED */}
+          {showRejected && (
+            <div className="bg-white rounded-3xl py-10 text-center shadow-[0_10px_40px_rgba(0,0,0,0.04)]">
               <p className="text-red-600 text-lg font-medium">
-                You rejected the final price.
+                This request was rejected after verification.
               </p>
-              <p className="text-gray-500 mt-2">This request is now closed.</p>
+              <p className="text-gray-500 mt-2">
+                Please contact support for further assistance.
+              </p>
             </div>
           )}
 
@@ -239,35 +207,16 @@ const SellRequestDetails = () => {
               <button
                 onClick={cancelRequest}
                 disabled={cancelling}
-                className="
-                px-10 py-4
-                rounded-full
-                text-base
-                font-medium
-                bg-red-600
-                hover:bg-red-700
-                text-white
-                transition
-                disabled:opacity-50
-              "
+                className="px-10 py-4 rounded-full text-base font-medium bg-red-600 hover:bg-red-700 text-white transition disabled:opacity-50"
               >
                 {cancelling ? "Cancelling…" : "Cancel Sell Request"}
               </button>
             )}
 
-            {pickup?.status === "Completed" && (
+            {showCompleted && (
               <button
                 onClick={downloadInvoice}
-                className="
-                px-10 py-4
-                rounded-full
-                text-base
-                font-medium
-                bg-black
-                text-white
-                hover:opacity-90
-                transition
-              "
+                className="px-10 py-4 rounded-full text-base font-medium bg-black text-white hover:opacity-90 transition"
               >
                 Download Invoice
               </button>
@@ -277,7 +226,6 @@ const SellRequestDetails = () => {
       </div>
     </div>
   );
-
 };
 
 export default SellRequestDetails;

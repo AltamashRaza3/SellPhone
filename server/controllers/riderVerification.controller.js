@@ -5,19 +5,13 @@ import { notifyUser } from "../services/notification.service.js";
 /**
  * RIDER VERIFY DEVICE
  * ===================
- * - Rider verifies physical condition
- * - System calculates final price
- * - Rider NEVER enters price
- * - Pickup must be Scheduled
- * - Admin must be Approved
- * - User notified after verification
+ * Production-safe verification lifecycle
  */
 export const verifyDevice = async (req, res) => {
   try {
     const sellRequestId = req.params.id;
     const { checks } = req.body;
 
-    /* ================= BASIC VALIDATION ================= */
     if (!checks || typeof checks !== "object") {
       return res.status(400).json({
         message: "Verification checks are required",
@@ -31,38 +25,24 @@ export const verifyDevice = async (req, res) => {
       });
     }
 
-    /* ================= ADMIN APPROVAL CHECK ================= */
-    if (sellRequest.admin?.status !== "Approved") {
-      return res.status(409).json({
-        message: "Admin approval required before verification",
-      });
-    }
-
-    /* ================= PICKUP STATUS CHECK ================= */
-    if (sellRequest.pickup?.status !== "Scheduled") {
-      return res.status(409).json({
-        message: "Pickup must be scheduled before verification",
-      });
-    }
-
-    /* ================= RIDER OWNERSHIP CHECK ================= */
+    /* ================= RIDER OWNERSHIP ================= */
     if (
       sellRequest.assignedRider?.riderId?.toString() !==
-      req.rider.riderId
+      req.rider.riderId.toString()
     ) {
       return res.status(403).json({
         message: "You are not assigned to this pickup",
       });
     }
 
-    /* ================= DUPLICATE VERIFICATION CHECK ================= */
-    if (sellRequest.verification?.verifiedAt) {
+    /* ================= WORKFLOW GUARD ================= */
+    if (sellRequest.workflowStatus !== "ASSIGNED_TO_RIDER") {
       return res.status(409).json({
-        message: "Device already verified",
+        message: "Invalid lifecycle state for verification",
       });
     }
 
-    /* ================= MINIMUM 3 IMAGE RULE ================= */
+    /* ================= IMAGE RULE ================= */
     const images = sellRequest.verification?.images || [];
     if (images.length < 3) {
       return res.status(400).json({
@@ -70,45 +50,44 @@ export const verifyDevice = async (req, res) => {
       });
     }
 
-    /* ================= CHECKLIST LOGIC ================= */
     const values = Object.values(checks);
     const allChecked = values.every(Boolean);
     const allUnchecked = values.every(v => !v);
 
-    /* AUTO REJECT IF ALL FAILED */
+    /* ======================================================
+       AUTO REJECT (ALL FAILED)
+       ====================================================== */
     if (allUnchecked) {
+
       sellRequest.pickup.status = "Rejected";
-      sellRequest.pickup.rejectReason =
+      sellRequest.pickup.rejectedReason =
         "Device failed all verification checks";
 
-      sellRequest.statusHistory.push({
-        status: "Auto Rejected",
-        changedBy: "system",
-        note: "All verification checks failed",
-        changedAt: new Date(),
-      });
+      // 🔥 CRITICAL FIX
+      sellRequest.transitionStatus(
+        "REJECTED_BY_RIDER",
+        "rider",
+        "Device auto-rejected due to all checks failing"
+      );
 
       await sellRequest.save();
-
-      await createAdminAlert({
-        sellRequestId: sellRequest._id,
-        message: "Device auto-rejected (all checks failed)",
-      });
 
       return res.status(400).json({
         message: "Device auto-rejected due to failed checks",
       });
     }
 
-    /* IF PARTIAL FAILURE → FORCE RIDER TO REJECT */
+    /* ======================================================
+       PARTIAL FAILURE → FORCE MANUAL REJECTION
+       ====================================================== */
     if (!allChecked) {
       return res.status(400).json({
         message:
-          "All checklist items must be confirmed. Reject if condition fails.",
+          "All checklist items must pass. Reject if condition fails.",
       });
     }
 
-    /* ================= BASE PRICE CHECK ================= */
+    /* ================= PRICE CALCULATION ================= */
     const basePrice = sellRequest.pricing?.basePrice;
     if (typeof basePrice !== "number") {
       return res.status(500).json({
@@ -116,7 +95,6 @@ export const verifyDevice = async (req, res) => {
       });
     }
 
-    /* ================= FINAL PRICE CALCULATION ================= */
     const {
       deductions,
       totalDeduction,
@@ -137,12 +115,12 @@ export const verifyDevice = async (req, res) => {
 
     sellRequest.pickup.status = "Picked";
 
-    sellRequest.statusHistory.push({
-      status: "Device Verified",
-      changedBy: "rider",
-      note: `Final price calculated: ₹${finalPrice}`,
-      changedAt: new Date(),
-    });
+    // 🔥 CRITICAL FIX
+    sellRequest.transitionStatus(
+      "UNDER_VERIFICATION",
+      "rider",
+      `Device verified. Final price ₹${finalPrice}`
+    );
 
     await sellRequest.save();
 
@@ -166,7 +144,7 @@ export const verifyDevice = async (req, res) => {
   } catch (error) {
     console.error("RIDER VERIFY ERROR:", error);
     return res.status(500).json({
-      message: "Failed to verify device",
+      message: error.message || "Failed to verify device",
     });
   }
 };
