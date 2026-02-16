@@ -22,7 +22,6 @@ const sellRequestSchema = new mongoose.Schema(
         "ASSIGNED_TO_RIDER",
         "UNDER_VERIFICATION",
         "REJECTED_BY_RIDER",
-        "ESCALATED",
         "USER_ACCEPTED",
         "COMPLETED",
         "CANCELLED",
@@ -89,7 +88,8 @@ const sellRequestSchema = new mongoose.Schema(
       },
       scheduledAt: Date,
       completedAt: Date,
-      rejectedReason: String,
+      rejectReason: String,
+      rejectedAt: Date,
       address: {
         line1: String,
         city: String,
@@ -131,9 +131,9 @@ const sellRequestSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-/* ===========================================================
-   SAFE STATUS TRANSITION METHOD (MANDATORY FOR PRODUCTION)
-   =========================================================== */
+/* ============================================================
+   PRODUCTION-SAFE STATUS TRANSITION SYSTEM
+   ============================================================ */
 sellRequestSchema.methods.transitionStatus = function (
   newStatus,
   changedBy = "system",
@@ -141,13 +141,32 @@ sellRequestSchema.methods.transitionStatus = function (
 ) {
   const validTransitions = {
     CREATED: ["ADMIN_APPROVED", "CANCELLED"],
-    ADMIN_APPROVED: ["ASSIGNED_TO_RIDER", "CANCELLED"],
-    ASSIGNED_TO_RIDER: ["UNDER_VERIFICATION", "CANCELLED"],
-    UNDER_VERIFICATION: ["REJECTED_BY_RIDER", "USER_ACCEPTED"],
-    REJECTED_BY_RIDER: ["ESCALATED"],
-    ESCALATED: ["USER_ACCEPTED", "CANCELLED"],
+
+    ADMIN_APPROVED: [
+      "ASSIGNED_TO_RIDER",
+      "CANCELLED"
+    ],
+
+    ASSIGNED_TO_RIDER: [
+      "UNDER_VERIFICATION",
+      "REJECTED_BY_RIDER",
+      "CANCELLED"
+    ],
+
+    UNDER_VERIFICATION: [
+      "USER_ACCEPTED",
+      "REJECTED_BY_RIDER"
+    ],
+
+    REJECTED_BY_RIDER: [
+      "ASSIGNED_TO_RIDER",   // 🔥 Allows reassignment
+      "CANCELLED"
+    ],
+
     USER_ACCEPTED: ["COMPLETED"],
+
     COMPLETED: [],
+
     CANCELLED: [],
   };
 
@@ -165,13 +184,14 @@ sellRequestSchema.methods.transitionStatus = function (
     status: newStatus,
     changedBy,
     note,
+    changedAt: new Date(),
   });
 };
 
-/* ================= HELPERS ================= */
+/* ================= HELPER METHODS ================= */
 
 sellRequestSchema.methods.canVerify = function () {
-  return this.workflowStatus === "UNDER_VERIFICATION";
+  return this.workflowStatus === "ASSIGNED_TO_RIDER";
 };
 
 sellRequestSchema.methods.canComplete = function () {

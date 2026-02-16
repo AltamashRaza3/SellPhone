@@ -6,7 +6,7 @@ import Rider from "../models/Rider.js";
 const router = express.Router();
 
 /* ======================================================
-   GET ALL SELL REQUESTS (ADMIN)
+   GET ALL SELL REQUESTS
 ====================================================== */
 router.get("/", adminAuth, async (req, res) => {
   try {
@@ -22,7 +22,7 @@ router.get("/", adminAuth, async (req, res) => {
 });
 
 /* ======================================================
-   ADMIN APPROVE / REJECT SELL REQUEST
+   ADMIN APPROVE / REJECT
 ====================================================== */
 router.put("/:id/status", adminAuth, async (req, res) => {
   try {
@@ -39,25 +39,17 @@ router.put("/:id/status", adminAuth, async (req, res) => {
       return res.status(404).json({ message: "Sell request not found" });
     }
 
-    if (["Approved", "Rejected"].includes(request.admin?.status)) {
+    if (request.workflowStatus !== "CREATED") {
       return res.status(409).json({
-        message: "Admin decision already made",
+        message: "Admin decision already taken",
       });
     }
 
-    if (request.assignedRider?.riderId) {
-      return res.status(409).json({
-        message: "Cannot change admin status after rider assignment",
-      });
-    }
-
-    /* ================= ADMIN DECISION ================= */
     request.admin.status = status;
     request.admin.remarks = remarks;
     request.admin.approvedAt =
       status === "Approved" ? new Date() : null;
 
-    // 🔥 CRITICAL FIX — Transition lifecycle
     if (status === "Approved") {
       request.transitionStatus(
         "ADMIN_APPROVED",
@@ -74,10 +66,8 @@ router.put("/:id/status", adminAuth, async (req, res) => {
 
     await request.save();
 
-    res.json({
-      success: true,
-      status,
-    });
+    res.json({ success: true });
+
   } catch (err) {
     console.error("ADMIN STATUS ERROR:", err);
     res.status(500).json({ message: err.message });
@@ -85,7 +75,7 @@ router.put("/:id/status", adminAuth, async (req, res) => {
 });
 
 /* ======================================================
-   ASSIGN / REASSIGN RIDER (ADMIN)
+   ASSIGN / REASSIGN RIDER
 ====================================================== */
 router.put("/:id/assign-rider", adminAuth, async (req, res) => {
   try {
@@ -100,19 +90,32 @@ router.put("/:id/assign-rider", adminAuth, async (req, res) => {
       return res.status(404).json({ message: "Sell request not found" });
     }
 
-    if (request.workflowStatus !== "ADMIN_APPROVED") {
+    /* ================= STRICT LIFECYCLE RULES ================= */
+
+    // ❌ Block after verification starts
+    if (
+      [
+        "UNDER_VERIFICATION",
+        "USER_ACCEPTED",
+        "COMPLETED",
+        "CANCELLED",
+      ].includes(request.workflowStatus)
+    ) {
       return res.status(409).json({
-        message: "Admin approval required before assigning rider",
+        message:
+          "Cannot assign or reassign rider after verification starts",
       });
     }
 
+    // ❌ Block if not approved yet
     if (
-      ["UNDER_VERIFICATION", "USER_ACCEPTED", "COMPLETED"].includes(
+      !["ADMIN_APPROVED", "ASSIGNED_TO_RIDER"].includes(
         request.workflowStatus
       )
     ) {
       return res.status(409).json({
-        message: "Cannot reassign rider after verification",
+        message:
+          "Admin approval required before assigning rider",
       });
     }
 
@@ -135,14 +138,22 @@ router.put("/:id/assign-rider", adminAuth, async (req, res) => {
       ? new Date(scheduledAt)
       : new Date();
 
-    // 🔥 CRITICAL FIX
-    request.transitionStatus(
-      "ASSIGNED_TO_RIDER",
-      "admin",
-      isReassignment
-        ? `Rider reassigned to ${rider.name}`
-        : `Rider assigned to ${rider.name}`
-    );
+    /* ================= TRANSITION ONLY FIRST TIME ================= */
+
+    if (request.workflowStatus === "ADMIN_APPROVED") {
+      request.transitionStatus(
+        "ASSIGNED_TO_RIDER",
+        "admin",
+        `Rider assigned to ${rider.name}`
+      );
+    } else {
+      // Reassignment → stay in ASSIGNED_TO_RIDER
+      request.statusHistory.push({
+        status: "RIDER_REASSIGNED",
+        changedBy: "admin",
+        note: `Rider reassigned to ${rider.name}`,
+      });
+    }
 
     await request.save();
 

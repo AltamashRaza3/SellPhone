@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
 import AssignRider from "../../components/Admin/AssignRider";
 
-/* ================= STATUS BADGE ================= */
+/* ======================================================
+   STATUS BADGE MAPPING
+====================================================== */
 const getDisplayStatus = (req) => {
   const status = req.workflowStatus;
 
@@ -55,7 +57,9 @@ const AdminSellPhones = () => {
   const [remarks, setRemarks] = useState({});
   const [updatingId, setUpdatingId] = useState(null);
 
-  /* ================= FETCH ================= */
+  /* ======================================================
+     FETCH REQUESTS
+  ====================================================== */
   const fetchRequests = async () => {
     try {
       setLoading(true);
@@ -80,7 +84,9 @@ const AdminSellPhones = () => {
     fetchRequests();
   }, []);
 
-  /* ================= APPROVE / REJECT ================= */
+  /* ======================================================
+     ADMIN APPROVE / REJECT
+  ====================================================== */
   const updateStatus = async (id, status) => {
     try {
       setUpdatingId(id);
@@ -120,24 +126,56 @@ const AdminSellPhones = () => {
 
       {requests.map((req) => {
         const phone = req.phone || {};
-        const address = req.pickup?.address;
+        const address = req.pickup?.address || {};
         const status = getDisplayStatus(req);
 
-        /* ================= CLEAN WORKFLOW-BASED LOGIC ================= */
+        /* ======================================================
+           LIFECYCLE RULES (STRICT)
+        ====================================================== */
+
+        // Only at initial submission
         const canApproveReject = req.workflowStatus === "CREATED";
 
-        const canAssignRider = req.workflowStatus === "ADMIN_APPROVED";
+        // Assign or Reassign BEFORE verification
+        const canAssignRider =
+          req.workflowStatus === "ADMIN_APPROVED" ||
+          req.workflowStatus === "ASSIGNED_TO_RIDER";
 
-        const isEscalated = req.workflowStatus === "REJECTED_BY_RIDER";
+        // Locked states
+        const isLocked =
+          req.workflowStatus === "UNDER_VERIFICATION" ||
+          req.workflowStatus === "USER_ACCEPTED" ||
+          req.workflowStatus === "COMPLETED" ||
+          req.workflowStatus === "CANCELLED" ||
+          req.workflowStatus === "REJECTED_BY_RIDER";
+
+        const isRejectedByRider = req.workflowStatus === "REJECTED_BY_RIDER";
+
+        /* ======================================================
+           RESOLVE REJECTION REASON SAFELY
+        ====================================================== */
+
+        let rejectionReason = null;
+
+        if (isRejectedByRider) {
+          const fromPickup = req.pickup?.rejectReason;
+
+          const fromHistory = [...(req.statusHistory || [])]
+            .reverse()
+            .find((h) => h.status === "Pickup Rejected");
+
+          rejectionReason =
+            fromPickup || fromHistory?.note || "No reason provided";
+        }
 
         return (
           <div
             key={req._id}
             className={`glass-card space-y-4 ${
-              isEscalated ? "ring-1 ring-red-500/40" : ""
+              isRejectedByRider ? "ring-1 ring-red-500/40" : ""
             }`}
           >
-            {/* HEADER */}
+            {/* ================= HEADER ================= */}
             <div className="flex justify-between items-start">
               <div>
                 <h3 className="text-lg font-semibold text-white">
@@ -158,7 +196,7 @@ const AdminSellPhones = () => {
               </span>
             </div>
 
-            {/* USER IMAGES */}
+            {/* ================= IMAGES ================= */}
             {Array.isArray(phone.images) && phone.images.length > 0 && (
               <div className="grid grid-cols-3 gap-3">
                 {phone.images.map((img, i) => (
@@ -173,7 +211,7 @@ const AdminSellPhones = () => {
               </div>
             )}
 
-            {/* SELLER */}
+            {/* ================= SELLER ================= */}
             <div className="p-3 rounded-lg bg-white/5 border border-white/10">
               <p className="text-sm text-gray-400">Seller</p>
               <p className="text-white">{req.user?.email}</p>
@@ -182,24 +220,35 @@ const AdminSellPhones = () => {
               </p>
             </div>
 
-            {/* ADDRESS */}
+            {/* ================= ADDRESS ================= */}
             <div className="p-4 rounded-xl bg-white/5 border border-white/10">
               <p className="text-sm font-semibold text-gray-400 mb-1">
                 Pickup Address
               </p>
-              {address ? (
-                <>
-                  <p className="text-sm text-white">{address.line1}</p>
-                  <p className="text-sm text-gray-300">
-                    {address.city}, {address.state} – {address.pincode}
-                  </p>
-                </>
-              ) : (
-                <p className="text-sm text-gray-500">Address not provided</p>
-              )}
+              <p className="text-sm text-white">{address.line1 || "N/A"}</p>
+              <p className="text-sm text-gray-300">
+                {address.city}, {address.state} – {address.pincode}
+              </p>
             </div>
 
-            {/* ADMIN ACTIONS */}
+            {/* ================= REJECTION DETAILS ================= */}
+            {isRejectedByRider && (
+              <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 space-y-2">
+                <p className="text-sm font-semibold text-red-400">
+                  Rejected by Rider
+                </p>
+
+                <p className="text-sm text-white">Reason: {rejectionReason}</p>
+
+                {req.pickup?.rejectedAt && (
+                  <p className="text-xs text-gray-400">
+                    {new Date(req.pickup.rejectedAt).toLocaleString()}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* ================= ADMIN APPROVAL ================= */}
             {canApproveReject && (
               <div className="space-y-3">
                 <textarea
@@ -234,16 +283,16 @@ const AdminSellPhones = () => {
               </div>
             )}
 
-            {/* ASSIGN RIDER */}
-            {canAssignRider && (
+            {/* ================= ASSIGN / REASSIGN ================= */}
+            {canAssignRider && !isLocked && (
               <AssignRider
                 requestId={req._id}
-                alreadyAssigned={false}
+                alreadyAssigned={Boolean(req.assignedRider?.riderId)}
                 onAssigned={fetchRequests}
               />
             )}
 
-            {/* ASSIGNED RIDER INFO */}
+            {/* ================= ASSIGNED RIDER ================= */}
             {req.assignedRider && (
               <div className="p-4 rounded-xl bg-indigo-500/10 border border-indigo-500/20">
                 <p className="text-sm font-semibold text-indigo-400">

@@ -5,10 +5,6 @@ import userAuth from "../middleware/userAuth.js";
 import { createSellRequest } from "../controllers/sellRequest.controller.js";
 import path from "path";
 import fs from "fs";
-import { fileURLToPath } from "url";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const router = express.Router();
 
@@ -22,15 +18,12 @@ if (!fs.existsSync(SELL_UPLOAD_DIR)) {
 }
 
 /* ======================================================
-   MULTER CONFIG (SELL IMAGES)
+   MULTER CONFIG
 ====================================================== */
 const sellStorage = multer.diskStorage({
-  destination: (_, __, cb) => {
-    cb(null, SELL_UPLOAD_DIR);
-  },
-  filename: (_, file, cb) => {
-    cb(null, `${Date.now()}-${file.originalname}`);
-  },
+  destination: (_, __, cb) => cb(null, SELL_UPLOAD_DIR),
+  filename: (_, file, cb) =>
+    cb(null, `${Date.now()}-${file.originalname}`),
 });
 
 const uploadSellImages = multer({
@@ -39,7 +32,7 @@ const uploadSellImages = multer({
 });
 
 /* ======================================================
-   VALIDATION (BEFORE CONTROLLER)
+   VALIDATION
 ====================================================== */
 const validateSellRequest = (req, res, next) => {
   if (!req.files || req.files.length < 3) {
@@ -76,7 +69,7 @@ const validateSellRequest = (req, res, next) => {
 };
 
 /* ======================================================
-   CREATE SELL REQUEST (USER)
+   CREATE SELL REQUEST
 ====================================================== */
 router.post(
   "/",
@@ -87,7 +80,7 @@ router.post(
 );
 
 /* ======================================================
-   GET MY SELL REQUESTS (USER)
+   GET MY SELL REQUESTS
 ====================================================== */
 router.get("/my", userAuth, async (req, res) => {
   try {
@@ -103,7 +96,7 @@ router.get("/my", userAuth, async (req, res) => {
 });
 
 /* ======================================================
-   GET SINGLE SELL REQUEST (USER)
+   GET SINGLE SELL REQUEST
 ====================================================== */
 router.get("/:id", userAuth, async (req, res) => {
   try {
@@ -124,7 +117,7 @@ router.get("/:id", userAuth, async (req, res) => {
 });
 
 /* ======================================================
-   SELLER CANCEL (BEFORE RIDER ASSIGNED)
+   SELLER CANCEL (ONLY BEFORE ADMIN APPROVAL)
 ====================================================== */
 router.put("/:id/cancel", userAuth, async (req, res) => {
   try {
@@ -137,41 +130,27 @@ router.put("/:id/cancel", userAuth, async (req, res) => {
       return res.status(404).json({ message: "Sell request not found" });
     }
 
-    if (request.assignedRider?.riderId) {
+    if (request.workflowStatus !== "CREATED") {
       return res.status(409).json({
-        message: "Cannot cancel after rider assignment",
+        message: "Cannot cancel after approval or assignment",
       });
     }
 
-    if (request.pickup?.status !== "Pending") {
-      return res.status(409).json({
-        message: "Cannot cancel after pickup scheduling",
-      });
-    }
-
-    if (request.verification?.finalPrice) {
-      return res.status(409).json({
-        message: "Cannot cancel after final price generation",
-      });
-    }
+    request.transitionStatus(
+      "CANCELLED",
+      "user",
+      "Cancelled by seller before approval"
+    );
 
     request.pickup.status = "Rejected";
 
-    request.statusHistory.push({
-      status: "Cancelled by Seller",
-      changedBy: "user",
-      changedAt: new Date(),
-    });
-
     await request.save({ validateBeforeSave: false });
 
-    res.json({
-      success: true,
-      message: "Sell request cancelled successfully",
-    });
+    res.json({ success: true });
+
   } catch (err) {
     console.error("SELLER CANCEL ERROR:", err);
-    res.status(500).json({ message: "Failed to cancel request" });
+    res.status(500).json({ message: err.message });
   }
 });
 
@@ -195,37 +174,34 @@ router.put("/:id/decision", userAuth, async (req, res) => {
       return res.status(404).json({ message: "Sell request not found" });
     }
 
-    if (request.admin?.status !== "Approved") {
-      return res.status(400).json({
-        message: "Request not approved by admin yet",
-      });
-    }
-
-    if (!request.verification?.finalPrice) {
-      return res.status(400).json({
-        message: "Final price not generated yet",
+    if (request.workflowStatus !== "UNDER_VERIFICATION") {
+      return res.status(409).json({
+        message: "Final price not ready yet",
       });
     }
 
     if (request.verification.userAccepted !== null) {
-      return res.status(400).json({
+      return res.status(409).json({
         message: "Decision already submitted",
       });
     }
 
     request.verification.userAccepted = accept;
 
-    if (!accept) {
+    if (accept) {
+      request.transitionStatus(
+        "USER_ACCEPTED",
+        "user",
+        "User accepted final price"
+      );
+    } else {
+      request.transitionStatus(
+        "CANCELLED",
+        "user",
+        "User rejected final price"
+      );
       request.pickup.status = "Rejected";
     }
-
-    request.statusHistory.push({
-      status: accept
-        ? "User Accepted Final Price"
-        : "User Rejected Final Price",
-      changedBy: "user",
-      changedAt: new Date(),
-    });
 
     await request.save({ validateBeforeSave: false });
 
@@ -233,47 +209,10 @@ router.put("/:id/decision", userAuth, async (req, res) => {
       success: true,
       decision: accept ? "ACCEPTED" : "REJECTED",
     });
+
   } catch (err) {
     console.error("SELLER DECISION ERROR:", err);
-    res.status(500).json({ message: "Failed to submit decision" });
-  }
-});
-
-/* ======================================================
-   DOWNLOAD INVOICE (USER)
-====================================================== */
-router.get("/:id/invoice", userAuth, async (req, res) => {
-  try {
-    const request = await SellRequest.findOne({
-      _id: req.params.id,
-      "user.uid": req.user.uid,
-    });
-
-    if (!request || !request.invoice?.url) {
-      return res.status(404).json({
-        message: "Invoice not available",
-      });
-    }
-
-    const relativePath = request.invoice.url.replace(/^\/+/, "");
-    const filePath = path.resolve(process.cwd(), relativePath);
-
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({
-        message: "Invoice file missing on server",
-      });
-    }
-
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader(
-      "Content-Disposition",
-      `inline; filename="${path.basename(filePath)}"`
-    );
-
-    res.sendFile(filePath);
-  } catch (err) {
-    console.error("INVOICE DOWNLOAD ERROR:", err);
-    res.status(500).json({ message: "Failed to download invoice" });
+    res.status(500).json({ message: err.message });
   }
 });
 
