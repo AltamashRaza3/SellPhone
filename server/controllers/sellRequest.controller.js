@@ -13,6 +13,12 @@ export const createSellRequest = async (req, res) => {
       });
     }
 
+    if (!req.user?.uid || !req.user?.email) {
+      return res.status(401).json({
+        message: "Unauthorized",
+      });
+    }
+
     const {
       brand,
       model,
@@ -82,12 +88,14 @@ export const createSellRequest = async (req, res) => {
       },
     });
 
-    // 🔥 Proper lifecycle start
-    sellRequest.transitionStatus(
-      "CREATED",
-      "user",
-      "Sell request submitted"
-    );
+    // ✅ DO NOT call transitionStatus("CREATED")
+    // Just log history
+    sellRequest.statusHistory.push({
+      status: "CREATED",
+      changedBy: "user",
+      note: "Sell request submitted",
+      changedAt: new Date(),
+    });
 
     await sellRequest.save();
 
@@ -104,6 +112,7 @@ export const createSellRequest = async (req, res) => {
     });
   }
 };
+
 
 /* ======================================================
    ASSIGN RIDER (ADMIN)
