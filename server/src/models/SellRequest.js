@@ -72,11 +72,16 @@ const sellRequestSchema = new mongoose.Schema(
 
     /* ================= ASSIGNED RIDER ================= */
     assignedRider: {
-      riderId: { type: String, index: true },
-      riderName: String,
-      riderPhone: String,
-      assignedAt: Date,
-    },
+  riderId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Rider",
+    index: true,
+  },
+  riderName: String,
+  riderPhone: String,
+  assignedAt: Date,
+},
+
 
     /* ================= PICKUP ================= */
     pickup: {

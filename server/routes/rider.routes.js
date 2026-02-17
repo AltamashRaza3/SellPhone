@@ -14,7 +14,9 @@ import { calculateFinalPrice } from "../utils/priceRules.js";
 const router = express.Router();
 const RIDER_PAYOUT_AMOUNT = 150;
 
-/* ================= MULTER ================= */
+/* ======================================================
+   MULTER CONFIG
+====================================================== */
 const uploadDir = "uploads/pickups";
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
@@ -33,7 +35,9 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-/* ================= AUTH ================= */
+/* ======================================================
+   AUTH
+====================================================== */
 router.post("/auth/send-otp", sendOtp);
 router.post("/auth/verify-otp", verifyOtp);
 
@@ -41,10 +45,12 @@ router.get("/me", riderAuth, (req, res) => {
   res.json({ success: true, rider: req.rider });
 });
 
-/* ================= PICKUPS LIST ================= */
+/* ======================================================
+   GET RIDER PICKUPS
+====================================================== */
 router.get("/pickups", riderAuth, async (req, res) => {
   try {
-    const riderId = req.rider.riderId.toString();
+    const riderId = req.rider.riderId;
 
     const pickups = await SellRequest.find({
       "assignedRider.riderId": riderId,
@@ -56,7 +62,9 @@ router.get("/pickups", riderAuth, async (req, res) => {
           "COMPLETED",
         ],
       },
-    }).sort({ "pickup.scheduledAt": 1 });
+    })
+      .sort({ "pickup.scheduledAt": 1 })
+      .lean();
 
     res.json(pickups);
   } catch (err) {
@@ -65,10 +73,12 @@ router.get("/pickups", riderAuth, async (req, res) => {
   }
 });
 
-/* ================= PICKUP DETAILS ================= */
+/* ======================================================
+   GET PICKUP DETAILS
+====================================================== */
 router.get("/pickups/:id", riderAuth, async (req, res) => {
   try {
-    const riderId = req.rider.riderId.toString();
+    const riderId = req.rider.riderId;
 
     const pickup = await SellRequest.findOne({
       _id: req.params.id,
@@ -86,19 +96,19 @@ router.get("/pickups/:id", riderAuth, async (req, res) => {
   }
 });
 
-/* ================= UPLOAD VERIFICATION IMAGES ================= */
+/* ======================================================
+   UPLOAD VERIFICATION IMAGES
+====================================================== */
 router.post(
   "/pickups/:id/upload-images",
   riderAuth,
   upload.array("images", 6),
   async (req, res) => {
     try {
-      const riderId = req.rider.riderId.toString();
+      const riderId = req.rider.riderId;
 
-      if (!req.files || !req.files.length) {
-        return res.status(400).json({
-          message: "No images uploaded",
-        });
+      if (!req.files?.length) {
+        return res.status(400).json({ message: "No images uploaded" });
       }
 
       const request = await SellRequest.findOne({
@@ -115,12 +125,11 @@ router.post(
 
       const images = req.files.map((file) => ({
         url: `/uploads/pickups/${file.filename}`,
-        uploadedBy: riderId,
+        uploadedBy: riderId.toString(),
         uploadedAt: new Date(),
       }));
 
       request.verification.images.push(...images);
-
       await request.save();
 
       res.json({ success: true });
@@ -131,10 +140,12 @@ router.post(
   }
 );
 
-/* ================= VERIFY DEVICE ================= */
+/* ======================================================
+   VERIFY DEVICE
+====================================================== */
 router.put("/pickups/:id/verify", riderAuth, async (req, res) => {
   try {
-    const riderId = req.rider.riderId.toString();
+    const riderId = req.rider.riderId;
     const { checks = {} } = req.body;
 
     const request = await SellRequest.findOne({
@@ -153,6 +164,12 @@ router.put("/pickups/:id/verify", riderAuth, async (req, res) => {
       });
     }
 
+    if (request.workflowStatus !== "ASSIGNED_TO_RIDER") {
+      return res.status(409).json({
+        message: "Device already verified",
+      });
+    }
+
     const { deductions, finalPrice } = calculateFinalPrice(
       request.pricing.basePrice,
       checks
@@ -163,7 +180,7 @@ router.put("/pickups/:id/verify", riderAuth, async (req, res) => {
       checks,
       deductions,
       finalPrice,
-      verifiedBy: riderId,
+      verifiedBy: riderId.toString(),
       verifiedAt: new Date(),
       userAccepted: null,
     };
@@ -183,10 +200,12 @@ router.put("/pickups/:id/verify", riderAuth, async (req, res) => {
   }
 });
 
-/* ================= REJECT PICKUP ================= */
+/* ======================================================
+   REJECT PICKUP
+====================================================== */
 router.put("/pickups/:id/reject", riderAuth, async (req, res) => {
   try {
-    const riderId = req.rider.riderId.toString();
+    const riderId = req.rider.riderId;
     const { reason } = req.body;
 
     if (!reason?.trim()) {
@@ -208,11 +227,7 @@ router.put("/pickups/:id/reject", riderAuth, async (req, res) => {
     request.pickup.rejectReason = reason;
     request.pickup.rejectedAt = new Date();
 
-    request.transitionStatus(
-      "REJECTED_BY_RIDER",
-      "rider",
-      reason
-    );
+    request.transitionStatus("REJECTED_BY_RIDER", "rider", reason);
 
     await request.save();
 
@@ -229,13 +244,15 @@ router.put("/pickups/:id/reject", riderAuth, async (req, res) => {
   }
 });
 
-/* ================= COMPLETE PICKUP ================= */
+/* ======================================================
+   COMPLETE PICKUP (TRANSACTION SAFE)
+====================================================== */
 router.put("/pickups/:id/complete", riderAuth, async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
-    const riderId = req.rider.riderId.toString();
+    const riderId = req.rider.riderId;
 
     const request = await SellRequest.findOne({
       _id: req.params.id,
@@ -244,29 +261,33 @@ router.put("/pickups/:id/complete", riderAuth, async (req, res) => {
     }).session(session);
 
     if (!request) {
-      throw new Error("Pickup not found");
+      throw new Error("Pickup not found or not eligible");
+    }
+
+    if (request.workflowStatus === "COMPLETED") {
+      throw new Error("Pickup already completed");
     }
 
     await InventoryItem.findOneAndUpdate(
-  { sellRequestId: request._id },
-  {
-    sellRequestId: request._id,
-    phone: {
-      brand: request.phone.brand,
-      model: request.phone.model,
-      storage: request.phone.storage,
-      ram: request.phone.ram,
-      color: request.phone.color,
-      condition: request.phone.declaredCondition || "Good", // SAFETY
-      images: [],
-    },
-    purchasePrice: request.verification.finalPrice,
-    status: "InStock",
-  },
-  { upsert: true, session }
-);
-
-
+      { sellRequestId: request._id },
+      {
+        $setOnInsert: {
+          sellRequestId: request._id,
+          phone: {
+            brand: request.phone.brand,
+            model: request.phone.model,
+            storage: request.phone.storage,
+            ram: request.phone.ram,
+            color: request.phone.color,
+            condition: request.phone.declaredCondition || "Good",
+            images: [],
+          },
+          purchasePrice: request.verification.finalPrice,
+          status: "InStock",
+        },
+      },
+      { upsert: true, new: true, session }
+    );
 
     request.riderPayout = {
       amount: RIDER_PAYOUT_AMOUNT,
@@ -293,10 +314,12 @@ router.put("/pickups/:id/complete", riderAuth, async (req, res) => {
   }
 });
 
-/* ================= RIDER EARNINGS ================= */
+/* ======================================================
+   RIDER EARNINGS
+====================================================== */
 router.get("/earnings", riderAuth, async (req, res) => {
   try {
-    const riderId = req.rider.riderId.toString();
+    const riderId = req.rider.riderId;
 
     const completed = await SellRequest.find({
       "assignedRider.riderId": riderId,
