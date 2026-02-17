@@ -22,8 +22,9 @@ const riderAuth = async (req, res, next) => {
       return res.status(401).json({ message: "Invalid rider" });
     }
 
+    // 🔥 IMPORTANT: Always store riderId as STRING
     req.rider = {
-      riderId: rider._id,
+      riderId: rider._id.toString(),
       name: rider.name,
       phone: rider.phone,
     };

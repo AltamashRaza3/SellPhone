@@ -28,9 +28,16 @@ const AssignRider = ({ requestId, alreadyAssigned, onAssigned }) => {
         // ✅ Correct parsing of wrapped API response
         const riderList = Array.isArray(data?.riders) ? data.riders : [];
 
-        const validRiders = riderList.filter(
+        const ridersArray = Array.isArray(data)
+          ? data
+          : Array.isArray(data.riders)
+            ? data.riders
+            : [];
+
+        const validRiders = ridersArray.filter(
           (r) => r?._id && r?.name && r?.status === "active",
         );
+
 
         if (isMounted) {
           setRiders(validRiders);
