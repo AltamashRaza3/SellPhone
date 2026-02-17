@@ -248,15 +248,27 @@ router.put("/pickups/:id/complete", riderAuth, async (req, res) => {
     }
 
     await InventoryItem.findOneAndUpdate(
-      { sellRequestId: request._id },
-      {
-        sellRequestId: request._id,
-        phone: request.phone,
-        purchasePrice: request.verification.finalPrice,
-        status: "InStock",
-      },
-      { upsert: true, session }
-    );
+  { sellRequestId: request._id },
+  {
+    sellRequestId: request._id,
+    phone: {
+      brand: request.phone.brand,
+      model: request.phone.model,
+      storage: request.phone.storage,
+      ram: request.phone.ram,
+      color: request.phone.color,
+      condition:
+        request.phone.condition ||
+        request.phone.declaredCondition ||
+        "Good",   // safe fallback
+      images: [], // images will be uploaded later
+    },
+    purchasePrice: request.verification.finalPrice,
+    status: "InStock",
+  },
+  { upsert: true, session }
+);
+
 
     request.riderPayout = {
       amount: RIDER_PAYOUT_AMOUNT,
