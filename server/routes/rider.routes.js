@@ -252,20 +252,20 @@ router.put("/pickups/:id/complete", riderAuth, async (req, res) => {
   {
     sellRequestId: request._id,
     phone: {
-  brand: request.phone.brand,
-  model: request.phone.model,
-  storage: request.phone.storage,
-  ram: request.phone.ram,
-  color: request.phone.color,
-  condition: request.phone.declaredCondition, // ✅ FIX
-  images: [],
-},
-
+      brand: request.phone.brand,
+      model: request.phone.model,
+      storage: request.phone.storage,
+      ram: request.phone.ram,
+      color: request.phone.color,
+      condition: request.phone.declaredCondition || "Good", // SAFETY
+      images: [],
+    },
     purchasePrice: request.verification.finalPrice,
     status: "InStock",
   },
   { upsert: true, session }
 );
+
 
 
     request.riderPayout = {
