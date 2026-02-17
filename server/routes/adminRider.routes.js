@@ -6,6 +6,48 @@ import adminAuth from "../middleware/adminAuth.js";
 const router = express.Router();
 
 /* ======================================================
+   CREATE RIDER
+====================================================== */
+router.post("/", adminAuth, async (req, res) => {
+  try {
+    const { name, phone } = req.body;
+
+    if (!name || !phone) {
+      return res.status(400).json({
+        message: "Name and phone are required",
+      });
+    }
+
+    const existing = await Rider.findOne({ phone });
+    if (existing) {
+      return res.status(400).json({
+        message: "Rider already exists with this phone",
+      });
+    }
+
+    const rider = await Rider.create({
+      name,
+      phone,
+      status: "active",
+      createdBy: req.admin._id,
+      statusUpdatedAt: new Date(),
+      statusUpdatedBy: req.admin._id,
+    });
+
+    res.status(201).json({
+      success: true,
+      rider,
+    });
+
+  } catch (err) {
+    console.error("CREATE RIDER ERROR:", err);
+    res.status(500).json({
+      message: "Failed to create rider",
+    });
+  }
+});
+
+/* ======================================================
    RIDER PERFORMANCE (OVERALL)
    GET /api/admin/riders/performance
 ====================================================== */
@@ -170,7 +212,7 @@ router.get("/performance/monthly", adminAuth, async (req, res) => {
 /* ======================================================
    UPDATE RIDER STATUS (ACTIVE / INACTIVE)
 ====================================================== */
-router.patch("/riders/:id/status", adminAuth, async (req, res) => {
+router.patch("/:id/status", adminAuth, async (req, res) => {
   try {
     const { status } = req.body;
 
