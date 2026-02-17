@@ -25,9 +25,12 @@ const AssignRider = ({ requestId, alreadyAssigned, onAssigned }) => {
 
         const data = await res.json();
 
-        const validRiders = Array.isArray(data)
-          ? data.filter((r) => r?._id && r?.name && r?.status === "active")
-          : [];
+        // ✅ Correct parsing of wrapped API response
+        const riderList = Array.isArray(data?.riders) ? data.riders : [];
+
+        const validRiders = riderList.filter(
+          (r) => r?._id && r?.name && r?.status === "active",
+        );
 
         if (isMounted) {
           setRiders(validRiders);
@@ -38,6 +41,7 @@ const AssignRider = ({ requestId, alreadyAssigned, onAssigned }) => {
         if (isMounted) setFetchingRiders(false);
       }
     };
+
 
     loadRiders();
 

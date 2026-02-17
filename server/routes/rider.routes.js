@@ -44,8 +44,10 @@ router.get("/me", riderAuth, (req, res) => {
 /* ================= PICKUPS LIST ================= */
 router.get("/pickups", riderAuth, async (req, res) => {
   try {
+    const riderId = req.rider._id.toString();
+
     const pickups = await SellRequest.find({
-      "assignedRider.riderId": req.rider.riderId,
+      "assignedRider.riderId": riderId,
       workflowStatus: {
         $in: [
           "ASSIGNED_TO_RIDER",
@@ -57,19 +59,44 @@ router.get("/pickups", riderAuth, async (req, res) => {
     }).sort({ "pickup.scheduledAt": 1 });
 
     res.json(pickups);
-  } catch {
+  } catch (err) {
+    console.error("LOAD PICKUPS ERROR:", err);
     res.status(500).json({ message: "Failed to load pickups" });
+  }
+});
+
+/* ================= PICKUP DETAILS ================= */
+router.get("/pickups/:id", riderAuth, async (req, res) => {
+  try {
+    const riderId = req.rider._id.toString();
+
+    const pickup = await SellRequest.findOne({
+      _id: req.params.id,
+      "assignedRider.riderId": riderId,
+    });
+
+    if (!pickup) {
+      return res.status(403).json({
+        message: "You are not assigned to this pickup",
+      });
+    }
+
+    res.json(pickup);
+  } catch (err) {
+    console.error("FETCH PICKUP ERROR:", err);
+    res.status(500).json({ message: "Server error" });
   }
 });
 
 /* ================= VERIFY DEVICE ================= */
 router.put("/pickups/:id/verify", riderAuth, async (req, res) => {
   try {
+    const riderId = req.rider._id.toString();
     const { checks = {} } = req.body;
 
     const request = await SellRequest.findOne({
       _id: req.params.id,
-      "assignedRider.riderId": req.rider.riderId,
+      "assignedRider.riderId": riderId,
       workflowStatus: "ASSIGNED_TO_RIDER",
     });
 
@@ -77,19 +104,9 @@ router.put("/pickups/:id/verify", riderAuth, async (req, res) => {
       return res.status(404).json({ message: "Pickup not found" });
     }
 
-    if (request.verification.finalPrice != null) {
-      return res.status(409).json({ message: "Already verified" });
-    }
-
     if (!request.verification.images.length) {
       return res.status(400).json({
         message: "Upload verification images before verifying",
-      });
-    }
-
-    if (!Object.values(checks).some(Boolean)) {
-      return res.status(400).json({
-        message: "Select at least one verification check",
       });
     }
 
@@ -103,7 +120,7 @@ router.put("/pickups/:id/verify", riderAuth, async (req, res) => {
       checks,
       deductions,
       finalPrice,
-      verifiedBy: req.rider.riderId,
+      verifiedBy: riderId,
       verifiedAt: new Date(),
       userAccepted: null,
     };
@@ -117,7 +134,6 @@ router.put("/pickups/:id/verify", riderAuth, async (req, res) => {
     await request.save();
 
     res.json({ success: true, finalPrice });
-
   } catch (err) {
     console.error("VERIFY DEVICE ERROR:", err);
     res.status(500).json({ message: "Failed to verify device" });
@@ -127,6 +143,7 @@ router.put("/pickups/:id/verify", riderAuth, async (req, res) => {
 /* ================= REJECT PICKUP ================= */
 router.put("/pickups/:id/reject", riderAuth, async (req, res) => {
   try {
+    const riderId = req.rider._id.toString();
     const { reason } = req.body;
 
     if (!reason?.trim()) {
@@ -137,7 +154,7 @@ router.put("/pickups/:id/reject", riderAuth, async (req, res) => {
 
     const request = await SellRequest.findOne({
       _id: req.params.id,
-      "assignedRider.riderId": req.rider.riderId,
+      "assignedRider.riderId": riderId,
       workflowStatus: { $in: ["ASSIGNED_TO_RIDER", "UNDER_VERIFICATION"] },
     });
 
@@ -163,7 +180,6 @@ router.put("/pickups/:id/reject", riderAuth, async (req, res) => {
     });
 
     res.json({ success: true });
-
   } catch (err) {
     console.error("REJECT PICKUP ERROR:", err);
     res.status(500).json({ message: "Failed to reject pickup" });
@@ -176,9 +192,11 @@ router.put("/pickups/:id/complete", riderAuth, async (req, res) => {
   session.startTransaction();
 
   try {
+    const riderId = req.rider._id.toString();
+
     const request = await SellRequest.findOne({
       _id: req.params.id,
-      "assignedRider.riderId": req.rider.riderId,
+      "assignedRider.riderId": riderId,
       workflowStatus: "USER_ACCEPTED",
     }).session(session);
 
@@ -186,31 +204,15 @@ router.put("/pickups/:id/complete", riderAuth, async (req, res) => {
       throw new Error("Pickup not found");
     }
 
-    if (!request.verification?.finalPrice) {
-      throw new Error("Final price missing");
-    }
-
-    if (request.verification.userAccepted !== true) {
-      throw new Error("User has not accepted final price");
-    }
-
     await InventoryItem.findOneAndUpdate(
       { sellRequestId: request._id },
       {
         sellRequestId: request._id,
-        phone: {
-          brand: request.phone.brand,
-          model: request.phone.model,
-          storage: request.phone.storage,
-          ram: request.phone.ram,
-          color: request.phone.color,
-          condition: request.phone.declaredCondition,
-          images: [],
-        },
+        phone: request.phone,
         purchasePrice: request.verification.finalPrice,
         status: "InStock",
       },
-      { upsert: true, new: true, session }
+      { upsert: true, session }
     );
 
     request.riderPayout = {
@@ -230,7 +232,6 @@ router.put("/pickups/:id/complete", riderAuth, async (req, res) => {
     session.endSession();
 
     res.json({ success: true });
-
   } catch (error) {
     await session.abortTransaction();
     session.endSession();
@@ -242,8 +243,10 @@ router.put("/pickups/:id/complete", riderAuth, async (req, res) => {
 /* ================= RIDER EARNINGS ================= */
 router.get("/earnings", riderAuth, async (req, res) => {
   try {
+    const riderId = req.rider._id.toString();
+
     const completed = await SellRequest.find({
-      "assignedRider.riderId": req.rider.riderId,
+      "assignedRider.riderId": riderId,
       workflowStatus: "COMPLETED",
     }).select("riderPayout.amount");
 
@@ -256,7 +259,8 @@ router.get("/earnings", riderAuth, async (req, res) => {
       totalEarnings,
       completedPickups: completed.length,
     });
-  } catch {
+  } catch (err) {
+    console.error("LOAD EARNINGS ERROR:", err);
     res.status(500).json({ message: "Failed to load earnings" });
   }
 });
