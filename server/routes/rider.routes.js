@@ -86,6 +86,51 @@ router.get("/pickups/:id", riderAuth, async (req, res) => {
   }
 });
 
+/* ================= UPLOAD VERIFICATION IMAGES ================= */
+router.post(
+  "/pickups/:id/upload-images",
+  riderAuth,
+  upload.array("images", 6),
+  async (req, res) => {
+    try {
+      const riderId = req.rider.riderId.toString();
+
+      if (!req.files || !req.files.length) {
+        return res.status(400).json({
+          message: "No images uploaded",
+        });
+      }
+
+      const request = await SellRequest.findOne({
+        _id: req.params.id,
+        "assignedRider.riderId": riderId,
+        workflowStatus: {
+          $in: ["ASSIGNED_TO_RIDER", "UNDER_VERIFICATION"],
+        },
+      });
+
+      if (!request) {
+        return res.status(404).json({ message: "Pickup not found" });
+      }
+
+      const images = req.files.map((file) => ({
+        url: `/uploads/pickups/${file.filename}`,
+        uploadedBy: riderId,
+        uploadedAt: new Date(),
+      }));
+
+      request.verification.images.push(...images);
+
+      await request.save();
+
+      res.json({ success: true });
+    } catch (err) {
+      console.error("UPLOAD IMAGES ERROR:", err);
+      res.status(500).json({ message: "Failed to upload images" });
+    }
+  }
+);
+
 /* ================= VERIFY DEVICE ================= */
 router.put("/pickups/:id/verify", riderAuth, async (req, res) => {
   try {
