@@ -149,17 +149,28 @@ router.put("/:id/assign-rider", adminAuth, async (req, res) => {
     request.pickup.status = "Scheduled";
     request.pickup.scheduledAt = scheduledDate;
 
-    /* ======================================================
-       STATUS TRANSITION
-    ====================================================== */
+   /* ======================================================
+   STATUS TRANSITION (SAFE)
+====================================================== */
 
-    request.transitionStatus(
-      "ASSIGNED_TO_RIDER",
-      "admin",
-      isReassignment
-        ? `Rider reassigned from ${previousRider} to ${rider.name}`
-        : `Rider assigned to ${rider.name}`
-    );
+if (request.workflowStatus !== "ASSIGNED_TO_RIDER") {
+  request.transitionStatus(
+    "ASSIGNED_TO_RIDER",
+    "admin",
+    isReassignment
+      ? `Rider reassigned from ${previousRider} to ${rider.name}`
+      : `Rider assigned to ${rider.name}`
+  );
+} else {
+  // Already assigned → just log reassignment
+  request.statusHistory.push({
+    status: "Rider Reassigned",
+    changedBy: "admin",
+    note: `Rider reassigned from ${previousRider} to ${rider.name}`,
+    changedAt: new Date(),
+  });
+}
+
 
     await request.save();
 
