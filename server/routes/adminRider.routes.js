@@ -29,7 +29,7 @@ router.post("/", adminAuth, async (req, res) => {
       name,
       phone,
       status: "active",
-      createdBy: req.admin._id,
+      createdBy: "admin",
       statusUpdatedAt: new Date(),
       statusUpdatedBy: req.admin._id,
     });
