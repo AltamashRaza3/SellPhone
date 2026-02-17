@@ -44,7 +44,7 @@ router.get("/me", riderAuth, (req, res) => {
 /* ================= PICKUPS LIST ================= */
 router.get("/pickups", riderAuth, async (req, res) => {
   try {
-    const riderId = req.rider._id.toString();
+    const riderId = req.rider.riderId.toString();
 
     const pickups = await SellRequest.find({
       "assignedRider.riderId": riderId,
@@ -68,7 +68,7 @@ router.get("/pickups", riderAuth, async (req, res) => {
 /* ================= PICKUP DETAILS ================= */
 router.get("/pickups/:id", riderAuth, async (req, res) => {
   try {
-    const riderId = req.rider._id.toString();
+    const riderId = req.rider.riderId.toString();
 
     const pickup = await SellRequest.findOne({
       _id: req.params.id,
@@ -76,22 +76,20 @@ router.get("/pickups/:id", riderAuth, async (req, res) => {
     });
 
     if (!pickup) {
-      return res.status(403).json({
-        message: "You are not assigned to this pickup",
-      });
+      return res.status(404).json({ message: "Pickup not found" });
     }
 
     res.json(pickup);
   } catch (err) {
-    console.error("FETCH PICKUP ERROR:", err);
-    res.status(500).json({ message: "Server error" });
+    console.error("PICKUP DETAILS ERROR:", err);
+    res.status(500).json({ message: "Failed to load pickup details" });
   }
 });
 
 /* ================= VERIFY DEVICE ================= */
 router.put("/pickups/:id/verify", riderAuth, async (req, res) => {
   try {
-    const riderId = req.rider._id.toString();
+    const riderId = req.rider.riderId.toString();
     const { checks = {} } = req.body;
 
     const request = await SellRequest.findOne({
@@ -143,7 +141,7 @@ router.put("/pickups/:id/verify", riderAuth, async (req, res) => {
 /* ================= REJECT PICKUP ================= */
 router.put("/pickups/:id/reject", riderAuth, async (req, res) => {
   try {
-    const riderId = req.rider._id.toString();
+    const riderId = req.rider.riderId.toString();
     const { reason } = req.body;
 
     if (!reason?.trim()) {
@@ -192,7 +190,7 @@ router.put("/pickups/:id/complete", riderAuth, async (req, res) => {
   session.startTransaction();
 
   try {
-    const riderId = req.rider._id.toString();
+    const riderId = req.rider.riderId.toString();
 
     const request = await SellRequest.findOne({
       _id: req.params.id,
@@ -243,7 +241,7 @@ router.put("/pickups/:id/complete", riderAuth, async (req, res) => {
 /* ================= RIDER EARNINGS ================= */
 router.get("/earnings", riderAuth, async (req, res) => {
   try {
-    const riderId = req.rider._id.toString();
+    const riderId = req.rider.riderId.toString();
 
     const completed = await SellRequest.find({
       "assignedRider.riderId": riderId,
