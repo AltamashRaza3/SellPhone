@@ -92,13 +92,15 @@ app.use("/api/orders", orderRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api/sell-requests", sellRequestRoutes);
 app.use("/api/invoices", invoiceRoutes);
+
 /* ================= ADMIN ================= */
-app.use("/api/admin/alerts", adminAlertRoutes);
-app.use("/api/admin", adminRoutes);
+app.use("/api/admin/riders", adminRiderRoutes);
 app.use("/api/admin/orders", adminOrderRoutes);
 app.use("/api/admin/sell-requests", adminSellRequestRoutes);
-app.use("/api/admin/riders", adminRiderRoutes);
 app.use("/api/admin/inventory", adminInventoryRoutes);
+app.use("/api/admin/alerts", adminAlertRoutes);
+
+app.use("/api/admin", adminRoutes);
 app.use("/api/admin", adminProductsRoutes);
 app.use("/api/invoices", adminInvoiceRoutes);
 
