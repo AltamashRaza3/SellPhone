@@ -18,7 +18,8 @@ const AdminRiders = () => {
       if (!res.ok) throw new Error();
 
       const data = await res.json();
-      setRiders(Array.isArray(data) ? data : []);
+      setRiders(Array.isArray(data.riders) ? data.riders : []);
+
     } catch {
       toast.error("Failed to load riders");
     } finally {

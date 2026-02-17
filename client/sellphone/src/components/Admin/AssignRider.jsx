@@ -1,192 +1,121 @@
 import { useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
 import API_BASE_URL from "../../config/api";
+import CreateRider from "../../components/Admin/CreateRider";
 
-const AssignRider = ({ requestId, alreadyAssigned, onAssigned }) => {
+const AdminRiders = () => {
   const [riders, setRiders] = useState([]);
-  const [riderId, setRiderId] = useState("");
-  const [scheduledAt, setScheduledAt] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [fetchingRiders, setFetchingRiders] = useState(true);
+  const [loading, setLoading] = useState(true);
 
-  /* ======================================================
-     LOAD ACTIVE RIDERS
-  ====================================================== */
-  useEffect(() => {
-    let isMounted = true;
-
-    const loadRiders = async () => {
-      try {
-        const res = await fetch(`${API_BASE_URL}/api/admin/riders`, {
-          credentials: "include",
-        });
-
-        if (!res.ok) throw new Error();
-
-        const data = await res.json();
-
-        // ✅ Correct parsing of wrapped API response
-        const riderList = Array.isArray(data?.riders) ? data.riders : [];
-
-        const ridersArray = Array.isArray(data)
-          ? data
-          : Array.isArray(data.riders)
-            ? data.riders
-            : [];
-
-        const validRiders = ridersArray.filter(
-          (r) => r?._id && r?.name && r?.status === "active",
-        );
-
-
-        if (isMounted) {
-          setRiders(validRiders);
-        }
-      } catch {
-        toast.error("Failed to load riders");
-      } finally {
-        if (isMounted) setFetchingRiders(false);
-      }
-    };
-
-
-    loadRiders();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  /* ======================================================
-     ASSIGN / REASSIGN RIDER
-  ====================================================== */
-  const assignRider = async () => {
-    if (loading) return; // prevent double click
-
-    if (!riderId) {
-      toast.error("Please select a rider");
-      return;
-    }
-
-    if (!scheduledAt) {
-      toast.error("Please select pickup date & time");
-      return;
-    }
-
-    const selectedDate = new Date(scheduledAt);
-    const now = new Date();
-
-    if (isNaN(selectedDate.getTime())) {
-      toast.error("Invalid date selected");
-      return;
-    }
-
-    if (selectedDate <= now) {
-      toast.error("Pickup time must be in the future");
-      return;
-    }
-
+  /* ================= LOAD RIDERS ================= */
+  const loadRiders = async () => {
     try {
       setLoading(true);
 
+      const res = await fetch(`${API_BASE_URL}/api/admin/riders`, {
+        credentials: "include",
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || "Failed to load riders");
+      }
+
+      // ✅ Correct parsing
+      setRiders(Array.isArray(data.riders) ? data.riders : []);
+    } catch (err) {
+      console.error("LOAD RIDERS ERROR:", err);
+      toast.error("Failed to load riders");
+      setRiders([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadRiders();
+  }, []);
+
+  /* ================= TOGGLE STATUS ================= */
+  const toggleStatus = async (rider) => {
+    try {
+      const newStatus = rider.status === "active" ? "inactive" : "active";
+
       const res = await fetch(
-        `${API_BASE_URL}/api/admin/sell-requests/${requestId}/assign-rider`,
+        `${API_BASE_URL}/api/admin/riders/${rider._id}/status`,
         {
-          method: "PUT",
+          method: "PATCH",
           credentials: "include",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            riderId,
-            scheduledAt: selectedDate.toISOString(), // 🔥 send full ISO datetime
-          }),
+          body: JSON.stringify({ status: newStatus }),
         },
       );
 
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.message || "Assignment failed");
+        throw new Error(data.message || "Failed to update rider");
       }
 
-      toast.success(
-        alreadyAssigned
-          ? "Rider reassigned successfully"
-          : "Rider assigned successfully",
-      );
-
-      // Reset state safely
-      setRiderId("");
-      setScheduledAt("");
-
-      onAssigned?.();
+      toast.success(`Rider ${newStatus}`);
+      loadRiders();
     } catch (err) {
-      toast.error(err.message || "Failed to assign rider");
-    } finally {
-      setLoading(false);
+      console.error("TOGGLE RIDER ERROR:", err);
+      toast.error("Failed to update rider status");
     }
   };
 
-  /* ======================================================
-     UI
-  ====================================================== */
+  /* ================= RENDER ================= */
   return (
-    <div className="p-4 rounded-xl bg-yellow-500/10 border border-yellow-500/20 space-y-4">
-      <p className="text-sm font-semibold text-yellow-400">
-        {alreadyAssigned ? "Reassign Rider" : "Assign Rider"}
-      </p>
+    <div className="space-y-6">
+      {/* CREATE RIDER */}
+      <CreateRider onCreated={loadRiders} />
 
-      {/* DATE + TIME */}
-      <div>
-        <label className="text-xs text-gray-400">Pickup Date & Time</label>
-        <input
-          type="datetime-local"
-          value={scheduledAt}
-          onChange={(e) => setScheduledAt(e.target.value)}
-          className="input w-full mt-1"
-          disabled={loading}
-        />
+      <div className="glass-card">
+        <h3 className="text-lg font-semibold text-white mb-4">Riders</h3>
+
+        {loading ? (
+          <p className="text-sm text-gray-400">Loading riders…</p>
+        ) : riders.length === 0 ? (
+          <p className="text-sm text-gray-400">No riders found</p>
+        ) : (
+          <div className="space-y-3">
+            {riders.map((r) => (
+              <div
+                key={r._id}
+                className="flex justify-between items-center text-sm"
+              >
+                <div>
+                  <p className="text-white font-medium">{r.name}</p>
+                  <p className="text-gray-400">{r.phone}</p>
+
+                  {r.lastLoginAt && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Last login: {new Date(r.lastLoginAt).toLocaleString()}
+                    </p>
+                  )}
+                </div>
+
+                <button
+                  onClick={() => toggleStatus(r)}
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold ${
+                    r.status === "active"
+                      ? "bg-green-500/20 text-green-400"
+                      : "bg-red-500/20 text-red-400"
+                  }`}
+                >
+                  {r.status}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
-
-      {/* RIDER SELECT */}
-      <select
-        className="input w-full"
-        value={riderId}
-        onChange={(e) => setRiderId(e.target.value)}
-        disabled={loading || fetchingRiders || riders.length === 0}
-      >
-        <option value="">
-          {fetchingRiders
-            ? "Loading riders..."
-            : riders.length === 0
-              ? "No active riders available"
-              : "Select Rider"}
-        </option>
-
-        {riders.map((r) => (
-          <option key={r._id} value={r._id}>
-            {r.name} ({r.phone})
-          </option>
-        ))}
-      </select>
-
-      {/* BUTTON */}
-      <button
-        disabled={loading || fetchingRiders || riders.length === 0}
-        onClick={assignRider}
-        className="w-full bg-indigo-600 text-white py-2 rounded-lg font-semibold disabled:opacity-60"
-      >
-        {loading
-          ? alreadyAssigned
-            ? "Reassigning…"
-            : "Assigning…"
-          : alreadyAssigned
-            ? "Reassign Rider"
-            : "Assign Rider"}
-      </button>
     </div>
   );
 };
 
-export default AssignRider;
+export default AdminRiders;

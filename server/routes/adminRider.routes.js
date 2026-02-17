@@ -167,6 +167,45 @@ router.get("/performance/monthly", adminAuth, async (req, res) => {
     });
   }
 });
+/* ======================================================
+   UPDATE RIDER STATUS (ACTIVE / INACTIVE)
+====================================================== */
+router.patch("/riders/:id/status", adminAuth, async (req, res) => {
+  try {
+    const { status } = req.body;
+
+    if (!["active", "inactive"].includes(status)) {
+      return res.status(400).json({
+        message: "Invalid rider status",
+      });
+    }
+
+    const rider = await Rider.findById(req.params.id);
+
+    if (!rider) {
+      return res.status(404).json({
+        message: "Rider not found",
+      });
+    }
+
+    rider.status = status;
+    rider.statusUpdatedAt = new Date();
+    rider.statusUpdatedBy = req.admin._id;
+
+    await rider.save();
+
+    res.json({
+      success: true,
+      message: `Rider ${status}`,
+    });
+
+  } catch (err) {
+    console.error("UPDATE RIDER STATUS ERROR:", err);
+    res.status(500).json({
+      message: "Failed to update rider status",
+    });
+  }
+});
 
 /* ======================================================
    GET ALL RIDERS
