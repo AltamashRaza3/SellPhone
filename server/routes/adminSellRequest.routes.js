@@ -1,4 +1,5 @@
 import express from "express";
+import mongoose from "mongoose";
 import adminAuth from "../middleware/adminAuth.js";
 import SellRequest from "../src/models/SellRequest.js";
 import Rider from "../models/Rider.js";
@@ -32,6 +33,10 @@ router.put("/:id/status", adminAuth, async (req, res) => {
       return res.status(400).json({
         message: "Admin status must be Approved or Rejected",
       });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: "Invalid request ID" });
     }
 
     const request = await SellRequest.findById(req.params.id);
@@ -75,23 +80,32 @@ router.put("/:id/status", adminAuth, async (req, res) => {
 });
 
 /* ======================================================
-   ASSIGN / REASSIGN RIDER
+   ASSIGN / REASSIGN RIDER (PRODUCTION SAFE)
 ====================================================== */
 router.put("/:id/assign-rider", adminAuth, async (req, res) => {
   try {
     const { riderId, scheduledAt } = req.body;
 
-    if (!riderId) {
-      return res.status(400).json({ message: "Rider ID required" });
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: "Invalid request ID" });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(riderId)) {
+      return res.status(400).json({ message: "Invalid rider ID" });
     }
 
     if (!scheduledAt) {
-      return res.status(400).json({ message: "Pickup date & time required" });
+      return res.status(400).json({
+        message: "Pickup date & time required",
+      });
     }
 
     const scheduledDate = new Date(scheduledAt);
+
     if (isNaN(scheduledDate.getTime())) {
-      return res.status(400).json({ message: "Invalid scheduled date" });
+      return res.status(400).json({
+        message: "Invalid scheduled date",
+      });
     }
 
     if (scheduledDate < new Date()) {
@@ -102,11 +116,13 @@ router.put("/:id/assign-rider", adminAuth, async (req, res) => {
 
     const request = await SellRequest.findById(req.params.id);
     if (!request) {
-      return res.status(404).json({ message: "Sell request not found" });
+      return res.status(404).json({
+        message: "Sell request not found",
+      });
     }
 
     /* ======================================================
-       STRICT LIFECYCLE RULES
+       STRICT LIFECYCLE CONTROL
     ====================================================== */
 
     const allowedStates = [
@@ -118,22 +134,15 @@ router.put("/:id/assign-rider", adminAuth, async (req, res) => {
     if (!allowedStates.includes(request.workflowStatus)) {
       return res.status(409).json({
         message:
-          "Rider can only be assigned before verification starts",
-      });
-    }
-
-    if (
-      ["UNDER_VERIFICATION", "USER_ACCEPTED", "COMPLETED", "CANCELLED"]
-        .includes(request.workflowStatus)
-    ) {
-      return res.status(409).json({
-        message: "Cannot reassign rider after verification begins",
+          "Rider can only be assigned before verification begins",
       });
     }
 
     const rider = await Rider.findById(riderId);
     if (!rider || rider.status !== "active") {
-      return res.status(404).json({ message: "Rider not available" });
+      return res.status(404).json({
+        message: "Rider not available",
+      });
     }
 
     const previousRider = request.assignedRider?.riderName || null;
@@ -149,28 +158,26 @@ router.put("/:id/assign-rider", adminAuth, async (req, res) => {
     request.pickup.status = "Scheduled";
     request.pickup.scheduledAt = scheduledDate;
 
-   /* ======================================================
-   STATUS TRANSITION (SAFE)
-====================================================== */
+    /* ======================================================
+       SAFE STATUS TRANSITION
+    ====================================================== */
 
-if (request.workflowStatus !== "ASSIGNED_TO_RIDER") {
-  request.transitionStatus(
-    "ASSIGNED_TO_RIDER",
-    "admin",
-    isReassignment
-      ? `Rider reassigned from ${previousRider} to ${rider.name}`
-      : `Rider assigned to ${rider.name}`
-  );
-} else {
-  // Already assigned → just log reassignment
-  request.statusHistory.push({
-    status: "Rider Reassigned",
-    changedBy: "admin",
-    note: `Rider reassigned from ${previousRider} to ${rider.name}`,
-    changedAt: new Date(),
-  });
-}
-
+    if (request.workflowStatus !== "ASSIGNED_TO_RIDER") {
+      request.transitionStatus(
+        "ASSIGNED_TO_RIDER",
+        "admin",
+        isReassignment
+          ? `Rider reassigned from ${previousRider} to ${rider.name}`
+          : `Rider assigned to ${rider.name}`
+      );
+    } else {
+      request.statusHistory.push({
+        status: "Rider Reassigned",
+        changedBy: "admin",
+        note: `Rider reassigned from ${previousRider} to ${rider.name}`,
+        changedAt: new Date(),
+      });
+    }
 
     await request.save();
 
@@ -181,9 +188,10 @@ if (request.workflowStatus !== "ASSIGNED_TO_RIDER") {
 
   } catch (err) {
     console.error("ASSIGN RIDER ERROR:", err);
-    res.status(500).json({ message: err.message });
+    res.status(500).json({
+      message: err.message || "Failed to assign rider",
+    });
   }
 });
-
 
 export default router;

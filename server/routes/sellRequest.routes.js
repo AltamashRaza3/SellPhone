@@ -155,7 +155,7 @@ router.put("/:id/cancel", userAuth, async (req, res) => {
 });
 
 /* ======================================================
-   SELLER FINAL DECISION
+   SELLER FINAL DECISION (PRODUCTION SAFE + OVERRIDE READY)
 ====================================================== */
 router.put("/:id/decision", userAuth, async (req, res) => {
   try {
@@ -174,9 +174,11 @@ router.put("/:id/decision", userAuth, async (req, res) => {
       return res.status(404).json({ message: "Sell request not found" });
     }
 
+    /* ================= STRICT STATE CHECK ================= */
+
     if (request.workflowStatus !== "UNDER_VERIFICATION") {
       return res.status(409).json({
-        message: "Final price not ready yet",
+        message: "Final price not available for decision",
       });
     }
 
@@ -188,6 +190,10 @@ router.put("/:id/decision", userAuth, async (req, res) => {
 
     request.verification.userAccepted = accept;
 
+    /* ======================================================
+       BUSINESS LOGIC TRANSITIONS
+    ====================================================== */
+
     if (accept) {
       request.transitionStatus(
         "USER_ACCEPTED",
@@ -195,15 +201,17 @@ router.put("/:id/decision", userAuth, async (req, res) => {
         "User accepted final price"
       );
     } else {
+      // Business override path:
       request.transitionStatus(
-        "CANCELLED",
+        "REJECTED_BY_RIDER",
         "user",
         "User rejected final price"
       );
+
       request.pickup.status = "Rejected";
     }
 
-    await request.save({ validateBeforeSave: false });
+    await request.save();
 
     res.json({
       success: true,
