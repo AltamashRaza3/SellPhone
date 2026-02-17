@@ -12,7 +12,6 @@ import { sendOtp, verifyOtp } from "../controllers/riderAuth.controller.js";
 import { calculateFinalPrice } from "../utils/priceRules.js";
 
 const router = express.Router();
-
 const RIDER_PAYOUT_AMOUNT = 150;
 
 /* ================= MULTER ================= */
@@ -38,7 +37,7 @@ const upload = multer({ storage });
 router.post("/auth/send-otp", sendOtp);
 router.post("/auth/verify-otp", verifyOtp);
 
-router.get("/me", riderAuth, async (req, res) => {
+router.get("/me", riderAuth, (req, res) => {
   res.json({ success: true, rider: req.rider });
 });
 
@@ -78,9 +77,19 @@ router.put("/pickups/:id/verify", riderAuth, async (req, res) => {
       return res.status(404).json({ message: "Pickup not found" });
     }
 
+    if (request.verification.finalPrice != null) {
+      return res.status(409).json({ message: "Already verified" });
+    }
+
     if (!request.verification.images.length) {
       return res.status(400).json({
         message: "Upload verification images before verifying",
+      });
+    }
+
+    if (!Object.values(checks).some(Boolean)) {
+      return res.status(400).json({
+        message: "Select at least one verification check",
       });
     }
 
@@ -98,8 +107,6 @@ router.put("/pickups/:id/verify", riderAuth, async (req, res) => {
       verifiedAt: new Date(),
       userAccepted: null,
     };
-
-    request.pickup.status = "Picked";
 
     request.transitionStatus(
       "UNDER_VERIFICATION",
@@ -138,7 +145,6 @@ router.put("/pickups/:id/reject", riderAuth, async (req, res) => {
       return res.status(404).json({ message: "Pickup not found" });
     }
 
-    request.pickup.status = "Rejected";
     request.pickup.rejectReason = reason;
     request.pickup.rejectedAt = new Date();
 
@@ -180,24 +186,37 @@ router.put("/pickups/:id/complete", riderAuth, async (req, res) => {
       throw new Error("Pickup not found");
     }
 
+    if (!request.verification?.finalPrice) {
+      throw new Error("Final price missing");
+    }
+
+    if (request.verification.userAccepted !== true) {
+      throw new Error("User has not accepted final price");
+    }
+
     await InventoryItem.findOneAndUpdate(
       { sellRequestId: request._id },
       {
         sellRequestId: request._id,
-        phone: request.phone,
+        phone: {
+          brand: request.phone.brand,
+          model: request.phone.model,
+          storage: request.phone.storage,
+          ram: request.phone.ram,
+          color: request.phone.color,
+          condition: request.phone.declaredCondition,
+          images: [],
+        },
         purchasePrice: request.verification.finalPrice,
         status: "InStock",
       },
-      { upsert: true, session }
+      { upsert: true, new: true, session }
     );
 
     request.riderPayout = {
       amount: RIDER_PAYOUT_AMOUNT,
       calculatedAt: new Date(),
     };
-
-    request.pickup.status = "Completed";
-    request.pickup.completedAt = new Date();
 
     request.transitionStatus(
       "COMPLETED",
@@ -215,6 +234,7 @@ router.put("/pickups/:id/complete", riderAuth, async (req, res) => {
   } catch (error) {
     await session.abortTransaction();
     session.endSession();
+    console.error("COMPLETE PICKUP ERROR:", error);
     res.status(500).json({ message: error.message });
   }
 });

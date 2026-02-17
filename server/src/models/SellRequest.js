@@ -13,7 +13,7 @@ const verificationImageSchema = new mongoose.Schema(
 /* ================= MAIN SCHEMA ================= */
 const sellRequestSchema = new mongoose.Schema(
   {
-    /* ================= MASTER WORKFLOW STATUS ================= */
+    /* ================= MASTER WORKFLOW ================= */
     workflowStatus: {
       type: String,
       enum: [
@@ -115,7 +115,7 @@ const sellRequestSchema = new mongoose.Schema(
       calculatedAt: Date,
     },
 
-    /* ================= STATUS HISTORY ================= */
+    /* ================= AUDIT ================= */
     statusHistory: [
       {
         status: String,
@@ -131,9 +131,9 @@ const sellRequestSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-/* ============================================================
-   PRODUCTION-SAFE STATUS TRANSITION SYSTEM
-   ============================================================ */
+/* ==========================================================
+   PRODUCTION SAFE STATE MACHINE
+========================================================== */
 sellRequestSchema.methods.transitionStatus = function (
   newStatus,
   changedBy = "system",
@@ -142,25 +142,22 @@ sellRequestSchema.methods.transitionStatus = function (
   const validTransitions = {
     CREATED: ["ADMIN_APPROVED", "CANCELLED"],
 
-    ADMIN_APPROVED: [
-      "ASSIGNED_TO_RIDER",
-      "CANCELLED"
-    ],
+    ADMIN_APPROVED: ["ASSIGNED_TO_RIDER", "CANCELLED"],
 
     ASSIGNED_TO_RIDER: [
       "UNDER_VERIFICATION",
       "REJECTED_BY_RIDER",
-      "CANCELLED"
+      "CANCELLED",
     ],
 
     UNDER_VERIFICATION: [
       "USER_ACCEPTED",
-      "REJECTED_BY_RIDER"
+      "REJECTED_BY_RIDER",
     ],
 
     REJECTED_BY_RIDER: [
-      "ASSIGNED_TO_RIDER",   // 🔥 Allows reassignment
-      "CANCELLED"
+      "ASSIGNED_TO_RIDER", // 🔥 reassignment allowed
+      "CANCELLED",
     ],
 
     USER_ACCEPTED: ["COMPLETED"],
@@ -180,6 +177,24 @@ sellRequestSchema.methods.transitionStatus = function (
 
   this.workflowStatus = newStatus;
 
+  /* 🔥 Optional auto-sync logic */
+  if (newStatus === "ASSIGNED_TO_RIDER") {
+    this.pickup.status = "Scheduled";
+  }
+
+  if (newStatus === "UNDER_VERIFICATION") {
+    this.pickup.status = "Picked";
+  }
+
+  if (newStatus === "REJECTED_BY_RIDER") {
+    this.pickup.status = "Rejected";
+  }
+
+  if (newStatus === "COMPLETED") {
+    this.pickup.status = "Completed";
+    this.pickup.completedAt = new Date();
+  }
+
   this.statusHistory.push({
     status: newStatus,
     changedBy,
@@ -188,7 +203,7 @@ sellRequestSchema.methods.transitionStatus = function (
   });
 };
 
-/* ================= HELPER METHODS ================= */
+/* ================= HELPERS ================= */
 
 sellRequestSchema.methods.canVerify = function () {
   return this.workflowStatus === "ASSIGNED_TO_RIDER";

@@ -85,37 +85,49 @@ router.put("/:id/assign-rider", adminAuth, async (req, res) => {
       return res.status(400).json({ message: "Rider ID required" });
     }
 
+    if (!scheduledAt) {
+      return res.status(400).json({ message: "Pickup date & time required" });
+    }
+
+    const scheduledDate = new Date(scheduledAt);
+    if (isNaN(scheduledDate.getTime())) {
+      return res.status(400).json({ message: "Invalid scheduled date" });
+    }
+
+    if (scheduledDate < new Date()) {
+      return res.status(400).json({
+        message: "Pickup time cannot be in the past",
+      });
+    }
+
     const request = await SellRequest.findById(req.params.id);
     if (!request) {
       return res.status(404).json({ message: "Sell request not found" });
     }
 
-    /* ================= STRICT LIFECYCLE RULES ================= */
+    /* ======================================================
+       STRICT LIFECYCLE RULES
+    ====================================================== */
 
-    // ❌ Block after verification starts
-    if (
-      [
-        "UNDER_VERIFICATION",
-        "USER_ACCEPTED",
-        "COMPLETED",
-        "CANCELLED",
-      ].includes(request.workflowStatus)
-    ) {
+    const allowedStates = [
+      "ADMIN_APPROVED",
+      "ASSIGNED_TO_RIDER",
+      "REJECTED_BY_RIDER",
+    ];
+
+    if (!allowedStates.includes(request.workflowStatus)) {
       return res.status(409).json({
         message:
-          "Cannot assign or reassign rider after verification starts",
+          "Rider can only be assigned before verification starts",
       });
     }
 
-    // ❌ Block if not approved yet
     if (
-      !["ADMIN_APPROVED", "ASSIGNED_TO_RIDER"].includes(
-        request.workflowStatus
-      )
+      ["UNDER_VERIFICATION", "USER_ACCEPTED", "COMPLETED", "CANCELLED"]
+        .includes(request.workflowStatus)
     ) {
       return res.status(409).json({
-        message:
-          "Admin approval required before assigning rider",
+        message: "Cannot reassign rider after verification begins",
       });
     }
 
@@ -124,6 +136,7 @@ router.put("/:id/assign-rider", adminAuth, async (req, res) => {
       return res.status(404).json({ message: "Rider not available" });
     }
 
+    const previousRider = request.assignedRider?.riderName || null;
     const isReassignment = Boolean(request.assignedRider?.riderId);
 
     request.assignedRider = {
@@ -134,26 +147,19 @@ router.put("/:id/assign-rider", adminAuth, async (req, res) => {
     };
 
     request.pickup.status = "Scheduled";
-    request.pickup.scheduledAt = scheduledAt
-      ? new Date(scheduledAt)
-      : new Date();
+    request.pickup.scheduledAt = scheduledDate;
 
-    /* ================= TRANSITION ONLY FIRST TIME ================= */
+    /* ======================================================
+       STATUS TRANSITION
+    ====================================================== */
 
-    if (request.workflowStatus === "ADMIN_APPROVED") {
-      request.transitionStatus(
-        "ASSIGNED_TO_RIDER",
-        "admin",
-        `Rider assigned to ${rider.name}`
-      );
-    } else {
-      // Reassignment → stay in ASSIGNED_TO_RIDER
-      request.statusHistory.push({
-        status: "RIDER_REASSIGNED",
-        changedBy: "admin",
-        note: `Rider reassigned to ${rider.name}`,
-      });
-    }
+    request.transitionStatus(
+      "ASSIGNED_TO_RIDER",
+      "admin",
+      isReassignment
+        ? `Rider reassigned from ${previousRider} to ${rider.name}`
+        : `Rider assigned to ${rider.name}`
+    );
 
     await request.save();
 
@@ -167,5 +173,6 @@ router.put("/:id/assign-rider", adminAuth, async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
+
 
 export default router;
