@@ -32,7 +32,7 @@ const uploadSellImages = multer({
 });
 
 /* ======================================================
-   VALIDATION (UPDATED WITH BANK DETAILS)
+   VALIDATION
 ====================================================== */
 const validateSellRequest = (req, res, next) => {
   if (!req.files || req.files.length < 3) {
@@ -101,7 +101,7 @@ router.post(
 );
 
 /* ======================================================
-   GET MY SELL REQUESTS (MASK ACCOUNT)
+   GET MY SELL REQUESTS
 ====================================================== */
 router.get("/my", userAuth, async (req, res) => {
   try {
@@ -126,7 +126,7 @@ router.get("/my", userAuth, async (req, res) => {
 });
 
 /* ======================================================
-   GET SINGLE SELL REQUEST (MASK ACCOUNT)
+   GET SINGLE SELL REQUEST
 ====================================================== */
 router.get("/:id", userAuth, async (req, res) => {
   try {
@@ -154,12 +154,80 @@ router.get("/:id", userAuth, async (req, res) => {
 });
 
 /* ======================================================
-   EDIT BANK DETAILS (ONLY BEFORE APPROVAL)
+   USER ACCEPT / REJECT FINAL PRICE
+====================================================== */
+router.put("/:id/decision", userAuth, async (req, res) => {
+  try {
+    const { accept } = req.body;
+
+    if (typeof accept !== "boolean") {
+      return res.status(400).json({
+        message: "Invalid decision",
+      });
+    }
+
+    const request = await SellRequest.findOne({
+      _id: req.params.id,
+      "user.uid": req.user.uid,
+    });
+
+    if (!request) {
+      return res.status(404).json({
+        message: "Sell request not found",
+      });
+    }
+
+    if (request.workflowStatus !== "UNDER_VERIFICATION") {
+      return res.status(409).json({
+        message: "Decision not allowed at this stage",
+      });
+    }
+
+    if (!request.verification?.finalPrice) {
+      return res.status(409).json({
+        message: "Final price not available",
+      });
+    }
+
+    request.verification.userAccepted = accept;
+
+    if (accept) {
+      request.transitionStatus(
+        "USER_ACCEPTED",
+        "user",
+        "User accepted final price"
+      );
+
+      request.transitionStatus(
+        "COMPLETED",
+        "system",
+        "Sell process completed"
+      );
+    } else {
+      request.transitionStatus(
+        "CANCELLED",
+        "user",
+        "User rejected final price"
+      );
+    }
+
+    await request.save();
+
+    return res.json({ success: true });
+  } catch (err) {
+    console.error("SELLER DECISION ERROR:", err);
+    return res.status(500).json({
+      message: "Failed to submit decision",
+    });
+  }
+});
+
+/* ======================================================
+   EDIT BANK DETAILS
 ====================================================== */
 router.put("/:id/bank-details", userAuth, async (req, res) => {
   try {
-    const { accountHolderName, accountNumber, ifscCode, bankName, branch } =
-      req.body;
+    const { accountHolderName, accountNumber, ifscCode } = req.body;
 
     const request = await SellRequest.findOne({
       _id: req.params.id,
@@ -180,8 +248,6 @@ router.put("/:id/bank-details", userAuth, async (req, res) => {
       accountHolderName,
       accountNumber,
       ifscCode: ifscCode.toUpperCase(),
-      bankName,
-      branch,
       locked: false,
     };
 
