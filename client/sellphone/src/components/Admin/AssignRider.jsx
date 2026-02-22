@@ -1,35 +1,25 @@
 import { useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
 import API_BASE_URL from "../../config/api";
-import CreateRider from "../../components/Admin/CreateRider";
 
-const AdminRiders = () => {
+const AssignRider = ({ requestId, alreadyAssigned, onAssigned }) => {
   const [riders, setRiders] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [selectedRider, setSelectedRider] = useState("");
+  const [scheduledAt, setScheduledAt] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  /* ================= LOAD RIDERS ================= */
   const loadRiders = async () => {
     try {
-      setLoading(true);
-
       const res = await fetch(`${API_BASE_URL}/api/admin/riders`, {
         credentials: "include",
       });
 
       const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
 
-      if (!res.ok) {
-        throw new Error(data.message || "Failed to load riders");
-      }
-
-      // ✅ Correct parsing
       setRiders(Array.isArray(data.riders) ? data.riders : []);
-    } catch (err) {
-      console.error("LOAD RIDERS ERROR:", err);
+    } catch {
       toast.error("Failed to load riders");
-      setRiders([]);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -37,85 +27,83 @@ const AdminRiders = () => {
     loadRiders();
   }, []);
 
-  /* ================= TOGGLE STATUS ================= */
-  const toggleStatus = async (rider) => {
+  const handleAssign = async () => {
+    if (!selectedRider) {
+      toast.error("Select a rider");
+      return;
+    }
+
+    if (!scheduledAt) {
+      toast.error("Select pickup date & time");
+      return;
+    }
+
     try {
-      const newStatus = rider.status === "active" ? "inactive" : "active";
+      setLoading(true);
 
       const res = await fetch(
-        `${API_BASE_URL}/api/admin/riders/${rider._id}/status`,
+        `${API_BASE_URL}/api/admin/sell-requests/${requestId}/assign-rider`,
         {
-          method: "PATCH",
+          method: "PUT",
           credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ status: newStatus }),
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            riderId: selectedRider,
+            scheduledAt,
+          }),
         },
       );
 
       const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
 
-      if (!res.ok) {
-        throw new Error(data.message || "Failed to update rider");
-      }
+      toast.success(alreadyAssigned ? "Rider reassigned" : "Rider assigned");
 
-      toast.success(`Rider ${newStatus}`);
-      loadRiders();
+      onAssigned();
     } catch (err) {
-      console.error("TOGGLE RIDER ERROR:", err);
-      toast.error("Failed to update rider status");
+      toast.error(err.message || "Assignment failed");
+    } finally {
+      setLoading(false);
     }
   };
 
-  /* ================= RENDER ================= */
   return (
-    <div className="space-y-6">
-      {/* CREATE RIDER */}
-      <CreateRider onCreated={loadRiders} />
+    <div className="p-4 rounded-xl bg-white/5 border border-white/10 space-y-3">
+      <p className="text-sm font-semibold text-white">
+        {alreadyAssigned ? "Reassign Rider" : "Assign Rider"}
+      </p>
 
-      <div className="glass-card">
-        <h3 className="text-lg font-semibold text-white mb-4">Riders</h3>
+      <select
+        value={selectedRider}
+        onChange={(e) => setSelectedRider(e.target.value)}
+        className="w-full bg-black/40 border border-white/10 rounded-lg p-2 text-sm text-white"
+      >
+        <option value="">Select Rider</option>
+        {riders
+          .filter((r) => r.status === "active")
+          .map((r) => (
+            <option key={r._id} value={r._id}>
+              {r.name} ({r.phone})
+            </option>
+          ))}
+      </select>
 
-        {loading ? (
-          <p className="text-sm text-gray-400">Loading riders…</p>
-        ) : riders.length === 0 ? (
-          <p className="text-sm text-gray-400">No riders found</p>
-        ) : (
-          <div className="space-y-3">
-            {riders.map((r) => (
-              <div
-                key={r._id}
-                className="flex justify-between items-center text-sm"
-              >
-                <div>
-                  <p className="text-white font-medium">{r.name}</p>
-                  <p className="text-gray-400">{r.phone}</p>
+      <input
+        type="datetime-local"
+        value={scheduledAt}
+        onChange={(e) => setScheduledAt(e.target.value)}
+        className="w-full bg-black/40 border border-white/10 rounded-lg p-2 text-sm text-white"
+      />
 
-                  {r.lastLoginAt && (
-                    <p className="text-xs text-gray-500 mt-1">
-                      Last login: {new Date(r.lastLoginAt).toLocaleString()}
-                    </p>
-                  )}
-                </div>
-
-                <button
-                  onClick={() => toggleStatus(r)}
-                  className={`px-3 py-1 rounded-lg text-xs font-semibold ${
-                    r.status === "active"
-                      ? "bg-green-500/20 text-green-400"
-                      : "bg-red-500/20 text-red-400"
-                  }`}
-                >
-                  {r.status}
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      <button
+        disabled={loading}
+        onClick={handleAssign}
+        className="w-full h-9 rounded-lg bg-blue-600 text-white text-sm font-semibold"
+      >
+        {loading ? "Processing..." : "Confirm Assignment"}
+      </button>
     </div>
   );
 };
 
-export default AdminRiders;
+export default AssignRider;

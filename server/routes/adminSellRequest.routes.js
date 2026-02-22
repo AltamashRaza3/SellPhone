@@ -44,11 +44,29 @@ router.put("/:id/status", adminAuth, async (req, res) => {
       return res.status(404).json({ message: "Sell request not found" });
     }
 
+    /* ================= STRICT LIFECYCLE CHECK ================= */
+
     if (request.workflowStatus !== "CREATED") {
       return res.status(409).json({
         message: "Admin decision already taken",
       });
     }
+
+    /* ================= FINANCIAL CONSISTENCY CHECK ================= */
+
+    if (!request.bankDetails?.accountNumber) {
+      return res.status(400).json({
+        message: "Bank details missing. Cannot approve.",
+      });
+    }
+
+    if (request.payout?.status === "Paid") {
+      return res.status(409).json({
+        message: "Cannot modify request after payout processed",
+      });
+    }
+
+    /* ================= APPLY ADMIN DECISION ================= */
 
     request.admin.status = status;
     request.admin.remarks = remarks;
@@ -56,6 +74,9 @@ router.put("/:id/status", adminAuth, async (req, res) => {
       status === "Approved" ? new Date() : null;
 
     if (status === "Approved") {
+      /* 🔒 Lock bank details permanently */
+      request.bankDetails.locked = true;
+
       request.transitionStatus(
         "ADMIN_APPROVED",
         "admin",
@@ -71,13 +92,16 @@ router.put("/:id/status", adminAuth, async (req, res) => {
 
     await request.save();
 
-    res.json({ success: true });
+    return res.json({ success: true });
 
   } catch (err) {
     console.error("ADMIN STATUS ERROR:", err);
-    res.status(500).json({ message: err.message });
+    return res.status(500).json({
+      message: err.message || "Failed to update status",
+    });
   }
 });
+
 
 /* ======================================================
    ASSIGN / REASSIGN RIDER (PRODUCTION SAFE)
@@ -149,7 +173,7 @@ router.put("/:id/assign-rider", adminAuth, async (req, res) => {
     const isReassignment = Boolean(request.assignedRider?.riderId);
 
     request.assignedRider = {
-      riderId: rider._id.toString(),
+      riderId: rider._id,
       riderName: rider.name,
       riderPhone: rider.phone,
       assignedAt: new Date(),
@@ -190,6 +214,92 @@ router.put("/:id/assign-rider", adminAuth, async (req, res) => {
     console.error("ASSIGN RIDER ERROR:", err);
     res.status(500).json({
       message: err.message || "Failed to assign rider",
+    });
+  }
+});
+/* ======================================================
+   MARK SELLER PAYOUT AS PAID (PRODUCTION SAFE)
+====================================================== */
+router.put("/:id/payout", adminAuth, async (req, res) => {
+  try {
+    const { transactionReference } = req.body;
+
+    if (!transactionReference) {
+      return res.status(400).json({
+        message: "Transaction reference required",
+      });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        message: "Invalid request ID",
+      });
+    }
+
+    const request = await SellRequest.findById(req.params.id);
+
+    if (!request) {
+      return res.status(404).json({
+        message: "Sell request not found",
+      });
+    }
+
+    /* ================= STRICT FINANCIAL CHECKS ================= */
+
+    if (request.workflowStatus !== "COMPLETED") {
+      return res.status(409).json({
+        message: "Cannot payout before completion",
+      });
+    }
+
+    if (!request.verification?.finalPrice) {
+      return res.status(409).json({
+        message: "Final price missing",
+      });
+    }
+
+    if (request.verification.userAccepted !== true) {
+      return res.status(409).json({
+        message: "User has not accepted final price",
+      });
+    }
+
+    if (request.payout?.status === "Paid") {
+      return res.status(409).json({
+        message: "Seller already paid",
+      });
+    }
+
+    if (!request.bankDetails?.accountNumber) {
+      return res.status(400).json({
+        message: "Bank details missing",
+      });
+    }
+
+    /* ================= PROCESS PAYOUT ================= */
+
+    request.payout.status = "Paid";
+    request.payout.paidAt = new Date();
+    request.payout.transactionReference = transactionReference;
+
+    request.statusHistory.push({
+      status: "SELLER_PAID",
+      changedBy: "admin",
+      note: `Seller paid. Ref: ${transactionReference}`,
+      changedAt: new Date(),
+    });
+
+    await request.save();
+
+    return res.json({
+      success: true,
+      message: "Seller marked as paid successfully",
+    });
+
+  } catch (err) {
+    console.error("SELLER PAYOUT ERROR:", err);
+    return res.status(500).json({
+      message: err.message || "Failed to process payout",
     });
   }
 });

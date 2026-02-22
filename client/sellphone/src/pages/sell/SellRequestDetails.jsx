@@ -4,7 +4,7 @@ import { toast } from "react-hot-toast";
 import api from "../../utils/axios";
 import SellerDecision from "../../components/SellerDecision";
 
-/* ================= PRETTY STATUS (UI LAYER ONLY) ================= */
+/* ================= PRETTY STATUS ================= */
 const getPrettyStatus = (status) => {
   const map = {
     CREATED: "Pending Review",
@@ -16,7 +16,6 @@ const getPrettyStatus = (status) => {
     COMPLETED: "Completed",
     CANCELLED: "Cancelled",
   };
-
   return map[status] || "Pending";
 };
 
@@ -28,7 +27,6 @@ const SellRequestDetails = () => {
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
 
-  /* ================= FETCH ================= */
   const fetchRequest = async () => {
     try {
       const { data } = await api.get(`/sell-requests/${id}`);
@@ -55,10 +53,15 @@ const SellRequestDetails = () => {
 
   if (!request) return null;
 
-  const { phone, pricing, verification, assignedRider, workflowStatus } =
-    request;
+  const {
+    phone,
+    pricing,
+    verification,
+    assignedRider,
+    workflowStatus,
+    payout,
+  } = request;
 
-  /* ================= WORKFLOW LOGIC ================= */
   const canCancel = workflowStatus === "CREATED";
   const showRiderInfo = workflowStatus === "ASSIGNED_TO_RIDER";
   const showSellerDecision =
@@ -98,7 +101,6 @@ const SellRequestDetails = () => {
       a.download = `SELL-${request._id.slice(-6)}.pdf`;
       document.body.appendChild(a);
       a.click();
-
       a.remove();
       window.URL.revokeObjectURL(url);
     } catch (err) {
@@ -110,7 +112,6 @@ const SellRequestDetails = () => {
     <div className="bg-[#f2f2f7] min-h-screen py-28">
       <div className="w-full flex justify-center">
         <div className="w-full max-w-4xl px-6 space-y-16">
-          {/* BACK */}
           <button
             onClick={() => navigate(-1)}
             className="text-sm text-gray-500 hover:text-black transition"
@@ -118,12 +119,10 @@ const SellRequestDetails = () => {
             ← Back
           </button>
 
-          {/* HEADER */}
           <div className="text-center space-y-4">
             <h1 className="text-5xl font-semibold tracking-tight text-gray-900">
               {phone.brand} {phone.model}
             </h1>
-
             <p className="text-lg text-gray-500">
               {phone.storage} • {phone.declaredCondition}
             </p>
@@ -136,7 +135,7 @@ const SellRequestDetails = () => {
               <span>{getPrettyStatus(workflowStatus)}</span>
             </div>
 
-            <div className="space-y-2">
+            <div>
               <p className="text-sm text-gray-500">Estimated Price</p>
               <p className="text-2xl font-medium text-gray-900">
                 ₹{pricing.basePrice.toLocaleString("en-IN")}
@@ -144,8 +143,8 @@ const SellRequestDetails = () => {
             </div>
 
             {verification?.finalPrice && (
-              <div className="pt-6 border-t border-gray-100 space-y-2">
-                <p className="text-sm text-gray-500">Final Price Offered</p>
+              <div className="pt-6 border-t border-gray-100">
+                <p className="text-sm text-gray-500">Final Price</p>
                 <p className="text-3xl font-semibold text-green-600">
                   ₹{verification.finalPrice.toLocaleString("en-IN")}
                 </p>
@@ -153,75 +152,58 @@ const SellRequestDetails = () => {
             )}
           </div>
 
-          {/* RIDER INFO */}
-          {showRiderInfo && assignedRider && (
-            <div className="bg-white rounded-3xl px-14 py-10 shadow-[0_10px_40px_rgba(0,0,0,0.04)] space-y-3">
-              <p className="text-sm font-medium text-blue-600 uppercase tracking-wide">
-                Pickup Scheduled
+          {/* PAYMENT STATUS */}
+          {showCompleted && (
+            <div className="bg-white rounded-3xl px-14 py-10 shadow-[0_10px_40px_rgba(0,0,0,0.04)] space-y-4 text-center">
+              <p className="text-sm uppercase tracking-wide text-gray-500">
+                Payment Status
               </p>
-              <p className="text-lg text-gray-900">
-                Rider: {assignedRider.riderName}
-              </p>
-              {assignedRider.riderPhone && (
-                <p className="text-gray-500">{assignedRider.riderPhone}</p>
+
+              {payout?.status === "Paid" ? (
+                <>
+                  <p className="text-green-600 text-xl font-semibold">
+                    Payment Transferred Successfully
+                  </p>
+
+                  <p className="text-gray-600">
+                    Transaction ID:
+                    <span className="ml-2 font-medium text-gray-900">
+                      {payout.transactionReference}
+                    </span>
+                  </p>
+
+                  <p className="text-gray-500 text-sm">
+                    Paid on {new Date(payout.paidAt).toLocaleString()}
+                  </p>
+
+                  <p className="text-xs text-gray-400 mt-2">
+                    It may take up to 24 hours for the amount to reflect in your
+                    bank account.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-yellow-500 text-lg font-medium">
+                    Payment will be processed within 24 hours.
+                  </p>
+                  <p className="text-gray-500 text-sm">
+                    Once transferred, the transaction ID will appear here.
+                  </p>
+                </>
               )}
             </div>
           )}
 
-          {/* SELLER DECISION */}
-          {showSellerDecision && (
-            <SellerDecision
-              requestId={request._id}
-              finalPrice={verification.finalPrice}
-              onDecision={fetchRequest}
-            />
-          )}
-
-          {/* ACCEPTED */}
-          {showAccepted && (
-            <div className="bg-white rounded-3xl py-10 text-center shadow-[0_10px_40px_rgba(0,0,0,0.04)]">
-              <p className="text-green-600 text-lg font-medium">
-                You accepted the final price.
-              </p>
-              <p className="text-gray-500 mt-2">
-                Pickup will be completed shortly.
-              </p>
-            </div>
-          )}
-
-          {/* REJECTED */}
-          {showRejected && (
-            <div className="bg-white rounded-3xl py-10 text-center shadow-[0_10px_40px_rgba(0,0,0,0.04)]">
-              <p className="text-red-600 text-lg font-medium">
-                This request was rejected after verification.
-              </p>
-              <p className="text-gray-500 mt-2">
-                Please contact support for further assistance.
-              </p>
-            </div>
-          )}
-
-          {/* ACTION BUTTONS */}
-          <div className="flex flex-col md:flex-row justify-center gap-6 pt-8">
-            {canCancel && (
-              <button
-                onClick={cancelRequest}
-                disabled={cancelling}
-                className="px-10 py-4 rounded-full text-base font-medium bg-red-600 hover:bg-red-700 text-white transition disabled:opacity-50"
-              >
-                {cancelling ? "Cancelling…" : "Cancel Sell Request"}
-              </button>
-            )}
-
-            {showCompleted && (
+          {showCompleted && (
+            <div className="flex justify-center pt-8">
               <button
                 onClick={downloadInvoice}
                 className="px-10 py-4 rounded-full text-base font-medium bg-black text-white hover:opacity-90 transition"
               >
                 Download Invoice
               </button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

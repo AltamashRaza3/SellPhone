@@ -32,7 +32,20 @@ export const createSellRequest = async (req, res) => {
       city,
       state,
       pincode,
+      accountHolderName,
+      accountNumber,
+      ifscCode,
+      bankName,
+      branch,
     } = req.body;
+
+    /* ================= VALIDATION ================= */
+
+    if (!brand || !model || !declaredCondition) {
+      return res.status(400).json({
+        message: "Missing required phone details",
+      });
+    }
 
     const year = Number(purchaseYear);
     if (Number.isNaN(year)) {
@@ -41,9 +54,31 @@ export const createSellRequest = async (req, res) => {
       });
     }
 
+    if (!accountHolderName || !accountNumber || !ifscCode) {
+      return res.status(400).json({
+        message: "Bank details are required",
+      });
+    }
+
+    if (!/^\d{9,18}$/.test(accountNumber)) {
+      return res.status(400).json({
+        message: "Invalid account number format",
+      });
+    }
+
+    if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifscCode.toUpperCase())) {
+      return res.status(400).json({
+        message: "Invalid IFSC code format",
+      });
+    }
+
+    /* ================= IMAGES ================= */
+
     const images = req.files.map(
       (file) => `/uploads/sell/${file.filename}`
     );
+
+    /* ================= PRICE CALCULATION ================= */
 
     const catalog = {
       baseMarketPrice: 22000,
@@ -56,6 +91,8 @@ export const createSellRequest = async (req, res) => {
       purchaseYear: year,
       declaredCondition,
     });
+
+    /* ================= CREATE REQUEST ================= */
 
     const sellRequest = new SellRequest({
       user: {
@@ -77,6 +114,13 @@ export const createSellRequest = async (req, res) => {
         images,
       },
       pricing: { basePrice },
+      bankDetails: {
+        accountHolderName: accountHolderName.trim(),
+        accountNumber,
+        ifscCode: ifscCode.toUpperCase(),
+        bankName,
+        branch,
+      },
       pickup: {
         status: "Pending",
         address: {
@@ -88,8 +132,6 @@ export const createSellRequest = async (req, res) => {
       },
     });
 
-    // ✅ DO NOT call transitionStatus("CREATED")
-    // Just log history
     sellRequest.statusHistory.push({
       status: "CREATED",
       changedBy: "user",
@@ -99,10 +141,21 @@ export const createSellRequest = async (req, res) => {
 
     await sellRequest.save();
 
+    /* ================= SAFE RESPONSE ================= */
+
+    const maskedAccount =
+      accountNumber.replace(/\d(?=\d{4})/g, "X");
+
     return res.status(201).json({
       success: true,
       message: "Sell request created successfully",
-      data: sellRequest,
+      data: {
+        ...sellRequest.toObject(),
+        bankDetails: {
+          ...sellRequest.bankDetails,
+          accountNumber: maskedAccount,
+        },
+      },
     });
 
   } catch (error) {
@@ -112,6 +165,7 @@ export const createSellRequest = async (req, res) => {
     });
   }
 };
+
 
 
 /* ======================================================

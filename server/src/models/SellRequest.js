@@ -58,6 +58,30 @@ const sellRequestSchema = new mongoose.Schema(
       basePrice: Number,
     },
 
+    /* ================= BANK DETAILS (PER ORDER) ================= */
+    bankDetails: {
+      accountHolderName: {
+        type: String,
+        required: true,
+        trim: true,
+      },
+      accountNumber: {
+        type: String,
+        required: true,
+      },
+      ifscCode: {
+        type: String,
+        required: true,
+        uppercase: true,
+      },
+      bankName: String,
+      branch: String,
+      locked: {
+        type: Boolean,
+        default: false,
+      },
+    },
+
     /* ================= ADMIN ================= */
     admin: {
       status: {
@@ -72,16 +96,15 @@ const sellRequestSchema = new mongoose.Schema(
 
     /* ================= ASSIGNED RIDER ================= */
     assignedRider: {
-  riderId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Rider",
-    index: true,
-  },
-  riderName: String,
-  riderPhone: String,
-  assignedAt: Date,
-},
-
+      riderId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Rider",
+        index: true,
+      },
+      riderName: String,
+      riderPhone: String,
+      assignedAt: Date,
+    },
 
     /* ================= PICKUP ================= */
     pickup: {
@@ -120,6 +143,18 @@ const sellRequestSchema = new mongoose.Schema(
       calculatedAt: Date,
     },
 
+    /* ================= SELLER PAYOUT ================= */
+    payout: {
+      status: {
+        type: String,
+        enum: ["Pending", "Processing", "Paid"],
+        default: "Pending",
+        index: true,
+      },
+      paidAt: Date,
+      transactionReference: String,
+    },
+
     /* ================= AUDIT ================= */
     statusHistory: [
       {
@@ -136,9 +171,9 @@ const sellRequestSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-/* ==========================================================
-   PRODUCTION SAFE STATE MACHINE
-========================================================== */
+/* ========================================================== */
+/* PRODUCTION SAFE STATE MACHINE */
+/* ========================================================== */
 sellRequestSchema.methods.transitionStatus = function (
   newStatus,
   changedBy = "system",
@@ -146,29 +181,16 @@ sellRequestSchema.methods.transitionStatus = function (
 ) {
   const validTransitions = {
     CREATED: ["ADMIN_APPROVED", "CANCELLED"],
-
     ADMIN_APPROVED: ["ASSIGNED_TO_RIDER", "CANCELLED"],
-
     ASSIGNED_TO_RIDER: [
       "UNDER_VERIFICATION",
       "REJECTED_BY_RIDER",
       "CANCELLED",
     ],
-
-    UNDER_VERIFICATION: [
-      "USER_ACCEPTED",
-      "REJECTED_BY_RIDER",
-    ],
-
-    REJECTED_BY_RIDER: [
-      "ASSIGNED_TO_RIDER", // 🔥 reassignment allowed
-      "CANCELLED",
-    ],
-
+    UNDER_VERIFICATION: ["USER_ACCEPTED", "REJECTED_BY_RIDER"],
+    REJECTED_BY_RIDER: ["ASSIGNED_TO_RIDER", "CANCELLED"],
     USER_ACCEPTED: ["COMPLETED"],
-
     COMPLETED: [],
-
     CANCELLED: [],
   };
 
@@ -182,7 +204,6 @@ sellRequestSchema.methods.transitionStatus = function (
 
   this.workflowStatus = newStatus;
 
-  /* 🔥 Optional auto-sync logic */
   if (newStatus === "ASSIGNED_TO_RIDER") {
     this.pickup.status = "Scheduled";
   }
@@ -209,7 +230,6 @@ sellRequestSchema.methods.transitionStatus = function (
 };
 
 /* ================= HELPERS ================= */
-
 sellRequestSchema.methods.canVerify = function () {
   return this.workflowStatus === "ASSIGNED_TO_RIDER";
 };
