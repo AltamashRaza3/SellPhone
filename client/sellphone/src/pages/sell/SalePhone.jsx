@@ -12,6 +12,7 @@ const SalePhone = () => {
   const [loading, setLoading] = useState(false);
   const [images, setImages] = useState([]);
   const [previews, setPreviews] = useState([]);
+  const [errors, setErrors] = useState({});
 
   const [form, setForm] = useState({
     brand: "",
@@ -26,6 +27,10 @@ const SalePhone = () => {
     city: "",
     state: "",
     pincode: "",
+    accountHolderName: "",
+    accountNumber: "",
+    confirmAccountNumber: "",
+    ifscCode: "",
   });
 
   /* ================= CLEANUP ================= */
@@ -37,11 +42,34 @@ const SalePhone = () => {
   const handleChange = (e) => {
     const { name, value } = e.target;
 
-    if (name === "ram" || name === "storage") {
-      setForm((prev) => ({ ...prev, [name]: normalizeToGB(value) }));
-    } else {
-      setForm((prev) => ({ ...prev, [name]: value }));
-    }
+    setForm((prev) => {
+      const updated = {
+        ...prev,
+        [name]:
+          name === "ram" || name === "storage" ? normalizeToGB(value) : value,
+      };
+
+      // Live account match validation
+      if (name === "accountNumber" || name === "confirmAccountNumber") {
+        if (
+          updated.accountNumber &&
+          updated.confirmAccountNumber &&
+          updated.accountNumber !== updated.confirmAccountNumber
+        ) {
+          setErrors((prev) => ({
+            ...prev,
+            confirmAccountNumber: "Account numbers do not match",
+          }));
+        } else {
+          setErrors((prev) => ({
+            ...prev,
+            confirmAccountNumber: undefined,
+          }));
+        }
+      }
+
+      return updated;
+    });
   };
 
   const handleImages = (e) => {
@@ -73,10 +101,28 @@ const SalePhone = () => {
       "city",
       "state",
       "pincode",
+      "accountHolderName",
+      "accountNumber",
+      "confirmAccountNumber",
+      "ifscCode",
     ];
 
     if (required.some((k) => !form[k])) {
       toast.error("Please fill all required fields");
+      return;
+    }
+
+    const newErrors = {};
+
+    if (form.accountNumber !== form.confirmAccountNumber)
+      newErrors.confirmAccountNumber = "Account numbers do not match";
+
+    const ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/i;
+    if (!ifscRegex.test(form.ifscCode))
+      newErrors.ifscCode = "Invalid IFSC code";
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
       return;
     }
 
@@ -103,6 +149,9 @@ const SalePhone = () => {
         city: form.city,
         state: form.state,
         pincode: form.pincode,
+        accountHolderName: form.accountHolderName.trim(),
+        accountNumber: form.accountNumber.trim(),
+        ifscCode: form.ifscCode.trim().toUpperCase(),
       }).forEach(([k, v]) => formData.append(k, v));
 
       images.forEach((img) => formData.append("images", img));
@@ -124,9 +173,15 @@ const SalePhone = () => {
         city: "",
         state: "",
         pincode: "",
+        accountHolderName: "",
+        accountNumber: "",
+        confirmAccountNumber: "",
+        ifscCode: "",
       });
+
       setImages([]);
       setPreviews([]);
+      setErrors({});
     } catch (err) {
       toast.error(err?.response?.data?.message || "Submission failed");
     } finally {
@@ -137,7 +192,6 @@ const SalePhone = () => {
   /* ================= UI ================= */
   return (
     <div className="bg-[#f5f5f7] min-h-screen py-24">
-      {/* TRUE CENTER WRAPPER */}
       <div className="w-full flex justify-center">
         <div className="w-full max-w-2xl px-6 space-y-16">
           {/* HEADER */}
@@ -146,12 +200,11 @@ const SalePhone = () => {
               Sell Your Phone
             </h1>
             <p className="text-gray-500 text-lg max-w-lg mx-auto">
-              Get the best value for your device. Free pickup. Instant
-              evaluation.
+              Free pickup. Instant evaluation. Direct bank transfer.
             </p>
           </div>
 
-          {/* FORM CARD */}
+          {/* FORM */}
           <div className="bg-white rounded-[40px] shadow-[0_30px_100px_rgba(0,0,0,0.06)] p-12 md:p-14 space-y-12">
             <form onSubmit={handleSubmit} className="space-y-14">
               {/* DEVICE DETAILS */}
@@ -281,6 +334,69 @@ const SalePhone = () => {
                   onChange={handleChange}
                   className="apple-input min-h-[120px]"
                 />
+              </div>
+
+              {/* BANK DETAILS */}
+              <div className="space-y-8">
+                <h2 className="text-xl font-semibold text-gray-900">
+                  Bank Details
+                </h2>
+
+                <div className="grid md:grid-cols-2 gap-8">
+                  <div>
+                    <input
+                      name="accountHolderName"
+                      placeholder="Account Holder Name *"
+                      value={form.accountHolderName}
+                      onChange={handleChange}
+                      className="apple-input"
+                    />
+                  </div>
+
+                  <div>
+                    <input
+                      name="accountNumber"
+                      placeholder="Account Number *"
+                      value={form.accountNumber}
+                      onChange={handleChange}
+                      className={`apple-input ${errors.confirmAccountNumber ? "border-red-500" : ""}`}
+                    />
+                  </div>
+
+                  <div>
+                    <input
+                      name="confirmAccountNumber"
+                      placeholder="Confirm Account Number *"
+                      value={form.confirmAccountNumber}
+                      onChange={handleChange}
+                      className={`apple-input ${errors.confirmAccountNumber ? "border-red-500" : ""}`}
+                    />
+                    {errors.confirmAccountNumber && (
+                      <p className="text-red-500 text-xs mt-1">
+                        {errors.confirmAccountNumber}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <input
+                      name="ifscCode"
+                      placeholder="IFSC Code *"
+                      value={form.ifscCode}
+                      onChange={handleChange}
+                      className={`apple-input ${errors.ifscCode ? "border-red-500" : ""}`}
+                    />
+                    {errors.ifscCode && (
+                      <p className="text-red-500 text-xs mt-1">
+                        {errors.ifscCode}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <p className="text-xs text-gray-400">
+                  Bank details are securely stored and used only for payout.
+                </p>
               </div>
 
               {/* SUBMIT */}

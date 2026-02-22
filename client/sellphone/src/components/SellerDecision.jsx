@@ -46,7 +46,10 @@ const SellerDecision = ({ requestId, finalPrice, onDecision }) => {
         throw new Error(data.message || "Request failed");
       }
 
-      toast.success(accept ? "Final price accepted" : "Final price rejected");
+      toast.success(
+        accept ? "Final price accepted successfully" : "Final price rejected",
+      );
+
       onDecision?.();
     } catch (err) {
       toast.error(err.message || "Failed to submit decision");
@@ -57,9 +60,9 @@ const SellerDecision = ({ requestId, finalPrice, onDecision }) => {
 
   return (
     <div className="bg-white border border-gray-100 rounded-3xl p-8 space-y-6">
-      {/* Title */}
+      {/* Header */}
       <div className="space-y-2">
-        <h3 className="text-xl font-semibold tracking-tight text-gray-900">
+        <h3 className="text-xl font-semibold text-gray-900">
           Final Price Confirmation
         </h3>
         <p className="text-sm text-gray-500">
@@ -67,7 +70,7 @@ const SellerDecision = ({ requestId, finalPrice, onDecision }) => {
         </p>
       </div>
 
-      {/* Price */}
+      {/* Price Display */}
       <div className="bg-gray-50 rounded-2xl p-6 text-center">
         <p className="text-sm text-gray-500 mb-1">Final Price Offered</p>
         <p className="text-3xl font-semibold text-green-600">
@@ -75,7 +78,7 @@ const SellerDecision = ({ requestId, finalPrice, onDecision }) => {
         </p>
       </div>
 
-      {/* Buttons */}
+      {/* Action Buttons */}
       <div className="flex flex-col sm:flex-row gap-4">
         <button
           onClick={() => submitDecision(true)}

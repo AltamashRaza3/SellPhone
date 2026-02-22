@@ -11,9 +11,9 @@ const getPrettyStatus = (status) => {
     ADMIN_APPROVED: "Approved",
     ASSIGNED_TO_RIDER: "Pickup Scheduled",
     UNDER_VERIFICATION: "Under Review",
-    REJECTED_BY_RIDER: "Rejected",
-    USER_ACCEPTED: "Accepted",
+    USER_ACCEPTED: "Price Accepted",
     COMPLETED: "Completed",
+    REJECTED_BY_RIDER: "Rejected",
     CANCELLED: "Cancelled",
   };
   return map[status] || "Pending";
@@ -63,13 +63,13 @@ const SellRequestDetails = () => {
   } = request;
 
   const canCancel = workflowStatus === "CREATED";
-  const showRiderInfo = workflowStatus === "ASSIGNED_TO_RIDER";
+
   const showSellerDecision =
     workflowStatus === "UNDER_VERIFICATION" &&
     verification?.finalPrice &&
     verification?.userAccepted === null;
+
   const showAccepted = workflowStatus === "USER_ACCEPTED";
-  const showRejected = workflowStatus === "REJECTED_BY_RIDER";
   const showCompleted = workflowStatus === "COMPLETED";
 
   const cancelRequest = async () => {
@@ -112,6 +112,7 @@ const SellRequestDetails = () => {
     <div className="bg-[#f2f2f7] min-h-screen py-28">
       <div className="w-full flex justify-center">
         <div className="w-full max-w-4xl px-6 space-y-16">
+          {/* Back */}
           <button
             onClick={() => navigate(-1)}
             className="text-sm text-gray-500 hover:text-black transition"
@@ -119,16 +120,17 @@ const SellRequestDetails = () => {
             ← Back
           </button>
 
+          {/* Header */}
           <div className="text-center space-y-4">
             <h1 className="text-5xl font-semibold tracking-tight text-gray-900">
-              {phone.brand} {phone.model}
+              {phone?.brand} {phone?.model}
             </h1>
             <p className="text-lg text-gray-500">
-              {phone.storage} • {phone.declaredCondition}
+              {phone?.storage} • {phone?.declaredCondition}
             </p>
           </div>
 
-          {/* SUMMARY PANEL */}
+          {/* Summary */}
           <div className="bg-white rounded-3xl px-14 py-12 shadow-[0_15px_50px_rgba(0,0,0,0.05)] space-y-8">
             <div className="flex justify-between text-sm text-gray-400 uppercase tracking-widest">
               <span>Status</span>
@@ -138,7 +140,7 @@ const SellRequestDetails = () => {
             <div>
               <p className="text-sm text-gray-500">Estimated Price</p>
               <p className="text-2xl font-medium text-gray-900">
-                ₹{pricing.basePrice.toLocaleString("en-IN")}
+                ₹{pricing?.basePrice?.toLocaleString("en-IN")}
               </p>
             </div>
 
@@ -152,7 +154,28 @@ const SellRequestDetails = () => {
             )}
           </div>
 
-          {/* PAYMENT STATUS */}
+          {/* Seller Decision */}
+          {showSellerDecision && (
+            <SellerDecision
+              requestId={request._id}
+              finalPrice={verification.finalPrice}
+              onDecision={fetchRequest}
+            />
+          )}
+
+          {/* Accepted But Not Completed Yet */}
+          {showAccepted && (
+            <div className="bg-white rounded-3xl py-10 text-center shadow-[0_10px_40px_rgba(0,0,0,0.04)]">
+              <p className="text-green-600 text-lg font-medium">
+                You accepted the final price.
+              </p>
+              <p className="text-gray-500 mt-2">
+                Payment will be processed once the pickup process is completed.
+              </p>
+            </div>
+          )}
+
+          {/* Payment Section */}
           {showCompleted && (
             <div className="bg-white rounded-3xl px-14 py-10 shadow-[0_10px_40px_rgba(0,0,0,0.04)] space-y-4 text-center">
               <p className="text-sm uppercase tracking-wide text-gray-500">
@@ -173,29 +196,34 @@ const SellRequestDetails = () => {
                   </p>
 
                   <p className="text-gray-500 text-sm">
-                    Paid on {new Date(payout.paidAt).toLocaleString()}
+                    Paid on{" "}
+                    {payout?.paidAt
+                      ? new Date(payout.paidAt).toLocaleString()
+                      : "-"}
                   </p>
 
                   <p className="text-xs text-gray-400 mt-2">
-                    It may take up to 24 hours for the amount to reflect in your
-                    bank account.
+                    The amount may take up to 24 hours to reflect in your bank
+                    account.
                   </p>
                 </>
               ) : (
                 <>
                   <p className="text-yellow-500 text-lg font-medium">
-                    Payment will be processed within 24 hours.
+                    Payment Processing
                   </p>
                   <p className="text-gray-500 text-sm">
-                    Once transferred, the transaction ID will appear here.
+                    Your payment is being processed and will be transferred
+                    shortly.
                   </p>
                 </>
               )}
             </div>
           )}
 
-          {showCompleted && (
-            <div className="flex justify-center pt-8">
+          {/* Invoice */}
+          {showCompleted && payout?.status === "Paid" && (
+            <div className="flex justify-center pt-6">
               <button
                 onClick={downloadInvoice}
                 className="px-10 py-4 rounded-full text-base font-medium bg-black text-white hover:opacity-90 transition"
