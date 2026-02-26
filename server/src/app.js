@@ -1,18 +1,20 @@
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import helmet from "helmet";
+import hpp from "hpp";
+import compression from "compression";
 import path from "path";
 import { fileURLToPath } from "url";
+
+/* ================= ROUTES ================= */
 import invoiceRoutes from "../routes/invoice.routes.js";
 import adminProductsRoutes from "../routes/adminProducts.routes.js";
 import adminInvoiceRoutes from "../routes/adminInvoice.routes.js";
 
-/* ================= MIDDLEWARE ================= */
 import { apiLimiter } from "../middleware/rateLimiter.js";
 
-/* ================= ROUTES ================= */
 import authRoutes from "../routes/auth.routes.js";
-
 import productRoutes from "../routes/productRoutes.js";
 import orderRoutes from "../routes/orderRoutes.js";
 import cartRoutes from "../routes/cartRoutes.js";
@@ -27,42 +29,109 @@ import adminInventoryRoutes from "../routes/admin.inventory.routes.js";
 
 import riderRoutes from "../routes/rider.routes.js";
 
-/* ================= PATH FIX (ESM) ================= */
+/* ================= PATH FIX ================= */
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
 
-app.set("trust proxy",1);
-/* ================= CORE ================= */
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true }));
+app.set("trust proxy", 1);
+
+/* =========================================================
+   SECURITY HEADERS (Helmet)
+========================================================= */
+app.use(
+  helmet({
+    contentSecurityPolicy: false, // disable if loading external images
+    hsts: {
+      maxAge: 31536000,
+      includeSubDomains: true,
+      preload: true,
+    },
+  })
+);
+
+/* =========================================================
+   RESPONSE COMPRESSION
+========================================================= */
+app.use(compression());
+
+/* =========================================================
+   BODY LIMIT PROTECTION
+========================================================= */
+app.use(express.json({ limit: "10kb" }));
+app.use(express.urlencoded({ extended: true, limit: "10kb" }));
+
+/* =========================================================
+   COOKIE PARSER
+========================================================= */
 app.use(cookieParser());
 
-/* ================= SECURITY ================= */
+/* =========================================================
+   SIMPLE NoSQL SANITIZER (Safe for Node 20+)
+========================================================= */
+app.use((req, res, next) => {
+  const sanitize = (obj) => {
+    if (!obj || typeof obj !== "object") return;
+
+    Object.keys(obj).forEach((key) => {
+      if (key.startsWith("$") || key.includes(".")) {
+        delete obj[key];
+      } else if (typeof obj[key] === "object") {
+        sanitize(obj[key]);
+      }
+    });
+  };
+
+  sanitize(req.body);
+  sanitize(req.query);
+  sanitize(req.params);
+
+  next();
+});
+
+/* =========================================================
+   HPP (HTTP PARAMETER POLLUTION PROTECTION)
+========================================================= */
+app.use(hpp());
+
+/* =========================================================
+   RATE LIMITING
+========================================================= */
 app.use("/api", apiLimiter);
 
-const corsOptions = {
-  origin: [
-    "http://localhost:5174", 
-    "http://localhost:5173",
-    "https://salephone-cf695.web.app",
-    "https://salephone-cf695.firebaseapp.com",
-    "https://salephone-cf695.firebaseapp.com/admin/login",
-    "https://salephone-cf695.firebaseapp.com/admin/",
-    "https://altamashraza3.github.io/SellPhone/",
-    "https://altamashraza3.github.io",
-  ],
-  credentials: true,
-  methods: ["GET", "POST", "PUT","PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-};
-app.use(cors(corsOptions));
+/* =========================================================
+   STRICT CORS CONFIGURATION
+========================================================= */
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "https://salephone-cf695.web.app",
+  "https://salephone-cf695.firebaseapp.com",
+  "https://altamashraza3.github.io",
+];
 
-/* ================= STATIC FILES ================= */
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      if (!origin) return callback(null, true); // allow Postman
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
 
-// project root (/sellphone)
+/* =========================================================
+   STATIC FILES
+========================================================= */
 const PROJECT_ROOT = path.resolve(__dirname, "..");
+
 app.use(
   "/uploads",
   express.static(path.join(PROJECT_ROOT, "uploads"), {
@@ -71,8 +140,9 @@ app.use(
   })
 );
 
-
-/* ================= HEALTH CHECK ================= */
+/* =========================================================
+   HEALTH CHECK
+========================================================= */
 app.get("/api/health", (req, res) => {
   res.json({
     status: "OK",
@@ -81,13 +151,11 @@ app.get("/api/health", (req, res) => {
   });
 });
 
-/* ================= AUTH ================= */
+/* =========================================================
+   ROUTES
+========================================================= */
 app.use("/api/auth", authRoutes);
-
-/* ================= PUBLIC ================= */
 app.use("/api/products", productRoutes);
-
-/* ================= USER ================= */
 app.use("/api/orders", orderRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api/sell-requests", sellRequestRoutes);
@@ -107,17 +175,24 @@ app.use("/api/invoices", adminInvoiceRoutes);
 /* ================= RIDER ================= */
 app.use("/api/rider", riderRoutes);
 
-/* ================= 404 FALLBACK ================= */
+/* =========================================================
+   404 HANDLER
+========================================================= */
 app.use((req, res) => {
   res.status(404).json({ message: "API route not found" });
 });
 
-/* ================= GLOBAL ERROR HANDLER ================= */
+/* =========================================================
+   GLOBAL ERROR HANDLER
+========================================================= */
 app.use((err, req, res, next) => {
   console.error("🔥 GLOBAL ERROR:", err);
 
   res.status(err.status || 500).json({
-    message: err.message || "Internal Server Error",
+    message:
+      process.env.NODE_ENV === "production"
+        ? "Internal Server Error"
+        : err.message,
   });
 });
 

@@ -42,35 +42,47 @@ const SalePhone = () => {
   const handleChange = (e) => {
     const { name, value } = e.target;
 
-    setForm((prev) => {
-      const updated = {
-        ...prev,
-        [name]:
-          name === "ram" || name === "storage" ? normalizeToGB(value) : value,
-      };
+    let cleanedValue = value;
 
-      // Live account match validation
-      if (name === "accountNumber" || name === "confirmAccountNumber") {
-        if (
-          updated.accountNumber &&
-          updated.confirmAccountNumber &&
-          updated.accountNumber !== updated.confirmAccountNumber
-        ) {
-          setErrors((prev) => ({
-            ...prev,
-            confirmAccountNumber: "Account numbers do not match",
-          }));
-        } else {
-          setErrors((prev) => ({
-            ...prev,
-            confirmAccountNumber: undefined,
-          }));
-        }
+    // Normalize storage & ram
+    if (name === "ram" || name === "storage") {
+      cleanedValue = normalizeToGB(value);
+    }
+
+    // Account numbers → digits only
+    if (name === "accountNumber" || name === "confirmAccountNumber") {
+      cleanedValue = value.replace(/\D/g, "");
+    }
+
+    // IFSC → uppercase
+    if (name === "ifscCode") {
+      cleanedValue = value.toUpperCase();
+    }
+
+    setForm((prev) => {
+      const updated = { ...prev, [name]: cleanedValue };
+      const newErrors = {};
+
+      // Account match validation
+      if (
+        updated.accountNumber &&
+        updated.confirmAccountNumber &&
+        updated.accountNumber !== updated.confirmAccountNumber
+      ) {
+        newErrors.confirmAccountNumber = "Account numbers do not match";
       }
 
+      // IFSC validation
+      const ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+      if (updated.ifscCode && !ifscRegex.test(updated.ifscCode)) {
+        newErrors.ifscCode = "Invalid IFSC format (e.g. FDRL0001802)";
+      }
+
+      setErrors(newErrors);
       return updated;
     });
   };
+
 
   const handleImages = (e) => {
     const files = Array.from(e.target.files);
@@ -381,6 +393,7 @@ const SalePhone = () => {
                   <div>
                     <input
                       name="ifscCode"
+                      maxLength={11}
                       placeholder="IFSC Code *"
                       value={form.ifscCode}
                       onChange={handleChange}
@@ -401,7 +414,7 @@ const SalePhone = () => {
 
               {/* SUBMIT */}
               <button
-                disabled={loading}
+                disabled={loading || Object.keys(errors).length > 0}
                 className="w-full py-4 rounded-full bg-black text-white font-medium text-lg hover:scale-[1.02] transition disabled:opacity-50"
               >
                 {loading ? "Submitting…" : "Submit Sell Request"}
