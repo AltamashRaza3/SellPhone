@@ -103,7 +103,7 @@ const Pickups = () => {
           </div>
         )}
 
-        {sortedPickups.map((p) => {
+        {pickups.map((p) => {
           const status = p.pickup?.status;
 
           const statusStyles =
@@ -111,8 +111,8 @@ const Pickups = () => {
               ? "bg-green-50 text-green-600"
               : status === "Scheduled"
                 ? "bg-blue-50 text-blue-600"
-                : status === "Picked"
-                  ? "bg-amber-50 text-amber-600"
+                : status === "Rejected"
+                  ? "bg-red-50 text-red-600"
                   : "bg-gray-100 text-gray-600";
 
           return (
