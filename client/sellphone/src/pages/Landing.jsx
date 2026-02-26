@@ -183,9 +183,7 @@ const Landing = () => {
               Why Sell With Us
             </h2>
 
-            <p
-              className="text-gray-500 text-lg leading-relaxed max-w-xl"
-            >
+            <p className="text-gray-500 text-lg leading-relaxed max-w-xl">
               We make selling your smartphone simple, transparent, and
               rewarding.
               <br className="hidden md:block" />
@@ -197,14 +195,14 @@ const Landing = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-24">
             {[
               {
-                icon: "₹",
+                icon: "AED",
                 title: "Best Market Value",
                 desc: "Competitive payouts powered by real-time demand analytics.",
               },
               {
                 icon: "🚚",
                 title: "Free Doorstep Pickup",
-                desc: "Schedule pickup at your convenience anywhere in India.",
+                desc: "Schedule pickup at your convenience anywhere in Dubai.",
               },
               {
                 icon: "⚡",

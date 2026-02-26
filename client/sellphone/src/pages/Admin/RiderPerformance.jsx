@@ -28,13 +28,18 @@ const generateLast12Months = () => {
 const getPreviousMonth = (month) => {
   const [year, m] = month.split("-").map(Number);
   const date = new Date(year, m - 2, 1);
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
+    2,
+    "0",
+  )}`;
 };
 
 const RiderPerformance = () => {
   const monthsList = generateLast12Months();
 
+  const [mode, setMode] = useState("month"); // "month" | "all"
   const [month, setMonth] = useState(monthsList[0].value);
+
   const [riders, setRiders] = useState([]);
   const [prevMonthRiders, setPrevMonthRiders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -42,11 +47,28 @@ const RiderPerformance = () => {
   const [search, setSearch] = useState("");
   const [selectedRider, setSelectedRider] = useState("all");
 
-  /* ================= LOAD MONTH DATA ================= */
+  /* ================= LOAD DATA ================= */
   const loadData = async () => {
     try {
       setLoading(true);
 
+      if (mode === "all") {
+        const res = await fetch(
+          `${API_BASE_URL}/api/admin/riders/performance`,
+          { credentials: "include" },
+        );
+
+        const data = await res.json();
+
+        if (data.success) {
+          setRiders(data.riders || []);
+          setPrevMonthRiders([]);
+        }
+
+        return;
+      }
+
+      // MONTH MODE
       const prevMonth = getPreviousMonth(month);
 
       const [currentRes, prevRes] = await Promise.all([
@@ -74,7 +96,7 @@ const RiderPerformance = () => {
 
   useEffect(() => {
     loadData();
-  }, [month]);
+  }, [month, mode]);
 
   /* ================= FILTER ================= */
   const filteredRiders = useMemo(() => {
@@ -110,9 +132,9 @@ const RiderPerformance = () => {
   }, [prevMonthRiders]);
 
   const earningsGrowth =
-    prevMonthTotal === 0
-      ? 0
-      : ((totals.earnings - prevMonthTotal) / prevMonthTotal) * 100;
+    mode === "month" && prevMonthTotal !== 0
+      ? ((totals.earnings - prevMonthTotal) / prevMonthTotal) * 100
+      : undefined;
 
   return (
     <div className="space-y-10">
@@ -122,27 +144,56 @@ const RiderPerformance = () => {
           <h1 className="text-3xl font-bold text-white">
             🛵 Rider Performance Dashboard
           </h1>
+
           <p className="text-gray-400 mt-2">
-            Showing performance for{" "}
-            <span className="text-orange-400 font-semibold">
-              {monthsList.find((m) => m.value === month)?.label}
-            </span>
+            {mode === "month"
+              ? `Showing performance for ${
+                  monthsList.find((m) => m.value === month)?.label
+                }`
+              : "Showing All-Time Performance"}
           </p>
         </div>
 
-        <div className="flex gap-4 flex-wrap">
+        <div className="flex gap-4 flex-wrap items-center">
+          {/* MODE TOGGLE */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => setMode("month")}
+              className={`px-4 py-2 rounded-xl ${
+                mode === "month"
+                  ? "bg-orange-500 text-black"
+                  : "bg-black/50 border border-white/20 text-white"
+              }`}
+            >
+              Current Month
+            </button>
+
+            <button
+              onClick={() => setMode("all")}
+              className={`px-4 py-2 rounded-xl ${
+                mode === "all"
+                  ? "bg-orange-500 text-black"
+                  : "bg-black/50 border border-white/20 text-white"
+              }`}
+            >
+              All Time
+            </button>
+          </div>
+
           {/* Month Dropdown */}
-          <select
-            value={month}
-            onChange={(e) => setMonth(e.target.value)}
-            className="bg-black/50 border border-white/20 px-4 py-2 rounded-xl text-white"
-          >
-            {monthsList.map((m) => (
-              <option key={m.value} value={m.value}>
-                {m.label}
-              </option>
-            ))}
-          </select>
+          {mode === "month" && (
+            <select
+              value={month}
+              onChange={(e) => setMonth(e.target.value)}
+              className="bg-black/50 border border-white/20 px-4 py-2 rounded-xl text-white"
+            >
+              {monthsList.map((m) => (
+                <option key={m.value} value={m.value}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+          )}
 
           <input
             type="text"
@@ -243,7 +294,6 @@ const RiderPerformance = () => {
   );
 };
 
-/* KPI CARD */
 const KPI = ({ label, value, color = "text-white", growth }) => (
   <div className="bg-black/60 border border-white/10 p-6 rounded-2xl text-center shadow-lg">
     <p className="text-gray-400 text-sm">{label}</p>

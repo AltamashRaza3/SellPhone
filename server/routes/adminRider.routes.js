@@ -123,31 +123,34 @@ router.get("/performance", adminAuth, async (req, res) => {
 ====================================================== */
 router.get("/performance/monthly", adminAuth, async (req, res) => {
   try {
-    const { month } = req.query;
-
-    if (!month) {
-      return res.status(400).json({
-        message: "Month is required (YYYY-MM)",
-      });
-    }
-
-    const [year, monthNumber] = month.split("-").map(Number);
-
-    const startDate = new Date(year, monthNumber - 1, 1);
-    const endDate = new Date(year, monthNumber, 1);
+    const { month, mode } = req.query;
 
     const allRiders = await Rider.find({}).lean();
 
+    let matchStage = {
+      "pickup.status": { $in: ["Completed", "Rejected"] },
+    };
+
+    if (mode !== "all") {
+      if (!month) {
+        return res.status(400).json({
+          message: "Month is required (YYYY-MM)",
+        });
+      }
+
+      const [year, monthNumber] = month.split("-").map(Number);
+
+      const startDate = new Date(year, monthNumber - 1, 1);
+      const endDate = new Date(year, monthNumber, 1);
+
+      matchStage["pickup.completedAt"] = {
+        $gte: startDate,
+        $lt: endDate,
+      };
+    }
+
     const performance = await SellRequest.aggregate([
-      {
-        $match: {
-          "pickup.status": { $in: ["Completed", "Rejected"] },
-          "pickup.completedAt": {
-            $gte: startDate,
-            $lt: endDate,
-          },
-        },
-      },
+      { $match: matchStage },
       {
         $group: {
           _id: "$assignedRider.riderId",
@@ -199,13 +202,14 @@ router.get("/performance/monthly", adminAuth, async (req, res) => {
 
     res.json({
       success: true,
+      mode: mode || "month",
       month,
       riders: merged,
     });
   } catch (err) {
     console.error("MONTHLY PERFORMANCE ERROR:", err);
     res.status(500).json({
-      message: "Failed to load monthly performance",
+      message: "Failed to load performance",
     });
   }
 });

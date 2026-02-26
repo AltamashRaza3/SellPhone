@@ -60,10 +60,11 @@ router.get("/pickups", riderAuth, async (req, res) => {
           "UNDER_VERIFICATION",
           "USER_ACCEPTED",
           "COMPLETED",
+          "REJECTED_BY_RIDER",
         ],
       },
     })
-      .sort({ "pickup.scheduledAt": 1 })
+      .sort({ "pickup.scheduledAt": -1 })
       .lean();
 
     res.json(pickups);

@@ -43,23 +43,23 @@ const Pickups = () => {
       </div>
     );
   }
-const statusPriority = {
-  Scheduled: 1,
-  Picked: 2,
-  Completed: 3,
-  Rejected: 4,
-};
+// const statusPriority = {
+//   Scheduled: 1,
+//   Picked: 2,
+//   Completed: 3,
+//   Rejected: 4,
+// };
 
-const sortedPickups = [...pickups].sort((a, b) => {
-  const aPriority = statusPriority[a.pickup?.status] ?? 99;
-  const bPriority = statusPriority[b.pickup?.status] ?? 99;
+// const sortedPickups = [...pickups].sort((a, b) => {
+//   const aPriority = statusPriority[a.pickup?.status] ?? 99;
+//   const bPriority = statusPriority[b.pickup?.status] ?? 99;
 
-  if (aPriority !== bPriority) {
-    return aPriority - bPriority;
-  }
+//   if (aPriority !== bPriority) {
+//     return aPriority - bPriority;
+//   }
 
-  return new Date(a.pickup?.scheduledAt) - new Date(b.pickup?.scheduledAt);
-});
+//   return new Date(a.pickup?.scheduledAt) - new Date(b.pickup?.scheduledAt);
+// });
 
   return (
     <div className="space-y-16">
