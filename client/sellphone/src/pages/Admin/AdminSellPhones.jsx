@@ -216,27 +216,33 @@ const AdminSellPhones = () => {
       </div>
 
       {/* ================= REQUEST LIST ================= */}
-      {requests
-        .filter((req) => {
-          if (filter === "UNPAID")
-            return (
-              req.workflowStatus === "COMPLETED" &&
-              req.payout?.status !== "Paid"
-            );
+      <div className="space-y-12">
+  {requests
+    .filter((req) => {
+      if (filter === "UNPAID")
+        return (
+          req.workflowStatus === "COMPLETED" &&
+          req.payout?.status !== "Paid"
+        );
 
-          if (filter === "PAID")
-            return (
-              req.workflowStatus === "COMPLETED" &&
-              req.payout?.status === "Paid"
-            );
+      if (filter === "PAID")
+        return (
+          req.workflowStatus === "COMPLETED" &&
+          req.payout?.status === "Paid"
+        );
 
-          return true;
-        })
+      return true;
+    })
+
         .map((req) => {
           const phone = req.phone || {};
           const address = req.pickup?.address || {};
           const status = getDisplayStatus(req);
+          const rejectionEntry = [...(req.statusHistory || [])]
+            .reverse()
+            .find((entry) => entry.status === "Pickup Rejected");
 
+          const rejectionReason = rejectionEntry?.note;
           const canApproveReject = req.workflowStatus === "CREATED";
           const canAssignRider =
             req.workflowStatus === "ADMIN_APPROVED" ||
@@ -251,47 +257,79 @@ const AdminSellPhones = () => {
           return (
             <div
               key={req._id}
-              className="glass-card p-5 space-y-4 rounded-xl bg-black/30 border border-white/10"
+              className="glass-card p-6 space-y-6 rounded-xl bg-black/30 border border-white/10 shadow-sm hover:shadow-lg transition-all duration-300"
             >
-              {/* HEADER */}
-              <div className="flex justify-between">
-                <div>
+              {/* ================= HEADER ================= */}
+              <div className="flex justify-between items-start">
+                <div className="space-y-1">
                   <h3 className="text-lg font-semibold text-white">
                     {phone.brand} {phone.model}
                   </h3>
+
                   <p className="text-sm text-gray-400">
                     {phone.storage} • {phone.declaredCondition}
                   </p>
-                  <p className="mt-1 text-orange-400 font-semibold">
-                    Base Price ₹
+
+                  <p className="text-orange-400 font-semibold text-sm">
+                    Base Price AED: 
                     {req.pricing?.basePrice?.toLocaleString("en-IN")}
                   </p>
                 </div>
 
                 <span
-                  className={`px-3 py-1 rounded-full text-xs font-semibold ${status.color}`}
+                  className={`inline-flex items-center justify-center px-3 h-7 rounded-full text-xs font-semibold ${status.color}`}
                 >
                   {status.label}
                 </span>
               </div>
 
-              {/* SELLER INFO */}
-              <div className="p-3 bg-white/5 border border-white/10 rounded-lg text-sm text-gray-300">
+              {/* ================= REJECTION DETAILS ================= */}
+              {req.workflowStatus === "REJECTED_BY_RIDER" && (
+                <div className="p-4 bg-red-600/10 border border-red-500/20 rounded-lg space-y-2">
+                  <p className="text-sm font-semibold text-red-400">
+                    Rejection Details
+                  </p>
+
+                  <p className="text-sm text-red-300">
+                    <span className="font-medium">Reason:</span>{" "}
+                    {rejectionReason || "No reason provided"}
+                  </p>
+
+                  {rejectionEntry?.changedAt && (
+                    <p className="text-xs text-red-500">
+                      <span className="font-medium">Rejected At:</span>{" "}
+                      {new Date(rejectionEntry.changedAt).toLocaleString(
+                        "en-IN",
+                        {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        },
+                      )}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* ================= SELLER INFO ================= */}
+              <div className="p-4 bg-white/5 border border-white/10 rounded-lg text-sm text-gray-300 space-y-1">
                 <p>Email: {req.user?.email}</p>
                 <p>Phone: {req.contact?.phone}</p>
               </div>
 
-              {/* ADDRESS */}
-              <div className="p-3 bg-white/5 border border-white/10 rounded-lg text-sm text-gray-300">
+              {/* ================= ADDRESS ================= */}
+              <div className="p-4 bg-white/5 border border-white/10 rounded-lg text-sm text-gray-300 space-y-1">
                 <p>{address.line1}</p>
                 <p>
                   {address.city}, {address.state} – {address.pincode}
                 </p>
               </div>
 
-              {/* APPROVAL */}
+              {/* ================= APPROVAL ================= */}
               {canApproveReject && (
-                <div className="space-y-3">
+                <div className="space-y-4">
                   <textarea
                     placeholder="Remarks (optional)"
                     value={remarks[req._id] || ""}
@@ -321,7 +359,7 @@ const AdminSellPhones = () => {
                 </div>
               )}
 
-              {/* ASSIGN RIDER */}
+              {/* ================= ASSIGN RIDER ================= */}
               {canAssignRider && !isLocked && (
                 <AssignRider
                   requestId={req._id}
@@ -330,9 +368,9 @@ const AdminSellPhones = () => {
                 />
               )}
 
-              {/* BANK & PAYOUT */}
+              {/* ================= BANK & PAYOUT ================= */}
               {req.workflowStatus === "COMPLETED" && (
-                <div className="p-4 bg-green-500/5 border border-green-500/20 rounded-xl space-y-3">
+                <div className="p-5 bg-green-500/5 border border-green-500/20 rounded-xl space-y-4">
                   <p className="text-sm font-semibold text-green-400">
                     Seller Bank Details
                   </p>
@@ -343,13 +381,13 @@ const AdminSellPhones = () => {
                     <p>IFSC: {req.bankDetails?.ifscCode}</p>
                   </div>
 
-                  <div className="border-t border-white/10 pt-3">
+                  <div className="border-t border-white/10 pt-4 space-y-2">
                     <p className="text-sm font-semibold text-white">
                       Final Price ₹
                       {req.verification?.finalPrice?.toLocaleString("en-IN")}
                     </p>
 
-                    <p className="text-sm mt-1">
+                    <p className="text-m text-orange-400">
                       Status:{" "}
                       <span
                         className={`font-semibold ${
@@ -363,15 +401,15 @@ const AdminSellPhones = () => {
                     </p>
 
                     {req.payout?.status === "Paid" ? (
-                      <div className="text-xs text-gray-400 mt-2 space-y-1">
+                      <div className="text-xs text-gray-400 space-y-1">
                         <p>Ref: {req.payout.transactionReference}</p>
                         <p>
                           Paid At:{" "}
-                          {new Date(req.payout.paidAt).toLocaleString()}
+                          {new Date(req.payout.paidAt).toLocaleString("en-IN")}
                         </p>
                       </div>
                     ) : (
-                      <div className="mt-3 space-y-2">
+                      <div className="space-y-2">
                         <input
                           type="text"
                           placeholder="Transaction Reference / UTR"
@@ -400,6 +438,7 @@ const AdminSellPhones = () => {
             </div>
           );
         })}
+      </div>
     </div>
   );
 };

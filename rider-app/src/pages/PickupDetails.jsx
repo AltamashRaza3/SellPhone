@@ -36,7 +36,7 @@ const PickupDetails = () => {
   );
 
   const [rejectReason, setRejectReason] = useState("");
-
+  
   /* ================= LOAD ================= */
   const loadPickup = async (silent = false) => {
     try {
@@ -74,7 +74,11 @@ const PickupDetails = () => {
     verification = {},
     contact = {},
   } = pickup;
+const rejectionEntry = pickup.statusHistory?.find(
+  (entry) => entry.status === "Pickup Rejected",
+);
 
+const rejectionReason = rejectionEntry?.note;
   const status = (p.status || "").toLowerCase();
 
   const isScheduled = status === "scheduled";
@@ -229,9 +233,19 @@ const PickupDetails = () => {
       </div>
 
       {/* REJECTED */}
-      {isRejected && (
-        <div className="bg-red-50 border border-red-200 rounded-3xl p-6 text-red-600">
-          Rejected: {p.rejectReason}
+      {pickup.workflowStatus === "REJECTED_BY_RIDER" && (
+        <div className="bg-red-50 border border-red-200 rounded-3xl p-6 space-y-2">
+          <p className="text-red-600 font-semibold">Pickup Rejected</p>
+
+          <p className="text-sm text-red-700">
+            Reason: {rejectionReason || "No reason provided"}
+          </p>
+
+          {rejectionEntry?.changedAt && (
+            <p className="text-xs text-red-500">
+              Rejected on {new Date(rejectionEntry.changedAt).toLocaleString()}
+            </p>
+          )}
         </div>
       )}
 
